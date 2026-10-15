@@ -1,30 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/features/auth/auth-context'
-import type { Tables } from '@/lib/database.types'
+import { api } from '@/lib/api'
+import type { Campaign, CampaignSummary, Invite, InvitePreview, Member } from '@/lib/types'
 
-export type Invite = Tables<'invites'>
-
-export interface MemberRow {
-  user_id: string
-  role: 'dm' | 'player'
-  joined_at: string
-  profiles: { display_name: string } | null
-}
+/** Jak často se obnovují data, která mohou změnit ostatní (náhrada realtime; později se zrychlí tam, kde to má smysl). */
+const POLL_MS = 10_000
 
 export function useMyCampaigns() {
-  const { user } = useAuth()
   return useQuery({
-    queryKey: ['my-campaigns', user?.id],
-    enabled: Boolean(user),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('campaign_members')
-        .select('role, campaigns(id, name, description)')
-        .eq('user_id', user!.id)
-      if (error) throw error
-      return data.flatMap((row) => (row.campaigns ? [{ role: row.role, campaign: row.campaigns }] : []))
-    },
+    queryKey: ['campaigns'],
+    queryFn: async () => (await api.get<{ campaigns: CampaignSummary[] }>('/campaigns')).campaigns,
   })
 }
 
@@ -32,11 +16,8 @@ export function useCampaign(campaignId: string | undefined) {
   return useQuery({
     queryKey: ['campaign', campaignId],
     enabled: Boolean(campaignId),
-    queryFn: async () => {
-      const { data, error } = await supabase.from('campaigns').select('*').eq('id', campaignId!).maybeSingle()
-      if (error) throw error
-      return data
-    },
+    retry: false,
+    queryFn: async () => (await api.get<{ campaign: Campaign }>(`/campaigns/${campaignId}`)).campaign,
   })
 }
 
@@ -44,15 +25,8 @@ export function useCampaignMembers(campaignId: string | undefined) {
   return useQuery({
     queryKey: ['campaign-members', campaignId],
     enabled: Boolean(campaignId),
-    queryFn: async (): Promise<MemberRow[]> => {
-      const { data, error } = await supabase
-        .from('campaign_members')
-        .select('user_id, role, joined_at, profiles(display_name)')
-        .eq('campaign_id', campaignId!)
-        .order('joined_at')
-      if (error) throw error
-      return data
-    },
+    refetchInterval: POLL_MS,
+    queryFn: async () => (await api.get<{ members: Member[] }>(`/campaigns/${campaignId}/members`)).members,
   })
 }
 
@@ -60,45 +34,25 @@ export function useInvites(campaignId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['invites', campaignId],
     enabled: Boolean(campaignId) && enabled,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('campaign_id', campaignId!)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return data
-    },
+    refetchInterval: POLL_MS,
+    queryFn: async () => (await api.get<{ invites: Invite[] }>(`/campaigns/${campaignId}/invites`)).invites,
   })
 }
 
 export function useCreateCampaign() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { name: string; description?: string }) => {
-      const { data, error } = await supabase.rpc('create_campaign', {
-        p_name: input.name,
-        p_description: input.description ?? '',
-      })
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-campaigns'] }),
+    mutationFn: async (input: { name: string; description?: string }) =>
+      (await api.post<{ campaign: Campaign }>('/campaigns', input)).campaign,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
   })
 }
 
 export function useCreateInvite(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { expiresInDays: number | null; maxUses: number | null }) => {
-      const { data, error } = await supabase.rpc('create_invite', {
-        p_campaign_id: campaignId,
-        p_expires_in_days: input.expiresInDays ?? undefined,
-        p_max_uses: input.maxUses ?? undefined,
-      })
-      if (error) throw error
-      return data
-    },
+    mutationFn: async (input: { expiresInDays: number | null; maxUses: number | null }) =>
+      (await api.post<{ invite: Invite }>(`/campaigns/${campaignId}/invites`, input)).invite,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invites', campaignId] }),
   })
 }
@@ -107,10 +61,8 @@ export function useRevokeInvite(campaignId: string) {
   const queryClient = useQueryClient()
   const key = ['invites', campaignId]
   return useMutation({
-    mutationFn: async (inviteId: string) => {
-      const { error } = await supabase.from('invites').update({ revoked: true }).eq('id', inviteId)
-      if (error) throw error
-    },
+    mutationFn: (inviteId: string) => api.patch(`/campaigns/${campaignId}/invites/${inviteId}`, { revoked: true }),
+    // Optimistická aktualizace: pozvánka zmizí z aktivních hned, při chybě se vrátí.
     onMutate: async (inviteId) => {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<Invite[]>(key)
@@ -130,21 +82,11 @@ export function useRemoveMember(campaignId: string) {
   const queryClient = useQueryClient()
   const key = ['campaign-members', campaignId]
   return useMutation({
-    mutationFn: async (userId: string) => {
-      // select() vrátí smazané řádky; prázdný výsledek znamená, že RLS mazání nepovolilo.
-      const { data, error } = await supabase
-        .from('campaign_members')
-        .delete()
-        .eq('campaign_id', campaignId)
-        .eq('user_id', userId)
-        .select('user_id')
-      if (error) throw error
-      if (data.length === 0) throw new Error('Člena se nepodařilo odebrat')
-    },
+    mutationFn: (userId: string) => api.delete(`/campaigns/${campaignId}/members/${userId}`),
     onMutate: async (userId) => {
       await queryClient.cancelQueries({ queryKey: key })
-      const previous = queryClient.getQueryData<MemberRow[]>(key)
-      queryClient.setQueryData<MemberRow[]>(key, (old) => old?.filter((m) => m.user_id !== userId))
+      const previous = queryClient.getQueryData<Member[]>(key)
+      queryClient.setQueryData<Member[]>(key, (old) => old?.filter((m) => m.userId !== userId))
       return { previous }
     },
     onError: (_error, _vars, context) => {
@@ -152,7 +94,7 @@ export function useRemoveMember(campaignId: string) {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: key })
-      void queryClient.invalidateQueries({ queryKey: ['my-campaigns'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
     },
   })
 }
@@ -160,14 +102,10 @@ export function useRemoveMember(campaignId: string) {
 export function useDeleteCampaign(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.from('campaigns').delete().eq('id', campaignId).select('id')
-      if (error) throw error
-      if (data.length === 0) throw new Error('Kampaň se nepodařilo smazat')
-    },
+    mutationFn: () => api.delete(`/campaigns/${campaignId}`),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['campaign', campaignId] })
-      return queryClient.invalidateQueries({ queryKey: ['my-campaigns'] })
+      return queryClient.invalidateQueries({ queryKey: ['campaigns'] })
     },
   })
 }
@@ -176,24 +114,14 @@ export function usePreviewInvite(code: string) {
   return useQuery({
     queryKey: ['invite-preview', code],
     retry: false,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('preview_invite', { p_code: code })
-      if (error) throw error
-      const row = data[0]
-      if (!row) throw new Error('Pozvánka je neplatná, vypršela nebo byla zrušena')
-      return row
-    },
+    queryFn: async () => (await api.get<{ invite: InvitePreview }>(`/invites/${code}`)).invite,
   })
 }
 
 export function useAcceptInvite() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (code: string) => {
-      const { data, error } = await supabase.rpc('accept_invite', { p_code: code })
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-campaigns'] }),
+    mutationFn: async (code: string) => (await api.post<{ campaignId: string }>(`/invites/${code}/accept`)).campaignId,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
   })
 }

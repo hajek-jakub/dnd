@@ -1,42 +1,64 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { api, onUnauthorized } from '@/lib/api'
+import type { User } from '@/lib/types'
 import { AuthContext, type AuthState } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+  const queryClient = useQueryClient()
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return
-      setSession(data.session)
-      setLoading(false)
-    })
-
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setLoading(false)
-    })
-
+    api
+      .get<{ user: User | null }>('/auth/me')
+      .then((res) => {
+        if (active) setUser(res.user)
+      })
+      .catch(() => {
+        // server nedostupný: bereme jako odhlášeného, přihlašovací stránka ukáže chybu při pokusu
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
     return () => {
       active = false
-      data.subscription.unsubscribe()
     }
   }, [])
 
+  // Vypršela relace uprostřed práce: odhlásit v UI, RequireAuth přesměruje na přihlášení.
+  useEffect(
+    () =>
+      onUnauthorized(() => {
+        setUser(null)
+        queryClient.clear()
+      }),
+    [queryClient],
+  )
+
+  const login = useCallback(async (username: string, password: string) => {
+    const res = await api.post<{ user: User }>('/auth/login', { username, password })
+    setUser(res.user)
+  }, [])
+
+  const register = useCallback(async (input: { username: string; password: string; code: string; displayName?: string }) => {
+    const res = await api.post<{ user: User }>('/auth/register', input)
+    setUser(res.user)
+  }, [])
+
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout')
+    } finally {
+      setUser(null)
+      queryClient.clear()
+    }
+  }, [queryClient])
+
   const value = useMemo<AuthState>(
-    () => ({
-      session,
-      user: session?.user ?? null,
-      loading,
-      signOut: async () => {
-        await supabase.auth.signOut()
-      },
-    }),
-    [session, loading],
+    () => ({ user, loading, login, register, logout, setUser }),
+    [user, loading, login, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

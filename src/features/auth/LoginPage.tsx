@@ -1,21 +1,22 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
-import { MailIcon } from 'lucide-react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
-import { supabase } from '@/lib/supabase'
+import { ApiError } from '@/lib/api'
+import { AuthShell } from './AuthShell'
 import { useAuth } from './auth-context'
 import { safeNextPath } from './next-path'
 
 export function LoginPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, login } = useAuth()
   const [params] = useSearchParams()
   const next = safeNextPath(params.get('next'))
-  const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (loading) return <FullPageSpinner />
@@ -24,76 +25,64 @@ export function LoginPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
-    setStatus('sending')
-
-    const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-    const redirectTo = `${window.location.origin}${base}${next}`
-
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: redirectTo },
-    })
-
-    if (signInError) {
-      setError('Odkaz se nepodařilo odeslat. Zkontroluj e-mail a zkus to za chvíli znovu.')
-      setStatus('idle')
-      return
+    setPending(true)
+    try {
+      await login(username.trim(), password)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Přihlášení se nepodařilo.')
+      setPending(false)
     }
-    setStatus('sent')
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 p-4">
-      <div className="space-y-1 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">D&amp;D kampaně</h1>
-        <p className="text-muted-foreground">Postavy, kostky a mapy pro tvoji družinu.</p>
-      </div>
-
+    <AuthShell>
       <Card>
         <CardHeader>
           <CardTitle>Přihlášení</CardTitle>
-          <CardDescription>Pošleme ti e-mail s odkazem, kterým se přihlásíš. Heslo není potřeba.</CardDescription>
+          <CardDescription>Přihlas se svým jménem a heslem.</CardDescription>
         </CardHeader>
-        <CardContent>
-          {status === 'sent' ? (
-            <div role="status" className="space-y-2">
-              <p className="flex items-center gap-2 font-medium">
-                <MailIcon aria-hidden /> Odkaz je na cestě
-              </p>
-              <p className="text-muted-foreground">
-                Otevři e-mail na <strong>{email}</strong> a klepni na odkaz. Může to trvat minutu, koukni i do spamu.
-              </p>
-              <Button variant="outline" className="w-full" onClick={() => setStatus('idle')}>
-                Zadat jiný e-mail
-              </Button>
+        <CardContent className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Jméno</Label>
+              <Input
+                id="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             </div>
-          ) : (
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  required
-                  placeholder="jmeno@example.cz"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              {error && (
-                <p role="alert" className="text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-              <Button type="submit" size="lg" className="w-full" disabled={status === 'sending'}>
-                {status === 'sending' ? 'Odesílám…' : 'Poslat přihlašovací odkaz'}
-              </Button>
-            </form>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="password">Heslo</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <Button type="submit" size="lg" className="w-full" disabled={pending}>
+              {pending ? 'Přihlašuji…' : 'Přihlásit se'}
+            </Button>
+          </form>
+          <p className="text-center text-sm text-muted-foreground">
+            Nemáš účet?{' '}
+            <Link to={`/register?next=${encodeURIComponent(next)}`} className="font-medium text-foreground underline underline-offset-4">
+              Zaregistruj se
+            </Link>
+          </p>
         </CardContent>
       </Card>
-    </main>
+    </AuthShell>
   )
 }

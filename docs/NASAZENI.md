@@ -1,95 +1,108 @@
-# Nasazení na Endoru (dnd.hajekjakub.cz) a Supabase cloud
+# Nasazení na Endoru (dnd.hajekjakub.cz)
 
-Tohle je postup krok za krokem. Do té doby, než ho uděláš, aplikace funguje lokálně
-(`npm run db:start`, `npm run dev`). Názvy menu v administraci Endory se mohou trochu lišit,
-dej vědět, co vidíš, a postup upřesníme.
+Všechno běží na Endoře: statický frontend, PHP API a MySQL databáze. Žádné další služby ani účty nejsou potřeba.
 
-## Část A: Supabase cloud (databáze a přihlášení)
+Subdoménu už máš hotovou (složka `/_sub/dnd` v FTP prostoru domény). Zbývá pět věcí:
+PHP 8, databáze, konfigurace, HTTPS a samotné nahrání.
 
-1. Jdi na https://supabase.com, založ účet (stačí přihlášení přes GitHub nebo e-mail).
-2. Vytvoř nový projekt: název `dnd`, region nejblíž (např. Frankfurt), vymysli a **ulož si databázové heslo** do správce hesel.
-3. Počkej pár minut, než se projekt vytvoří.
-4. V projektu otevři **Project Settings, API** a zkopíruj:
-   - Project URL (např. `https://abcdxyz.supabase.co`)
-   - Publishable key (nebo `anon` key). **Nikdy ne** `service_role` ani `secret` klíč.
-5. V kořeni projektu vytvoř soubor `.env.production.local` s obsahem:
+Názvy menu v administraci Endory se mohou lišit podle tarifu. Když něco nenajdeš nebo vypadá jinak,
+napiš mi, co přesně vidíš, a postup upravíme.
 
-   ```
-   VITE_SUPABASE_URL=https://abcdxyz.supabase.co
-   VITE_SUPABASE_ANON_KEY=sem-vloz-publishable-key
-   ```
+## 1. Zkontroluj verzi PHP (musí být 8.0 nebo novější)
 
-6. Napoj lokální projekt na cloud a nahraj databázi (v terminálu ve složce `dnd`):
+1. V administraci Endory najdi nastavení PHP (verze PHP pro doménu nebo web).
+2. Nastav **PHP 8.1 nebo novější** (nejméně 8.0). Bez toho API vrátí hlášku, že vyžaduje novější PHP.
 
-   ```
-   npx supabase login
-   npx supabase link --project-ref abcdxyz
-   npx supabase db push
-   ```
+Rychlá kontrola po nasazení: otevři `https://dnd.hajekjakub.cz/api/health`. Správně se zobrazí `{"ok":true}`.
 
-   `project-ref` je část URL před `.supabase.co`. Příkaz `db push` se zeptá na databázové heslo z kroku 2.
+## 2. Vytvoř MySQL databázi
 
-7. V Supabase otevři **Authentication, URL Configuration** a nastav:
-   - **Site URL**: `https://dnd.hajekjakub.cz`
-   - **Redirect URLs** (přidej): `https://dnd.hajekjakub.cz/**` a pro vývoj `http://localhost:5173/**`
-8. **Authentication, Emails (SMTP)**: výchozí e-maily Supabase mají velmi nízký limit (pár e-mailů za hodinu) a hodí se jen na zkoušení.
-   Pro skupinu hráčů si časem nastav vlastní SMTP (např. e-mail z Endory nebo služba typu Resend/Brevo). Řekni, až na to dojde, provedu tě tím.
+1. V administraci Endory otevři sekci **Databáze** (MySQL) a vytvoř novou databázi.
+2. Poznamenej si čtyři údaje: **adresa serveru** (host), **název databáze**, **uživatel** a **heslo**.
+   Pozor: adresa serveru nemusí být `localhost`. Opiš ji přesně z administrace.
+3. Kdyby tvůj tarif povoloval jen jednu databázi, je to v pořádku. Aplikace používá jednu a tabulky si zakládá sama.
 
-## Část B: Subdoména na Endoře
+## 3. Připrav konfiguraci API
 
-1. Přihlas se do administrace Endory.
-2. Otevři správu domén a subdomén pro `hajekjakub.cz`.
-3. Přidej subdoménu `dnd`. Endora ji napojí na složku na hostingu. **Zapiš si přesný název složky** (např. `dnd.hajekjakub.cz` nebo `dnd`).
-4. DNS:
-   - Pokud je `hajekjakub.cz` zaregistrovaná u Endory nebo používá její DNS, záznam se vytvoří sám.
-   - Pokud je doména jinde, přidej u svého registrátora DNS záznam pro `dnd` (typ A, nebo CNAME) podle pokynů, které ti Endora ukáže.
-   - Šíření DNS může trvat od minut po několik hodin.
-5. Zapni HTTPS (SSL certifikát) pro subdoménu, pokud ho Endora nabízí zvlášť. Bez HTTPS nebude fungovat přihlášení.
-6. Zjisti FTP údaje (host, uživatel, heslo). Heslo nikomu neposílej, ani do chatu.
+1. V projektu zkopíruj soubor `api/config.example.php` jako `api/config.production.php`.
+   (Tento soubor je v `.gitignore`, nikdy se nenahraje do gitu.)
+2. Otevři `api/config.production.php` a změň:
+   - `db`: host, port (obvykle 3306), name, user, password podle údajů z kroku 2.
+   - `registration_key`: tajné heslo, kterým si **ty jako DM** založíš účet. Vymysli dlouhé, nebo ho vygeneruj v terminálu:
+     `openssl rand -hex 12`
+   - `migrate_key`: dlouhý náhodný klíč, kterým deploy spouští aktualizaci databáze. Vygeneruj ho:
+     `openssl rand -hex 24`
+   - `debug`: nastav na `false`.
+   - Nic dalšího neměň. Pokud zůstane dev hodnota, deploy se odmítne spustit a řekne ti proč.
+3. Heslo k databázi a oba klíče nikomu neposílej. Ulož je do správce hesel.
 
-## Část C: Příprava nasazení
+## 4. Připrav FTP údaje
 
-1. Zkopíruj `.env.deploy.example` do `.env.deploy` a vyplň:
+1. Zkopíruj `.env.deploy.example` jako `.env.deploy` (taky je v `.gitignore`).
+2. Vyplň:
 
    ```
-   FTP_HOST=...            # adresa FTP serveru od Endory
+   FTP_HOST=...                     # adresa FTP serveru z Endory
    FTP_USER=...
    FTP_PASSWORD=...
-   FTP_REMOTE_DIR=/dnd.hajekjakub.cz   # složka subdomény z části B, krok 3
-   FTP_SECURE=true         # když se nepřipojí, zkus false
+   FTP_REMOTE_DIR=/_sub/dnd         # složka subdomény, kterou jsi vytvořil
+   SITE_URL=https://dnd.hajekjakub.cz
+   FTP_SECURE=true                  # když se nepřipojí, zkus false
    ```
 
-   `FTP_REMOTE_DIR` nesmí být kořen `/`. Skript totiž maže soubory, které v nové verzi nejsou, a smazal by tak i jiné weby.
+   `FTP_REMOTE_DIR` nesmí být kořen `/`. Skript totiž maže soubory, které v nové verzi nejsou, a smazal by i jiné weby.
 
-2. Zkus suchý běh (nic nenahraje ani nesmaže, jen vypíše plán):
+## 5. HTTPS (důležité kvůli heslům)
 
-   ```
-   npm run deploy:dry
-   ```
+Heslo se posílá na server, takže musí jít přes HTTPS.
 
-3. Ostré nasazení:
+1. V administraci Endory zapni SSL certifikát (HTTPS) pro subdoménu `dnd.hajekjakub.cz`, pokud to tvůj tarif umožňuje.
+   Aktivace může trvat od minut po několik hodin.
+2. Dokud HTTPS nefunguje, nenasazuj aplikaci pro ostatní hráče. Soubor `public/.htaccess` přesměrovává HTTP na HTTPS,
+   takže bez certifikátu by web nešel otevřít.
+3. Kdyby tvůj tarif HTTPS pro subdomény neměl vůbec, napiš mi. Probereme možnosti (např. nasazení na hlavní doménu s certifikátem).
 
-   ```
-   npm run deploy
-   ```
+## 6. Nasazení
 
-   Spustí build s hodnotami z `.env.production.local` a nahraje obsah `dist/` na FTP.
+```
+npm run deploy:dry     # suchý běh: vypíše, co se nahraje a smaže, nic nemění
+npm run deploy         # build, nahrání na FTP, aktualizace databáze
+```
 
-4. Otevři `https://dnd.hajekjakub.cz`. Měla by se ukázat přihlašovací stránka.
-   Zkontroluj ještě, že funguje přímý odkaz na podstránku (např. `https://dnd.hajekjakub.cz/profile` po obnovení stránky),
-   to ověřuje `.htaccess`. Pokud to hlásí chybu 404, napiš mi, co přesně vidíš.
+Co deploy udělá:
+1. Zkontroluje `api/config.production.php` (že nejsou dev hodnoty a ladění).
+2. Postaví frontend (`dist/`).
+3. Nahraje frontend do `/_sub/dnd`, PHP API do `/_sub/dnd/api` a konfiguraci jako `api/config.php`.
+4. Smaže na serveru soubory, které v nové verzi nejsou (jen uvnitř `FTP_REMOTE_DIR`).
+5. Zavolá `https://dnd.hajekjakub.cz/api/admin/migrate`, které založí nebo aktualizuje tabulky v databázi.
 
-## Nasazení do podsložky (kdyby se hodilo)
+Každá další verze se nasazuje stejným příkazem `npm run deploy`. Data v databázi se při tom nemažou.
 
-Když aplikace poběží třeba na `hajekjakub.cz/dnd/`:
+## 7. První přihlášení
 
-1. Do `.env.production.local` přidej `VITE_BASE_PATH=/dnd/`.
-2. V `public/.htaccess` změň `RewriteBase /` na `RewriteBase /dnd/` a poslední pravidlo na `RewriteRule . /dnd/index.html [L]`.
-3. V Supabase přidej odpovídající Redirect URL a nastav `FTP_REMOTE_DIR` na složku podsložky.
+1. Otevři `https://dnd.hajekjakub.cz`, klepni na **Zaregistruj se**.
+2. Do pole „Kód pozvánky nebo registrační heslo“ zadej `registration_key` z kroku 3, zvol si jméno a heslo.
+3. Založ kampaň, vytvoř pozvánku a pošli hráčům odkaz. Hráč na odkaz klepne, zaregistruje se (kód se vyplní sám) a je v kampani.
+
+## Zálohy
+
+Data jsou v MySQL na Endoře. V administraci Endory najdeš export databáze (často přes phpMyAdmin, volba „Exportovat“).
+Doporučuji si před hraním občas stáhnout zálohu. Kdybys chtěl, přidáme později tlačítko nebo skript pro zálohu.
 
 ## Časté problémy
 
-- **Přihlašovací e-mail nepřišel**: koukni do spamu, počkej minutu. Výchozí SMTP Supabase má nízký limit (viz Část A, krok 8).
-- **Po kliknutí na odkaz z e-mailu se nic nestane / chyba redirectu**: Redirect URL v Supabase neodpovídá adrese webu (Část A, krok 7).
-- **Bílá stránka po nasazení**: zkontroluj, že `.env.production.local` existuje a že ses build spouštěl až po jeho vytvoření.
-- **Deploy hlásí chybu připojení**: zkus `FTP_SECURE=false`, zkontroluj host a heslo.
+- **`/api/health` ukazuje 500 nebo hlášku o PHP**: v administraci Endory přepni verzi PHP na 8.1+ (krok 1).
+- **`/api/health` funguje, ale registrace hlásí chybu serveru**: nejspíš špatné údaje k databázi v `api/config.production.php`
+  (adresa serveru, název, uživatel nebo heslo). Oprav a nasaď znovu.
+- **Deploy hlásí „Migrace selhaly“**: otevři `https://dnd.hajekjakub.cz/api/health`. Pokud nejde, je problém v PHP nebo v `.htaccess`
+  (Endora musí mít zapnutý `mod_rewrite`, běžně je). Pokud jde, je problém v údajích k databázi.
+- **Po obnovení podstránky (např. `/profile`) je 404**: nenahrál se `.htaccess` nebo je vypnutý `mod_rewrite`. Napiš mi.
+- **Deploy hlásí chybu připojení k FTP**: zkus `FTP_SECURE=false`, zkontroluj host, uživatele a heslo.
+- **Zapomenuté heslo hráče**: zatím nejde obnovit e-mailem (aplikace e-maily neposílá). Hráč si založí nový účet, nebo ti napíše a heslo se
+  nastaví ručně v databázi. Pokud chceš reset hesla přes DM, přidáme ho.
+
+## Nasazení do podsložky místo subdomény (kdyby se hodilo)
+
+1. Při buildu nastav `VITE_BASE_PATH=/dnd/` (např. `VITE_BASE_PATH=/dnd/ npm run deploy`).
+2. V `public/.htaccess` změň `RewriteBase /` na `RewriteBase /dnd/` a `RewriteRule . /index.html` na `RewriteRule . /dnd/index.html`.
+3. Nastav `FTP_REMOTE_DIR` na složku podsložky a `SITE_URL` na adresu s podsložkou.

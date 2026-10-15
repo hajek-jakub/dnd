@@ -1,0 +1,27 @@
+# API: všechny požadavky jdou na index.php (front controller).
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(src|migrations|bin)/ - [F,L]
+  RewriteRule ^config(\..+)?\.php$ - [F,L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ index.php [L,QSA]
+</IfModule>
+
+# Jistota: citlivé soubory nikdy neposílat ven, ani kdyby rewrite nefungoval.
+<FilesMatch "^(config(\..+)?\.php|.*\.sql)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Cache-Control "no-store"
+</IfModule>

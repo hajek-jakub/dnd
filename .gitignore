@@ -28,7 +28,5 @@ dist-ssr
 .env.*
 !.env.example
 !.env.deploy.example
-supabase/.temp
-supabase/.branches
 playwright-report
 test-results

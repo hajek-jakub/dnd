@@ -1,17 +1,21 @@
 # D&D kampaňová aplikace
 
 Webová aplikace pro D&D 5e skupinu (DM + hráči): character sheet, DM panel, zprávy, mapy, kostky. Mobile-first, česky.
+Celé to běží na Endoře: statický frontend (React), PHP API a MySQL.
 
 Architektura, konvence, příkazy a stav projektu jsou v [CLAUDE.md](CLAUDE.md). Postup nasazení je v [docs/NASAZENI.md](docs/NASAZENI.md).
 
 ## Rychlý start (lokálně)
 
+Potřebuješ Node.js, PHP 8 a Docker Desktop (pro MySQL).
+
 1. Spusť Docker Desktop.
 2. `npm install`
-3. `npm run db:start` (poprvé stahuje obrazy, chvíli to trvá)
-4. Zkopíruj `.env.example` do `.env.development.local` a doplň klíč z `npx supabase status -o env` (`PUBLISHABLE_KEY`).
-5. `npm run dev`, otevři http://localhost:5173
-6. Přihlašovací e-maily najdeš v Mailpitu: http://127.0.0.1:54324
+3. `npm run db:start` (spustí MySQL v Dockeru a založí tabulky)
+4. `npm start` (spustí PHP API na portu 8080 a web na http://localhost:5173)
+5. Otevři http://localhost:5173, klepni na „Zaregistruj se“ a jako registrační heslo zadej `dev`.
+
+Testy: `npm run test:all` (typy, lint, unit testy, API testy, E2E v Chromiu na počítači i telefonu).
 
 ## Licence obsahu
 

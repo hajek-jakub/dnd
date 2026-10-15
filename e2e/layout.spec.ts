@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
-import { login, uniqueEmail } from './helpers'
+import type { Page } from '@playwright/test'
+import { expect, test } from './fixtures'
+import { registerDm } from './helpers'
 
 // Běží v obou projektech (desktop i mobile): kontroluje, že rozložení sedí na daném displeji.
 
@@ -31,8 +32,15 @@ test('přihlašovací stránka se vejde na displej a ovládací prvky jsou dost 
   await expectTouchFriendly(page)
 })
 
+test('registrační stránka se vejde na displej a ovládací prvky jsou dost velké', async ({ page }) => {
+  await page.goto('/register')
+  await expect(page.getByRole('heading', { name: 'Registrace' })).toBeVisible()
+  await expectNoHorizontalScroll(page)
+  await expectTouchFriendly(page)
+})
+
 test('seznam kampaní a detail kampaně: rozložení podle šířky displeje', async ({ page }, testInfo) => {
-  await login(page, uniqueEmail('layout'))
+  await registerDm(page, 'layout')
   await expect(page.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible()
   await expectNoHorizontalScroll(page)
 
@@ -68,7 +76,7 @@ test('seznam kampaní a detail kampaně: rozložení podle šířky displeje', a
 })
 
 test('tmavý a světlý režim se přepíná', async ({ page }) => {
-  await login(page, uniqueEmail('theme'))
+  await registerDm(page, 'theme')
   const html = page.locator('html')
   await page.emulateMedia({ colorScheme: 'light' })
   // Cyklus: systém, světlý, tmavý

@@ -14,8 +14,8 @@ import {
   useInvites,
   useRemoveMember,
   useRevokeInvite,
-  type Invite,
 } from './api'
+import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
 
 export function CampaignPage() {
@@ -24,7 +24,7 @@ export function CampaignPage() {
   const navigate = useNavigate()
   const { data: campaign, isPending } = useCampaign(campaignId)
   const { data: members } = useCampaignMembers(campaignId)
-  const myRole = members?.find((m) => m.user_id === user?.id)?.role
+  const myRole = members?.find((m) => m.userId === user?.id)?.role
   const isDm = myRole === 'dm'
   const removeMember = useRemoveMember(campaignId ?? '')
   const deleteCampaign = useDeleteCampaign(campaignId ?? '')
@@ -75,13 +75,13 @@ export function CampaignPage() {
           <CardContent>
             <ul className="divide-y">
               {members?.map((member) => {
-                const name = member.profiles?.display_name ?? 'Neznámý hráč'
+                const name = member.displayName
                 return (
-                  <li key={member.user_id} className="flex min-h-14 items-center justify-between gap-3 py-2">
+                  <li key={member.userId} className="flex min-h-14 items-center justify-between gap-3 py-2">
                     <span className="min-w-0 space-y-1">
                       <span className="block truncate font-medium">
                         {name}
-                        {member.user_id === user?.id && <span className="text-muted-foreground"> (ty)</span>}
+                        {member.userId === user?.id && <span className="text-muted-foreground"> (ty)</span>}
                       </span>
                       <RoleBadge role={member.role} />
                     </span>
@@ -91,7 +91,7 @@ export function CampaignPage() {
                         size="icon"
                         aria-label={`Odebrat hráče ${name}`}
                         title="Odebrat z kampaně"
-                        onClick={() => removePlayer(member.user_id, name)}
+                        onClick={() => removePlayer(member.userId, name)}
                       >
                         <UserMinusIcon aria-hidden />
                       </Button>
@@ -140,8 +140,8 @@ export function CampaignPage() {
 
 function inviteStatus(invite: Invite): { label: string; active: boolean } {
   if (invite.revoked) return { label: 'Zrušená', active: false }
-  if (invite.expires_at && new Date(invite.expires_at) <= new Date()) return { label: 'Vypršela', active: false }
-  if (invite.max_uses !== null && invite.uses >= invite.max_uses) return { label: 'Vyčerpaná', active: false }
+  if (invite.expiresAt && new Date(invite.expiresAt) <= new Date()) return { label: 'Vypršela', active: false }
+  if (invite.maxUses !== null && invite.uses >= invite.maxUses) return { label: 'Vyčerpaná', active: false }
   return { label: 'Platná', active: true }
 }
 
@@ -193,8 +193,8 @@ function InvitesCard({ campaignId, className }: { campaignId: string; className?
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Použito: {invite.uses}
-                  {invite.max_uses !== null && ` z ${invite.max_uses}`}
-                  {invite.expires_at && ` · platí do ${new Date(invite.expires_at).toLocaleDateString('cs-CZ')}`}
+                  {invite.maxUses !== null && ` z ${invite.maxUses}`}
+                  {invite.expiresAt && ` · platí do ${new Date(invite.expiresAt).toLocaleDateString('cs-CZ')}`}
                 </p>
                 {status.active && (
                   <div className="flex flex-wrap gap-2">

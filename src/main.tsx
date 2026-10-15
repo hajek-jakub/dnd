@@ -6,8 +6,6 @@ import './index.css'
 import App from './App.tsx'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/features/auth/AuthProvider'
-import { MissingConfig } from '@/components/MissingConfig'
-import { isSupabaseConfigured } from '@/lib/supabase'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,15 +16,11 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      {isSupabaseConfigured ? (
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </QueryClientProvider>
-      ) : (
-        <MissingConfig />
-      )}
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </QueryClientProvider>
       <Toaster position="top-center" />
     </ThemeProvider>
   </StrictMode>,

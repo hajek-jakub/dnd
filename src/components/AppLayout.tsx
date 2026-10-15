@@ -3,11 +3,9 @@ import { LogOutIcon, SwordsIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/features/auth/auth-context'
-import { useProfile } from '@/features/profile/api'
 
 export function AppLayout() {
-  const { signOut } = useAuth()
-  const { data: profile } = useProfile()
+  const { user, logout } = useAuth()
 
   return (
     <div className="min-h-dvh">
@@ -18,9 +16,9 @@ export function AppLayout() {
             D&amp;D kampaně
           </Link>
           <div className="flex items-center gap-1">
-            {profile && (
+            {user && (
               <Link to="/profile" className="inline-flex min-h-11 min-w-11 max-w-32 items-center truncate text-sm text-muted-foreground hover:text-foreground">
-                {profile.display_name}
+                {user.displayName}
               </Link>
             )}
             <ThemeToggle />
@@ -29,7 +27,7 @@ export function AppLayout() {
               size="icon"
               aria-label="Odhlásit se"
               title="Odhlásit se"
-              onClick={() => void signOut()}
+              onClick={() => void logout()}
             >
               <LogOutIcon aria-hidden />
             </Button>

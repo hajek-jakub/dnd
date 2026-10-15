@@ -20,6 +20,8 @@ DirectoryIndex index.html
   RewriteCond %{REQUEST_FILENAME} !-d
   # Chybějící soubory v /assets/ mají vrátit 404, ne index.html (jinak by se při zastaralé cache hlásily záhadné chyby).
   RewriteCond %{REQUEST_URI} !/assets/
+  # /api/ obsluhuje PHP (api/.htaccess), nikdy ne index.html.
+  RewriteCond %{REQUEST_URI} !^/api(/|$)
   RewriteRule . /index.html [L]
 </IfModule>
 

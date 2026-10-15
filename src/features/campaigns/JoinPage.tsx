@@ -31,15 +31,15 @@ export function JoinPage() {
     )
   }
 
-  if (preview.already_member) return <Navigate to={`/campaigns/${preview.campaign_id}`} replace />
+  if (preview.alreadyMember) return <Navigate to={`/campaigns/${preview.campaignId}`} replace />
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Pozvánka do kampaně</CardTitle>
         <CardDescription>
-          {preview.dm_name ? `${preview.dm_name} tě zve do kampaně` : 'Jsi pozván do kampaně'}{' '}
-          <strong>{preview.campaign_name}</strong>.
+          {preview.dmName ? `${preview.dmName} tě zve do kampaně` : 'Jsi pozván do kampaně'}{' '}
+          <strong>{preview.campaignName}</strong>.
         </CardDescription>
       </CardHeader>
       <CardContent>

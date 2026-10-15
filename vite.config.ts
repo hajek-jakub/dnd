@@ -11,6 +11,12 @@ export default defineConfig(({ mode }) => {
     // Při nasazení do podsložky nastav VITE_BASE_PATH=/podslozka/.
     base: env.VITE_BASE_PATH || '/',
     plugins: [react(), tailwindcss()],
+    server: {
+      // PHP API běží vedle (npm run api, port 8080). Stejný origin = stejné cookie jako na Endoře.
+      proxy: {
+        '/api': { target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080' },
+      },
+    },
     resolve: {
       alias: { '@': path.resolve(import.meta.dirname, './src') },
     },

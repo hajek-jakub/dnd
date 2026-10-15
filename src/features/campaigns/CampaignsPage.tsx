@@ -25,9 +25,9 @@ export function CampaignsPage() {
     createCampaign.mutate(
       { name: trimmed },
       {
-        onSuccess: (id) => {
+        onSuccess: (campaign) => {
           setName('')
-          void navigate(`/campaigns/${id}`)
+          void navigate(`/campaigns/${campaign.id}`)
         },
         onError: () => toast.error('Kampaň se nepodařilo založit'),
       },
@@ -60,7 +60,7 @@ export function CampaignsPage() {
           <p className="text-muted-foreground">Zatím nejsi v žádné kampani. Založ novou, nebo se připoj kódem od DM.</p>
         )}
         <ul className="space-y-2">
-          {campaigns?.map(({ role, campaign }) => (
+          {campaigns?.map((campaign) => (
             <li key={campaign.id}>
               <Link
                 to={`/campaigns/${campaign.id}`}
@@ -68,7 +68,7 @@ export function CampaignsPage() {
               >
                 <span className="min-w-0 space-y-1">
                   <span className="block truncate font-medium">{campaign.name}</span>
-                  <RoleBadge role={role} />
+                  <RoleBadge role={campaign.role} />
                 </span>
                 <ChevronRightIcon aria-hidden className="shrink-0 text-muted-foreground" />
               </Link>

@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/AppLayout'
 import { buttonVariants } from '@/components/ui/button'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { RegisterPage } from '@/features/auth/RegisterPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
@@ -27,6 +28,7 @@ export default function App() {
     <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route index element={<CampaignsPage />} />

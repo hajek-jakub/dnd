@@ -1,64 +1,60 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, type Browser, type BrowserContextOptions, type Page } from '@playwright/test'
 
-/** Lokální schránka, do které Supabase posílá e-maily (Mailpit). */
-const MAILPIT = 'http://127.0.0.1:54324'
+export const PASSWORD = 'tajneheslo123'
+/** Registrační heslo z api/config.test.php (pro DM / prvního uživatele). */
+export const REGISTRATION_KEY = 'test-key'
 
-export function uniqueEmail(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.cz`
+export function uniqueName(prefix: string): string {
+  return `${prefix}${Math.random().toString(36).slice(2, 9)}`
 }
 
-/** Počká na nejnovější e-mail pro adresu a vytáhne z něj přihlašovací odkaz. */
-async function magicLinkFor(request: APIRequestContext, email: string): Promise<string> {
-  let link: string | undefined
-  await expect
-    .poll(
-      async () => {
-        const search = await request.get(`${MAILPIT}/api/v1/search`, {
-          params: { query: `to:${email}`, limit: '1' },
-        })
-        const { messages } = (await search.json()) as { messages: { ID: string }[] }
-        const first = messages[0]
-        if (!first) return false
-        const detail = await request.get(`${MAILPIT}/api/v1/message/${first.ID}`)
-        const body = (await detail.json()) as { HTML?: string; Text?: string }
-        const text = `${body.HTML ?? ''}\n${body.Text ?? ''}`
-        const match = text.match(/https?:\/\/[^\s"'<>]*\/auth\/v1\/verify[^\s"'<>]*/)
-        link = match?.[0]?.replace(/&amp;/g, '&')
-        return Boolean(link)
-      },
-      { message: `Přihlašovací e-mail pro ${email} nepřišel`, timeout: 20_000 },
-    )
-    .toBe(true)
-  return link!
+/** Náhodná IP pro hlavičku X-Test-Ip: testovací konfigurace API ji bere místo skutečné adresy (rate limity). */
+export function randomTestIp(): string {
+  return `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${1 + Math.floor(Math.random() * 250)}`
 }
 
-/** Přihlásí uživatele přes magic link (stejně jako skutečný hráč). */
-export async function login(page: Page, email: string, startPath = '/'): Promise<void> {
-  await page.goto(startPath)
-  await expect(page).toHaveURL(/\/login/)
-  await page.getByLabel('E-mail').fill(email)
-  await page.getByRole('button', { name: 'Poslat přihlašovací odkaz' }).click()
-  await expect(page.getByText('Odkaz je na cestě')).toBeVisible()
-
-  const link = await magicLinkFor(page.request, email)
-  await page.goto(link)
-}
-
-/** Vrátí přístupový token přihlášeného uživatele ze Supabase session v localStorage. */
-export async function accessToken(page: Page): Promise<string> {
-  const token = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => k.startsWith('sb-') && k.endsWith('-auth-token'))
-    if (!key) return null
-    return (JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: string } | null)?.access_token ?? null
+/** Nový kontext (např. telefon hráče) s vlastní testovací IP. */
+export async function newContext(browser: Browser, options: BrowserContextOptions) {
+  return browser.newContext({
+    ...options,
+    extraHTTPHeaders: { ...options.extraHTTPHeaders, 'x-test-ip': randomTestIp() },
   })
-  expect(token, 'v localStorage chybí Supabase session').toBeTruthy()
-  return token!
 }
 
-/** Rozbalí anon klíč z lokálního .env souboru (stejný, jaký používá aplikace). */
-export function supabaseEnv(): { url: string; anonKey: string } {
-  return {
-    url: process.env.VITE_SUPABASE_URL ?? 'http://127.0.0.1:54321',
-    anonKey: process.env.VITE_SUPABASE_ANON_KEY ?? '',
-  }
+/**
+ * Zaregistruje uživatele přes formulář (stejně jako skutečný člověk).
+ * Z libovolné chráněné adresy se přesměruje na přihlášení, odtud na registraci.
+ * Když `code` chybí a adresa je /join/KOD, kód se předvyplní z odkazu.
+ */
+export async function registerViaUi(
+  page: Page,
+  options: { username: string; code?: string; startPath?: string; displayName?: string },
+): Promise<void> {
+  await page.goto(options.startPath ?? '/')
+  await expect(page).toHaveURL(/\/login/)
+  await page.getByRole('link', { name: 'Zaregistruj se' }).click()
+  await expect(page.getByRole('heading', { name: 'Registrace' })).toBeVisible()
+
+  if (options.code !== undefined) await page.getByLabel('Kód pozvánky nebo registrační heslo').fill(options.code)
+  await page.getByLabel('Přihlašovací jméno').fill(options.username)
+  if (options.displayName) await page.getByLabel('Zobrazované jméno (nepovinné)').fill(options.displayName)
+  await page.getByLabel('Heslo', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Vytvořit účet' }).click()
+  await expect(page).not.toHaveURL(/\/(register|login)/)
+}
+
+/** Zaregistruje nového DM / prvního uživatele pomocí registračního hesla. */
+export async function registerDm(page: Page, prefix = 'dm'): Promise<string> {
+  const username = uniqueName(prefix)
+  await registerViaUi(page, { username, code: REGISTRATION_KEY })
+  await expect(page.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible()
+  return username
+}
+
+export async function loginViaUi(page: Page, username: string, password = PASSWORD): Promise<void> {
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/login/)
+  await page.getByLabel('Jméno').fill(username)
+  await page.getByLabel('Heslo').fill(password)
+  await page.getByRole('button', { name: 'Přihlásit se' }).click()
 }
