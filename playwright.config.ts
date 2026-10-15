@@ -45,7 +45,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `php api/bin/migrate.php --fresh && php -S 127.0.0.1:${API_PORT} -t api api/index.php`,
+      command: `php api/bin/migrate.php --fresh && php api/bin/seed.php && php -S 127.0.0.1:${API_PORT} -t api api/index.php`,
       url: `http://127.0.0.1:${API_PORT}/health`,
       env: { DND_CONFIG: testConfig },
       reuseExistingServer: false,

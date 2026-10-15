@@ -126,3 +126,67 @@ test('registrace se špatným kódem se nepovede a vysvětlí proč', async ({ p
   await expect(page.getByRole('alert')).toContainText('není platné')
   await expect(page).toHaveURL(/\/register/)
 })
+
+test('homebrew: DM vytvoří kouzlo, hráč na telefonu ho vidí, cizinec ne; DM ho upraví a smaže', async ({ page: dm, browser, baseURL }) => {
+  await registerDm(dm, 'hbdm')
+  await dm.getByLabel('Název kampaně').fill('Homebrew kampaň')
+  await dm.getByRole('button', { name: 'Založit kampaň' }).click()
+  await expect(dm).toHaveURL(/\/campaigns\//)
+  const campaignId = dm.url().split('/campaigns/')[1]!
+  await dm.getByRole('button', { name: /Vytvořit pozvánku/ }).click()
+  const code = (await dm.locator('code').first().textContent())?.trim() ?? ''
+
+  // DM: Pravidla -> vybere kampaň -> nové kouzlo
+  await dm.getByRole('link', { name: 'Pravidla' }).click()
+  await dm.getByLabel('Homebrew z kampaně').selectOption({ label: 'Homebrew kampaň' })
+  await dm.getByRole('link', { name: 'Nové kouzlo' }).click()
+  await dm.getByLabel('Název', { exact: true }).fill('Ohnivý šíp')
+  await dm.getByLabel('Úroveň', { exact: true }).selectOption('2')
+  await dm.getByLabel('Škola').selectOption('Evocation')
+  await dm.getByLabel('Doba seslání').fill('1 action')
+  await dm.getByLabel('Dosah').fill('60 feet')
+  await dm.getByLabel('Třídy (oddělené čárkou)').fill('Wizard, Sorcerer')
+  await dm.getByLabel('Popis', { exact: true }).fill('Vystřelíš šíp z ohně.')
+  await dm.getByRole('button', { name: 'Uložit' }).click()
+  const detail = dm.getByRole('article')
+  await expect(detail.getByRole('heading', { name: 'Ohnivý šíp' })).toBeVisible()
+  await expect(detail.getByText('Homebrew', { exact: true })).toBeVisible()
+  await expect(detail.getByText('60 feet')).toBeVisible()
+
+  // Hráč na telefonu se připojí a homebrew uvidí v seznamu kampaně
+  const phone = await newContext(browser, { ...devices['Pixel 7'], baseURL, locale: 'cs-CZ' })
+  const player = await phone.newPage()
+  const stranger = await newContext(browser, { ...devices['Pixel 7'], baseURL, locale: 'cs-CZ' })
+  const outsider = await stranger.newPage()
+  try {
+    await registerViaUi(player, { username: uniqueName('hbhrac'), startPath: `/join/${code}` })
+    await expect(player).toHaveURL(new RegExp(`/campaigns/${campaignId}$`))
+    await player.goto(`/rules?g=spells&campaign=${campaignId}&scope=homebrew`)
+    await expect(player.getByRole('link', { name: /^Ohnivý šíp/ })).toBeVisible()
+    await player.getByRole('link', { name: /^Ohnivý šíp/ }).click()
+    await expect(player.getByRole('article').getByRole('heading', { name: 'Ohnivý šíp' })).toBeVisible()
+    // hráč cizí homebrew nemůže upravit
+    await expect(player.getByRole('link', { name: 'Upravit' })).toHaveCount(0)
+    await expectNoHorizontalScroll(player)
+
+    // Cizinec: kampaň v nabídce není, homebrew nevidí ani přes URL
+    await registerDm(outsider, 'hbcizi')
+    await outsider.goto(`/rules?g=spells&campaign=${campaignId}&q=${encodeURIComponent('Ohnivý šíp')}`)
+    await expect(outsider.getByText(/0 záznamů/)).toBeVisible()
+    await expect(outsider.getByRole('link', { name: /^Ohnivý šíp/ })).toHaveCount(0)
+    const apiRes = await outsider.request.get(`/api/campaigns/${campaignId}/homebrew`)
+    expect([404, 405]).toContain(apiRes.status())
+
+    // DM upraví a smaže
+    await detail.getByRole('link', { name: 'Upravit' }).click()
+    await dm.getByLabel('Název', { exact: true }).fill('Ohnivý šíp II')
+    await dm.getByRole('button', { name: 'Uložit' }).click()
+    await expect(detail.getByRole('heading', { name: 'Ohnivý šíp II' })).toBeVisible()
+    dm.once('dialog', (dialog) => void dialog.accept())
+    await detail.getByRole('button', { name: 'Smazat' }).click()
+    await expect(dm.getByRole('link', { name: /^Ohnivý šíp/ })).toHaveCount(0)
+  } finally {
+    await phone.close()
+    await stranger.close()
+  }
+})

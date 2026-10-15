@@ -16,7 +16,7 @@
  *   api/config.production.php -> FTP_REMOTE_DIR/api/config.php (přihlašovací údaje k DB a klíče)
  * Co se NEnahraje: api/config.php, config.test.php, config.example.php, bin/, api-tests, e2e, zdrojáky.
  * Pak se na serveru smažou soubory, které v nahrávané sadě nejsou (jen uvnitř FTP_REMOTE_DIR).
- * Nakonec se zavolá POST {SITE_URL}/api/admin/migrate, které spustí čekající migrace databáze.
+ * Nakonec se zavolá POST {SITE_URL}/api/admin/migrate (čekající migrace databáze) a /api/admin/seed (pravidla SRD 5.1).
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -235,6 +235,17 @@ if (!dryRun && !skipMigrate) {
     }
     const { applied } = JSON.parse(text)
     console.log(applied.length ? `Aplikované migrace: ${applied.join(', ')}` : 'Databáze je aktuální, žádné nové migrace.')
+
+    console.log('Načítám pravidla (SRD 5.1 a katalog itemů)…')
+    const seedRes = await fetch(`${siteUrl}/api/admin/seed`, { method: 'POST', headers: { 'X-Migrate-Key': cfg.migrate_key } })
+    const seedText = await seedRes.text()
+    if (!seedRes.ok) fail(`Načtení pravidel selhalo (HTTP ${seedRes.status}): ${seedText.slice(0, 300)}`)
+    const seed = JSON.parse(seedText)
+    console.log(
+      seed.skipped
+        ? 'Pravidla jsou aktuální, nic se nenačítalo.'
+        : `Pravidla načtena: ${Object.values(seed.counts).reduce((a, b) => a + b, 0)} záznamů, smazáno zastaralých ${seed.removed}.`,
+    )
   } catch (error) {
     fail(`Migrace se nepodařilo zavolat: ${error instanceof Error ? error.message : String(error)}`)
   }

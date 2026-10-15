@@ -43,3 +43,80 @@ export interface InvitePreview {
   dmName: string
   alreadyMember: boolean
 }
+
+// ---------------------------------------------------------------- pravidla a homebrew
+
+export type RuleKind =
+  | 'spell'
+  | 'magic_item'
+  | 'equipment'
+  | 'weapon'
+  | 'armor'
+  | 'feature'
+  | 'feat'
+  | 'class'
+  | 'subclass'
+  | 'race'
+  | 'subrace'
+  | 'trait'
+  | 'condition'
+  | 'background'
+  | 'skill'
+  | 'language'
+  | 'weapon_property'
+  | 'ability'
+
+export interface RuleSummary {
+  id: string
+  kind: RuleKind
+  name: string
+  nameCs: string | null
+  level: number | null
+  category: string | null
+  rarity: string | null
+  attunement: boolean | null
+  source: string
+  isSrd: boolean
+  isHomebrew: boolean
+  campaignId: string | null
+  priceGp: number | null
+  priceNote: string | null
+  summary: string
+  hasText: boolean
+}
+
+export interface RuleDetail {
+  id: string
+  ruleset: string
+  kind: RuleKind
+  name: string
+  nameCs: string | null
+  description: string
+  descriptionCs: string | null
+  level: number | null
+  category: string | null
+  rarity: string | null
+  attunement: boolean | null
+  source: string
+  isSrd: boolean
+  isHomebrew: boolean
+  campaignId: string | null
+  ownerName: string | null
+  visibility: 'campaign' | 'private' | null
+  priceGp: number | null
+  priceNote: string | null
+  refUrl: string | null
+  tags: string[]
+  data: Record<string, unknown>
+  canEdit: boolean
+}
+
+export interface RuleFacets {
+  categories: string[]
+  rarities: string[]
+  sources: string[]
+  levels: number[]
+  tags: string[]
+}
+
+export type HomebrewKind = 'spell' | 'magic_item' | 'feature' | 'subclass'

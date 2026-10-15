@@ -8,6 +8,10 @@ import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
 import { JoinPage } from '@/features/campaigns/JoinPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
+import { AboutPage } from '@/features/about/AboutPage'
+import { HomebrewFormPage } from '@/features/rules/HomebrewFormPage'
+import { RuleDetailPage } from '@/features/rules/RuleDetailPage'
+import { RulesPage } from '@/features/rules/RulesPage'
 
 function NotFound() {
   return (
@@ -29,12 +33,18 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route index element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="join/:code" element={<JoinPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="rules" element={<RulesPage />}>
+              <Route path="new" element={<HomebrewFormPage />} />
+              <Route path=":id" element={<RuleDetailPage />} />
+              <Route path=":id/edit" element={<HomebrewFormPage />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>

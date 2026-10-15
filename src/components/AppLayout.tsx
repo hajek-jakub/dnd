@@ -1,8 +1,15 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LogOutIcon, SwordsIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/features/auth/auth-context'
+import { cn } from '@/lib/utils'
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-medium transition-colors',
+    isActive ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+  )
 
 export function AppLayout() {
   const { user, logout } = useAuth()
@@ -10,33 +17,43 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center lg:max-w-6xl justify-between gap-2 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 lg:max-w-6xl">
           <Link to="/" className="flex min-h-11 items-center gap-2 font-semibold">
             <SwordsIcon aria-hidden className="size-5" />
             D&amp;D kampaně
           </Link>
           <div className="flex items-center gap-1">
             {user && (
-              <Link to="/profile" className="inline-flex min-h-11 min-w-11 max-w-32 items-center truncate text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                to="/profile"
+                className="inline-flex min-h-11 min-w-11 max-w-32 items-center truncate text-sm text-muted-foreground hover:text-foreground"
+              >
                 {user.displayName}
               </Link>
             )}
             <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Odhlásit se"
-              title="Odhlásit se"
-              onClick={() => void logout()}
-            >
+            <Button variant="ghost" size="icon" aria-label="Odhlásit se" title="Odhlásit se" onClick={() => void logout()}>
               <LogOutIcon aria-hidden />
             </Button>
           </div>
         </div>
+        <nav aria-label="Hlavní navigace" className="mx-auto flex w-full max-w-3xl px-1 lg:max-w-6xl">
+          <NavLink to="/" end className={navLinkClass}>
+            Kampaně
+          </NavLink>
+          <NavLink to="/rules" className={navLinkClass}>
+            Pravidla
+          </NavLink>
+        </nav>
       </header>
-      <main className="mx-auto w-full max-w-3xl space-y-6 lg:max-w-6xl p-4 pb-16">
+      <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-8 lg:max-w-6xl">
         <Outlet />
       </main>
+      <footer className="mx-auto w-full max-w-3xl px-4 pb-10 text-sm text-muted-foreground lg:max-w-6xl">
+        <Link to="/about" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">
+          O aplikaci a licence SRD 5.1
+        </Link>
+      </footer>
     </div>
   )
 }

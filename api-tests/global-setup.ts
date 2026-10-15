@@ -31,6 +31,10 @@ export async function setup() {
     )
   }
 
+  // Pravidla (SRD 5.1 + katalog itemů) do testovací DB.
+  const seed = spawnSync('php', ['api/bin/seed.php'], { cwd: root, env, encoding: 'utf8' })
+  if (seed.status !== 0) throw new Error(`Seed pravidel selhal:\n${seed.stdout}\n${seed.stderr}`)
+
   server = spawn('php', ['-S', `127.0.0.1:${API_PORT}`, '-t', 'api', 'api/index.php'], {
     cwd: root,
     env,

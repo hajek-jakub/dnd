@@ -7,6 +7,7 @@ namespace Dnd;
 use Dnd\Controllers\AuthController;
 use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
+use Dnd\Controllers\RulesController;
 use Dnd\Controllers\AdminController;
 use Throwable;
 
@@ -74,7 +75,16 @@ final class App
         $r->add('PATCH', '/dm-notes/{id}', [CharacterController::class, 'updateNote']);
         $r->add('DELETE', '/dm-notes/{id}', [CharacterController::class, 'deleteNote']);
 
-        // Správa (migrace databáze z deploye)
+        // Pravidla (SRD, katalog itemů) a homebrew
+        $r->add('GET', '/rules', [RulesController::class, 'index']);
+        $r->add('GET', '/rules/facets', [RulesController::class, 'facets']);
+        $r->add('GET', '/rules/{id}', [RulesController::class, 'show']);
+        $r->add('PATCH', '/rules/{id}', [RulesController::class, 'update']);
+        $r->add('DELETE', '/rules/{id}', [RulesController::class, 'delete']);
+        $r->add('POST', '/campaigns/{id}/homebrew', [RulesController::class, 'createHomebrew']);
+
+        // Správa (migrace databáze a seed pravidel z deploye)
         $r->add('POST', '/admin/migrate', [AdminController::class, 'migrate'], auth: false);
+        $r->add('POST', '/admin/seed', [AdminController::class, 'seed'], auth: false);
     }
 }
