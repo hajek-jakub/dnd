@@ -30,7 +30,12 @@ export function SpellcastingCard() {
               </dd>
               <dt className="text-muted-foreground">Bonus k útoku kouzlem</dt>
               <dd>
-                <ComputedValue title={`${c.className}: bonus k útoku kouzlem`} computed={c.attackBonus} overrideKey={`spellAttack.${c.classIndex}`} format={formatModifier} />
+                <ComputedValue
+                  title={`${c.className}: bonus k útoku kouzlem`}
+                  computed={c.attackBonus}
+                  overrideKey={`spellAttack.${c.classIndex}`}
+                  format={formatModifier}
+                />
               </dd>
               {c.cantripsKnown !== null && (
                 <>

@@ -125,3 +125,23 @@ export function useAcceptInvite() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
   })
 }
+
+/** Nastavení kampaně (jen DM): zatím nosnost a přetížení. */
+export function useUpdateCampaignSettings(campaignId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (settings: { encumbrance?: boolean }) =>
+      (await api.patch<{ campaign: Campaign }>(`/campaigns/${campaignId}`, { settings })).campaign,
+    // Přepínač reaguje hned, při chybě se vrátí.
+    onMutate: async (settings) => {
+      await queryClient.cancelQueries({ queryKey: ['campaign', campaignId] })
+      const previous = queryClient.getQueryData<Campaign>(['campaign', campaignId])
+      if (previous) queryClient.setQueryData<Campaign>(['campaign', campaignId], { ...previous, settings: { ...previous.settings, ...settings } })
+      return { previous }
+    },
+    onError: (_e, _s, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(['campaign', campaignId], ctx.previous)
+    },
+    onSuccess: (campaign) => queryClient.setQueryData(['campaign', campaignId], campaign),
+  })
+}

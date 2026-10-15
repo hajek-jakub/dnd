@@ -14,7 +14,9 @@ async function expectTouchFriendly(page: Page) {
   const small = await page.evaluate(() => {
     const result: string[] = []
     for (const el of document.querySelectorAll<HTMLElement>('main button, main input, header button, header a')) {
-      const rect = el.getBoundingClientRect()
+      // Zaškrtávátka a přepínače se ovládají klepnutím na celý popisek, takže se měří popisek.
+      const target = el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? (el.closest('label') ?? el) : el
+      const rect = target.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
       if (rect.height < 43.5 || rect.width < 43.5) {
         result.push(`${el.tagName} "${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 30)}" ${Math.round(rect.width)}x${Math.round(rect.height)}`)

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
 import { buildRulesBundle, type RawClass, type RawLevel, type RulesBundle } from '@/engine'
 import { applyOps } from './model'
-import type { AdjustOp, CharacterFull, CharacterListItem, CharacterState } from './types'
+import type { AdjustOp, CharacterFull, CharacterItem, CharacterListItem, CharacterSpell, CharacterState, Currency } from './types'
 
 export function characterPhotoUrl(id: string, version: string | null): string | null {
   if (!version) return null
@@ -221,5 +221,138 @@ export function useClassFeatures(classIndex: string, level: number, subclassInde
     queryKey: ['class-features', params.toString()],
     staleTime: 10 * 60_000,
     queryFn: async () => (await api.get<{ features: ClassFeature[] }>(`/rules/class-features?${params.toString()}`)).features,
+  })
+}
+
+// ---------------------------------------------------------------- inventář
+
+export type ItemInput = Partial<
+  Pick<
+    CharacterItem,
+    | 'name'
+    | 'description'
+    | 'kind'
+    | 'quantity'
+    | 'weight'
+    | 'equipped'
+    | 'attuned'
+    | 'requiresAttunement'
+    | 'rarity'
+    | 'effects'
+    | 'notes'
+    | 'armor'
+    | 'weapon'
+  >
+> & { ruleId?: string }
+
+export function useAddItem(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: ItemInput) => (await api.post<{ item: CharacterItem }>(`/characters/${characterId}/items`, input)).item,
+    onSuccess: (item) => {
+      queryClient.setQueryData<CharacterFull>(['character', characterId], (old) => (old ? { ...old, items: [...old.items, item] } : old))
+    },
+  })
+}
+
+/** Equip, attunement, množství a úpravy itemu: UI se změní hned, server může attunement odmítnout (pak se vrátí zpět). */
+export function useUpdateItem(characterId: string) {
+  const queryClient = useQueryClient()
+  const key = ['character', characterId]
+  return useMutation({
+    mutationKey: ['item', characterId],
+    mutationFn: async ({ itemId, patch }: { itemId: string; patch: ItemInput }) =>
+      (await api.patch<{ item: CharacterItem }>(`/characters/${characterId}/items/${itemId}`, patch)).item,
+    onMutate: async ({ itemId, patch }) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<CharacterFull>(key)
+      if (previous) {
+        const target = previous.items.find((i) => i.id === itemId)
+        queryClient.setQueryData<CharacterFull>(key, {
+          ...previous,
+          items: previous.items.map((i) => {
+            if (i.id === itemId) return { ...i, ...patch } as CharacterItem
+            // Nosí se jen jedna zbroj a jeden štít (stejné pravidlo jako na serveru).
+            if (patch.equipped && target && (target.kind === 'armor' || target.kind === 'shield') && i.kind === target.kind)
+              return { ...i, equipped: false }
+            return i
+          }),
+        })
+      }
+      return { previous }
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous)
+    },
+    onSettled: () => {
+      // Server je zdroj pravdy (např. po automatickém sundání jiné zbroje), proto po dokončení poslední změny načteme znovu.
+      if (queryClient.isMutating({ mutationKey: ['item', characterId] }) <= 1) void queryClient.invalidateQueries({ queryKey: key })
+    },
+  })
+}
+
+export function useDeleteItem(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemId: string) => api.delete(`/characters/${characterId}/items/${itemId}`),
+    onSuccess: (_r, itemId) => {
+      queryClient.setQueryData<CharacterFull>(['character', characterId], (old) =>
+        old ? { ...old, items: old.items.filter((i) => i.id !== itemId) } : old,
+      )
+    },
+  })
+}
+
+export function useTransfer(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { toCharacterId: string; itemId?: string; quantity?: number; currency?: Partial<Currency> }) =>
+      api.post<{ items: CharacterItem[]; currency: Currency }>(`/characters/${characterId}/transfer`, input),
+    onSuccess: (res) => {
+      queryClient.setQueryData<CharacterFull>(['character', characterId], (old) => (old ? { ...old, items: res.items, currency: res.currency } : old))
+      void queryClient.invalidateQueries({ queryKey: ['character'] })
+    },
+  })
+}
+
+// ---------------------------------------------------------------- kouzla
+
+export function useAddSpell(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { ruleId: string; classIdx: string; prepared?: boolean }) =>
+      (await api.post<{ spells: CharacterSpell[] }>(`/characters/${characterId}/spells`, input)).spells,
+    onSuccess: (spells) => queryClient.setQueryData<CharacterFull>(['character', characterId], (old) => (old ? { ...old, spells } : old)),
+  })
+}
+
+export function useUpdateSpell(characterId: string) {
+  const queryClient = useQueryClient()
+  const key = ['character', characterId]
+  return useMutation({
+    mutationFn: async ({ spellId, patch }: { spellId: string; patch: { prepared?: boolean; alwaysPrepared?: boolean } }) =>
+      (await api.patch<{ spells: CharacterSpell[] }>(`/characters/${characterId}/spells/${spellId}`, patch)).spells,
+    onMutate: async ({ spellId, patch }) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<CharacterFull>(key)
+      if (previous)
+        queryClient.setQueryData<CharacterFull>(key, { ...previous, spells: previous.spells.map((s) => (s.id === spellId ? { ...s, ...patch } : s)) })
+      return { previous }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous)
+    },
+  })
+}
+
+export function useDeleteSpell(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (spellId: string) => api.delete(`/characters/${characterId}/spells/${spellId}`),
+    onSuccess: (_r, spellId) => {
+      queryClient.setQueryData<CharacterFull>(['character', characterId], (old) =>
+        old ? { ...old, spells: old.spells.filter((s) => s.id !== spellId) } : old,
+      )
+    },
   })
 }

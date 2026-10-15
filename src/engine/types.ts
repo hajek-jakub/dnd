@@ -94,6 +94,8 @@ export interface CharacterInput {
   /** Vlastní zdroje hráče (ne z třídy). */
   customResources: CustomResource[]
   state: CharacterState
+  /** Pravidla kampaně, která ovlivňují výpočty. */
+  rules?: { encumbrance?: boolean }
 }
 
 export type Recharge = 'short' | 'long' | 'dawn' | 'manual'
@@ -172,5 +174,6 @@ export interface ComputedSheet {
   attunement: { used: number; max: number }
   carryingCapacity: number
   weightCarried: number
+  encumbrance: { enabled: boolean; status: 'ok' | 'encumbered' | 'heavy' | 'over'; capacity: number; weight: number; encumberedAt: number; heavyAt: number }
   proficiencies: string[]
 }

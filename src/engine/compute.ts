@@ -221,6 +221,19 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     speedBase += 10
     speedSources.push({ label: 'Fast Movement', value: '+10' })
   }
+  // Nosnost (volitelné pravidlo kampaně): nad 5x STR -10 ft, nad 10x STR -20 ft.
+  const strScore = abilities.str.score.value
+  const weight = Math.round(input.items.reduce((n, i) => n + i.weight * i.quantity, 0) * 10) / 10
+  const encumberedAt = 5 * strScore
+  const heavyAt = 10 * strScore
+  const capacity = 15 * strScore
+  const encumbranceOn = input.rules?.encumbrance === true
+  const encumbranceStatus: ComputedSheet['encumbrance']['status'] = weight > capacity ? 'over' : weight > heavyAt ? 'heavy' : weight > encumberedAt ? 'encumbered' : 'ok'
+  if (encumbranceOn && (encumbranceStatus === 'encumbered' || encumbranceStatus === 'heavy' || encumbranceStatus === 'over')) {
+    const penalty = encumbranceStatus === 'encumbered' ? 10 : 20
+    speedBase -= penalty
+    speedSources.push({ label: encumbranceStatus === 'encumbered' ? 'Přetížení (nad 5× STR)' : 'Těžké přetížení (nad 10× STR)', value: `−${penalty}` })
+  }
   speedBase += sumEffects('speed')
   speedSources.push(...effectSources('speed'))
   const speed = makeComputed('speed', speedBase, speedSources, ov)
@@ -442,8 +455,9 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     features,
     martialArtsDie,
     attunement: { used: input.items.filter((i) => i.attuned).length, max: MAX_ATTUNEMENT },
-    carryingCapacity: 15 * abilities.str.score.value,
-    weightCarried: Math.round(input.items.reduce((n, i) => n + i.weight * i.quantity, 0) * 10) / 10,
+    carryingCapacity: capacity,
+    weightCarried: weight,
+    encumbrance: { enabled: encumbranceOn, status: encumbranceStatus, capacity, weight, encumberedAt, heavyAt },
     proficiencies,
   }
 }

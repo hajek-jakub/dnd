@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeftIcon, CopyIcon, UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,6 +15,7 @@ import {
   useInvites,
   useRemoveMember,
   useRevokeInvite,
+  useUpdateCampaignSettings,
 } from './api'
 import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
@@ -106,8 +108,17 @@ export function CampaignPage() {
           </CardContent>
         </Card>
 
+        {isDm && campaignId && <InvitesCard campaignId={campaignId} className="lg:col-start-2 lg:row-span-2 lg:row-start-1" />}
+
         {isDm && campaignId && (
-          <InvitesCard campaignId={campaignId} className="lg:col-start-2 lg:row-span-2 lg:row-start-1" />
+          <Card className="lg:col-start-1">
+            <CardHeader>
+              <CardTitle>Nastavení kampaně</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SettingsForm campaignId={campaignId} encumbrance={campaign.settings?.encumbrance === true} />
+            </CardContent>
+          </Card>
         )}
 
         <Card className="lg:col-start-1">
@@ -116,21 +127,11 @@ export function CampaignPage() {
           </CardHeader>
           <CardContent>
             {isDm ? (
-              <Button
-                variant="destructive"
-                className="w-full sm:w-auto"
-                onClick={remove}
-                disabled={deleteCampaign.isPending}
-              >
+              <Button variant="destructive" className="w-full sm:w-auto" onClick={remove} disabled={deleteCampaign.isPending}>
                 Smazat kampaň
               </Button>
             ) : (
-              <Button
-                variant="destructive"
-                className="w-full sm:w-auto"
-                onClick={leave}
-                disabled={removeMember.isPending}
-              >
+              <Button variant="destructive" className="w-full sm:w-auto" onClick={leave} disabled={removeMember.isPending}>
                 Odejít z kampaně
               </Button>
             )}
@@ -172,12 +173,7 @@ function InvitesCard({ campaignId, className }: { campaignId: string; className?
         <Button
           className="w-full"
           disabled={createInvite.isPending}
-          onClick={() =>
-            createInvite.mutate(
-              { expiresInDays: 7, maxUses: null },
-              { onError: () => toast.error('Pozvánku se nepodařilo vytvořit') },
-            )
-          }
+          onClick={() => createInvite.mutate({ expiresInDays: 7, maxUses: null }, { onError: () => toast.error('Pozvánku se nepodařilo vytvořit') })}
         >
           Vytvořit pozvánku (platí 7 dní)
         </Button>
@@ -190,9 +186,7 @@ function InvitesCard({ campaignId, className }: { campaignId: string; className?
               <li key={invite.id} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <code className="text-lg font-semibold tracking-widest">{invite.code}</code>
-                  <span className={status.active ? 'text-sm font-medium' : 'text-sm text-muted-foreground'}>
-                    {status.label}
-                  </span>
+                  <span className={status.active ? 'text-sm font-medium' : 'text-sm text-muted-foreground'}>{status.label}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Použito: {invite.uses}
@@ -218,5 +212,35 @@ function InvitesCard({ campaignId, className }: { campaignId: string; className?
         </ul>
       </CardContent>
     </Card>
+  )
+}
+
+function SettingsForm({ campaignId, encumbrance }: { campaignId: string; encumbrance: boolean }) {
+  const update = useUpdateCampaignSettings(campaignId)
+  // Přepínač se přepne okamžitě (synchronně), server se dozví změnu na pozadí; při chybě se vrátí.
+  const [optimistic, setOptimistic] = useState<boolean | null>(null)
+  const checked = optimistic ?? encumbrance
+  return (
+    <label className="flex min-h-11 cursor-pointer items-start gap-3">
+      <input
+        type="checkbox"
+        className="mt-1 size-5 shrink-0 accent-primary"
+        checked={checked}
+        onChange={(e) => {
+          setOptimistic(e.target.checked)
+          update.mutate(
+            { encumbrance: e.target.checked },
+            {
+              onError: () => toast.error('Nastavení se nepodařilo uložit'),
+              onSettled: () => setOptimistic(null),
+            },
+          )
+        }}
+      />
+      <span>
+        Sledovat nosnost a přetížení
+        <span className="block text-sm text-muted-foreground">Nad 5× STR liber −10 ft rychlosti, nad 10× STR −20 ft (volitelné pravidlo z PHB).</span>
+      </span>
+    </label>
   )
 }

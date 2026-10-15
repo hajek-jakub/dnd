@@ -338,6 +338,16 @@ final class RulesController
     }
 
     /**
+     * Záznam pravidel, který volající smí vidět (jinak 404). Využívá inventář a kouzla postav.
+     * @param array{id:string} $user
+     * @return array<string, mixed>
+     */
+    public static function visibleEntry(string $id, array $user): array
+    {
+        return self::loadVisible($id, $user);
+    }
+
+    /**
      * Načte záznam, který volající smí vidět (jinak 404).
      * @param array{id:string} $user
      * @return array<string, mixed>

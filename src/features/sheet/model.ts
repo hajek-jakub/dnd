@@ -1,8 +1,24 @@
-import { computeSheet, type CharacterInput, type ComputedSheet, type RulesBundle } from '@/engine'
-import type { AdjustOp, CharacterFull, CharacterState } from './types'
+import { computeSheet, type CharacterInput, type ComputedSheet, type InventoryItem, type RulesBundle } from '@/engine'
+import type { AdjustOp, CharacterFull, CharacterItem, CharacterState } from './types'
 
-/** Převede sheet z API na vstup enginu. */
-export function toEngineInput(c: CharacterFull): CharacterInput {
+function toInventoryItem(i: CharacterItem): InventoryItem {
+  return {
+    id: i.id,
+    name: i.name,
+    kind: i.kind,
+    quantity: i.quantity,
+    weight: i.weight,
+    equipped: i.equipped,
+    attuned: i.attuned,
+    requiresAttunement: i.requiresAttunement,
+    armor: i.armor ?? undefined,
+    weapon: i.weapon ?? undefined,
+    effects: i.effects,
+  }
+}
+
+/** Převede sheet z API na vstup enginu. `rules` jsou pravidla kampaně (např. nosnost). */
+export function toEngineInput(c: CharacterFull, rules?: CharacterInput['rules']): CharacterInput {
   return {
     abilityScores: c.abilityScores,
     levels: c.levels.map((l) => ({ classIndex: l.classIndex, hpRoll: l.hpRoll })),
@@ -11,11 +27,12 @@ export function toEngineInput(c: CharacterFull): CharacterInput {
     skillProficiencies: c.skillProficiencies,
     extraSaveProficiencies: c.extraSaveProficiencies,
     extraProficiencies: c.extraProficiencies,
-    items: [],
+    items: (c.items ?? []).map(toInventoryItem),
     effects: [],
     overrides: c.overrides,
     customResources: c.customResources,
     state: { ...c.state, hpCurrent: c.state.hpCurrent ?? Number.MAX_SAFE_INTEGER },
+    rules,
   }
 }
 
@@ -25,8 +42,8 @@ export interface DerivedSheet {
   hpCurrent: number
 }
 
-export function deriveSheet(c: CharacterFull, bundle: RulesBundle): DerivedSheet {
-  const sheet = computeSheet(toEngineInput(c), bundle)
+export function deriveSheet(c: CharacterFull, bundle: RulesBundle, rules?: CharacterInput['rules']): DerivedSheet {
+  const sheet = computeSheet(toEngineInput(c, rules), bundle)
   const hpCurrent = Math.min(c.state.hpCurrent ?? sheet.hp.max.value, sheet.hp.max.value)
   return { sheet, hpCurrent }
 }
@@ -95,6 +112,9 @@ export function applyOps(
       case 'condition':
         s = { ...s, conditions: s.conditions.filter((c) => c !== op.name) }
         if (op.set) s.conditions = [...s.conditions, op.name]
+        break
+      case 'concentration':
+        s = { ...s, concentration: op.set === '' ? null : op.set }
         break
     }
   }

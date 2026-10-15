@@ -208,9 +208,9 @@ final class CharacterController
 
         Db::transaction(static function () use ($params, $sets, $values, $state, $custom): void {
             if ($state !== null) {
-                $sets = [...$sets, 'hp_current = ?', 'hp_temp = ?', 'death_successes = ?', 'death_failures = ?', 'hit_dice_used = ?', 'slots_used = ?', 'pact_slots_used = ?', 'conditions = ?'];
+                $sets = [...$sets, 'hp_current = ?', 'hp_temp = ?', 'death_successes = ?', 'death_failures = ?', 'hit_dice_used = ?', 'slots_used = ?', 'pact_slots_used = ?', 'conditions = ?', 'concentration = ?'];
                 $values = [...$values, $state['hpCurrent'], $state['hpTemp'], $state['deathSuccesses'], $state['deathFailures'], Sheets::enc($state['hitDiceUsed']),
-                    Sheets::enc($state['slotsUsed']), $state['pactSlotsUsed'], Sheets::enc($state['conditions'])];
+                    Sheets::enc($state['slotsUsed']), $state['pactSlotsUsed'], Sheets::enc($state['conditions']), $state['concentration']];
             }
             if ($sets !== []) {
                 $sets[] = 'rev = rev + 1';
@@ -267,6 +267,7 @@ final class CharacterController
             $df = (int) $r['death_failures'];
             $xp = (int) $r['xp'];
             $insp = (int) $r['inspiration'];
+            $concentration = $r['concentration'] ?? null;
             $resources = [];
 
             $intField = static function (array $op, string $f, int $min, int $max): int {
@@ -338,6 +339,13 @@ final class CharacterController
                     case 'inspiration':
                         $insp = ($op['set'] ?? null) === true ? 1 : 0;
                         break;
+                    case 'concentration':
+                        $set = $op['set'] ?? null;
+                        if ($set !== null && (!is_string($set) || mb_strlen($set) > 200)) {
+                            throw HttpError::validation('Neplatná koncentrace.', 'ops');
+                        }
+                        $concentration = $set === '' ? null : $set;
+                        break;
                     case 'xp':
                         $xp = max(0, min(10000000, $xp + $intField($op, 'delta', -10000000, 10000000)));
                         break;
@@ -358,8 +366,8 @@ final class CharacterController
 
             Db::exec(
                 'UPDATE characters SET hp_current = ?, hp_temp = ?, slots_used = ?, hit_dice_used = ?, conditions = ?, pact_slots_used = ?,
-                    death_successes = ?, death_failures = ?, xp = ?, inspiration = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
-                [$hp, $temp, Sheets::enc($slots), Sheets::enc($dice), Sheets::enc($conditions), $pact, $ds, $df, $xp, $insp, $params['id']],
+                    death_successes = ?, death_failures = ?, xp = ?, inspiration = ?, concentration = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+                [$hp, $temp, Sheets::enc($slots), Sheets::enc($dice), Sheets::enc($conditions), $pact, $ds, $df, $xp, $insp, $concentration, $params['id']],
             );
         });
         $sheet = self::loadFull($params['id']);

@@ -552,3 +552,29 @@ describe('různé', () => {
     expect(sheet.spellcasting.classes[0]).toMatchObject({ classIndex: 'fighter', ability: 'int' })
   })
 })
+
+describe('nosnost a přetížení (volitelné pravidlo kampaně)', () => {
+  const heavyPack = (weight: number) => [item({ id: 'p', name: 'Zátěž', kind: 'item', weight, equipped: false })]
+
+  it('bez zapnutého pravidla se rychlost nemění, ale nosnost se počítá', () => {
+    const sheet = computeSheet(makeInput({ scores: { str: 10 }, items: heavyPack(80) }), bundle)
+    expect(sheet.speed.value).toBe(30)
+    expect(sheet.encumbrance).toMatchObject({ enabled: false, status: 'encumbered', capacity: 150, encumberedAt: 50, heavyAt: 100 })
+  })
+
+  it('nad 5x STR -10 ft, nad 10x STR -20 ft, nad 15x STR nelze (over)', () => {
+    const at = (weight: number) => computeSheet(makeInput({ scores: { str: 10 }, items: heavyPack(weight), rules: { encumbrance: true } }), bundle)
+    expect(at(50).speed.value).toBe(30)
+    expect(at(51).speed.value).toBe(20)
+    expect(at(51).speed.sources).toContainEqual({ label: 'Přetížení (nad 5× STR)', value: '−10' })
+    expect(at(101).speed.value).toBe(10)
+    expect(at(151)).toMatchObject({ encumbrance: { status: 'over' } })
+    expect(at(10).encumbrance.status).toBe('ok')
+  })
+
+  it('váha respektuje množství a síla zvyšuje limity', () => {
+    const arrows = item({ id: 'a', name: 'Arrows', kind: 'item', weight: 0.05, quantity: 40, equipped: false })
+    expect(computeSheet(makeInput({ items: [arrows] }), bundle).weightCarried).toBe(2)
+    expect(computeSheet(makeInput({ scores: { str: 18 }, items: heavyPack(80), rules: { encumbrance: true } }), bundle).speed.value).toBe(30)
+  })
+})

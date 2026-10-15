@@ -40,7 +40,7 @@ export default defineConfig({
       name: 'mobile',
       use: { ...devices['Pixel 7'] },
       // Vícerolový scénář řídí oba viewporty sám, stačí ho pustit jednou.
-      testIgnore: /flow\.spec\.ts/,
+      testIgnore: /(flow|transfer)\.spec\.ts/,
     },
   ],
   webServer: [

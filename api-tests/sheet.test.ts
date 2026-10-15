@@ -123,7 +123,7 @@ describe('character sheet', () => {
       expectStatus(res, 200)
       expect(res.body.character.state).toEqual({
         hpCurrent: 20, hpTemp: 3, deathSuccesses: 1, deathFailures: 2, hitDiceUsed: { d8: 2 }, slotsUsed: { '1': 1 }, pactSlotsUsed: 1,
-        resources: { 'monk.ki': 2, 'custom.bolts': 5 }, conditions: ['Poisoned'],
+        resources: { 'monk.ki': 2, 'custom.bolts': 5 }, conditions: ['Poisoned'], concentration: null,
       })
       expect(res.body.character.customResources).toEqual([{ key: 'custom.bolts', name: 'Šipky', max: 12, recharge: 'long' }])
       // úprava jen jména nesmí smazat stav ani vlastní zdroje

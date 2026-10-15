@@ -11,6 +11,8 @@ export interface CharacterState {
   pactSlotsUsed: number
   resources: Record<string, number>
   conditions: string[]
+  /** Kouzlo, na které se postava právě soustředí. */
+  concentration: string | null
 }
 
 export interface CharacterPreview {
@@ -45,12 +47,72 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   extraProficiencies: string[]
   overrides: Record<string, number>
   customResources: { key: string; name: string; max: number; recharge: Recharge }[]
-  currency: { cp: number; sp: number; ep: number; gp: number; pp: number }
+  currency: Currency
+  items: CharacterItem[]
+  spells: CharacterSpell[]
   state: CharacterState
   rev: number
   createdAt: string
   updatedAt: string
 }
+
+export interface ItemEffect {
+  target: string
+  value: number
+  source: string
+}
+
+export interface CharacterItem {
+  id: string
+  ruleId: string | null
+  name: string
+  description: string
+  kind: 'armor' | 'shield' | 'weapon' | 'item'
+  quantity: number
+  weight: number
+  equipped: boolean
+  attuned: boolean
+  requiresAttunement: boolean
+  rarity: string | null
+  armor: {
+    base: number
+    dexBonus: boolean
+    maxDexBonus: number | null
+    magicBonus?: number
+    stealthDisadvantage?: boolean
+    strMinimum?: number
+  } | null
+  weapon: {
+    damageDice: string
+    damageType: string
+    category: 'simple' | 'martial'
+    range: 'melee' | 'ranged'
+    properties: string[]
+    magicBonus?: number
+  } | null
+  effects: ItemEffect[]
+  notes: string
+}
+
+export interface CharacterSpell {
+  id: string
+  ruleId: string
+  classIdx: string
+  prepared: boolean
+  alwaysPrepared: boolean
+  source: string
+  name: string
+  level: number
+  school: string
+  castingTime: string
+  range: string
+  components: string
+  duration: string
+  concentration: boolean
+  ritual: boolean
+}
+
+export type Currency = { cp: number; sp: number; ep: number; gp: number; pp: number }
 
 export type CharacterListItem = CharacterPreview | CharacterFull
 
@@ -65,5 +127,6 @@ export type AdjustOp =
   | { op: 'inspiration'; set: boolean }
   | { op: 'xp'; delta: number }
   | { op: 'condition'; name: string; set: boolean }
+  | { op: 'concentration'; set: string | null }
 
 export type { CustomResource }

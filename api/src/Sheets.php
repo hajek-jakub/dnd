@@ -47,6 +47,36 @@ final class Sheets
             }
         }
 
+        $items = Items::loadMany(Db::all("SELECT * FROM character_items WHERE character_id IN ($in) ORDER BY created_at, id", $ids));
+        $spells = [];
+        foreach (Db::all(
+            "SELECT cs.id, cs.character_id, cs.rule_id, cs.class_idx, cs.prepared, cs.always_prepared, cs.source, e.name, e.level, e.category, e.data
+             FROM character_spells cs JOIN rules_entries e ON e.id = cs.rule_id
+             WHERE cs.character_id IN ($in) ORDER BY e.level, e.name",
+            $ids,
+        ) as $sp) {
+            $d = Sheets::json($sp['data'], []);
+            $d = is_array($d) ? $d : [];
+            $components = $d['components'] ?? '';
+            $spells[$sp['character_id']][] = [
+                'id' => $sp['id'],
+                'ruleId' => $sp['rule_id'],
+                'classIdx' => $sp['class_idx'],
+                'prepared' => (bool) $sp['prepared'],
+                'alwaysPrepared' => (bool) $sp['always_prepared'],
+                'source' => $sp['source'],
+                'name' => $sp['name'],
+                'level' => (int) $sp['level'],
+                'school' => (string) ($sp['category'] ?? ''),
+                'castingTime' => (string) ($d['casting_time'] ?? ''),
+                'range' => (string) ($d['range'] ?? ''),
+                'components' => is_array($components) ? implode(', ', $components) : (string) $components,
+                'duration' => (string) ($d['duration'] ?? ''),
+                'concentration' => ($d['concentration'] ?? false) === true,
+                'ritual' => ($d['ritual'] ?? false) === true,
+            ];
+        }
+
         $out = [];
         foreach ($rows as $r) {
             $id = (string) $r['id'];
@@ -78,6 +108,8 @@ final class Sheets
                 'extraProficiencies' => self::json($r['extra_proficiencies'], []),
                 'overrides' => self::json($r['overrides'], new \stdClass()),
                 'customResources' => $custom[$id] ?? [],
+                'items' => $items[$id] ?? [],
+                'spells' => $spells[$id] ?? [],
                 'currency' => self::json($r['currency'], ['cp' => 0, 'sp' => 0, 'ep' => 0, 'gp' => 0, 'pp' => 0]),
                 'state' => [
                     'hpCurrent' => $r['hp_current'] === null ? null : (int) $r['hp_current'],
@@ -89,6 +121,7 @@ final class Sheets
                     'pactSlotsUsed' => (int) $r['pact_slots_used'],
                     'resources' => $current[$id] ?? new \stdClass(),
                     'conditions' => self::json($r['conditions'], []),
+                    'concentration' => $r['concentration'] ?? null,
                 ],
                 'rev' => (int) $r['rev'],
                 'createdAt' => Ids::iso((string) $r['created_at']),
@@ -115,6 +148,24 @@ final class Sheets
     public static function enc(mixed $value): string
     {
         return json_encode($value === [] ? new \stdClass() : $value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Načte postavu, kterou smí volající měnit (majitel nebo DM). Cizinec dostane 404, jiný hráč 403.
+     * @param array{id:string} $user
+     * @return array<string, mixed>
+     */
+    public static function loadMutable(string $id, array $user): array
+    {
+        $row = Ids::isUuid($id) ? Db::one('SELECT * FROM characters WHERE id = ?', [$id]) : null;
+        $role = $row === null ? null : Access::role($user['id'], (string) $row['campaign_id']);
+        if ($row === null || $role === null) {
+            throw HttpError::notFound('Postava nenalezena.');
+        }
+        if ($row['owner_id'] !== $user['id'] && $role !== 'dm') {
+            throw HttpError::forbidden('Cizí postavu nemůžeš upravovat.');
+        }
+        return $row;
     }
 
     // ------------------------------------------------------------------ validace
@@ -296,7 +347,12 @@ final class Sheets
                 throw HttpError::validation('Neplatný stav (condition).', 'state');
             }
         }
+        $concentration = $s['concentration'] ?? null;
+        if ($concentration !== null && (!is_string($concentration) || mb_strlen($concentration) > 200)) {
+            throw HttpError::validation('Neplatná koncentrace.', 'state');
+        }
         return [
+            'concentration' => $concentration === '' ? null : $concentration,
             'hpCurrent' => array_key_exists('hpCurrent', $s) && $s['hpCurrent'] !== null ? $int($s['hpCurrent'], 'hpCurrent') : null,
             'hpTemp' => $int($s['hpTemp'] ?? 0, 'hpTemp'),
             'deathSuccesses' => $int($s['deathSuccesses'] ?? 0, 'deathSuccesses', 0, 3),

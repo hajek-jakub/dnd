@@ -8,6 +8,8 @@ import { AbilitiesCard, SavesCard, SkillsCard } from './AbilitiesCard'
 import { Avatar } from './Avatar'
 import { AttacksCard } from './AttacksCard'
 import { FeaturesTab } from './FeaturesTab'
+import { InventoryTab } from './InventoryTab'
+import { SpellsTab } from './SpellsTab'
 import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
@@ -20,6 +22,8 @@ import { useCharacter, useEngineBundle } from './api'
 
 const TABS = [
   { id: 'overview', label: 'Přehled' },
+  { id: 'spells', label: 'Kouzla' },
+  { id: 'inventory', label: 'Inventář' },
   { id: 'features', label: 'Featury' },
   { id: 'profile', label: 'Postava' },
 ] as const
@@ -122,6 +126,8 @@ function SheetView() {
           </div>
         </div>
       )}
+      {tab === 'spells' && <SpellsTab />}
+      {tab === 'inventory' && <InventoryTab />}
       {tab === 'features' && <FeaturesTab />}
       {tab === 'profile' && <ProfileTab />}
     </div>

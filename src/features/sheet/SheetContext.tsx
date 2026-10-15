@@ -17,7 +17,8 @@ export function SheetProvider({ character, bundle, children }: { character: Char
 
   const isDm = campaign?.role === 'dm'
   const canEdit = isDm || character.ownerId === user?.id
-  const { sheet, hpCurrent } = useMemo(() => deriveSheet(character, bundle), [character, bundle])
+  const encumbrance = campaign?.settings?.encumbrance === true
+  const { sheet, hpCurrent } = useMemo(() => deriveSheet(character, bundle, { encumbrance }), [character, bundle, encumbrance])
 
   const onError = useCallback((e: Error) => toast.error(e instanceof ApiError ? e.message : 'Změna se nepodařila a vrátila se zpět.'), [])
   const adjust = useCallback((ops: AdjustOp[]) => adjustMutation.mutate(ops, { onError }), [adjustMutation, onError])

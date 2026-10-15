@@ -146,8 +146,20 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Deploy: `api/storage` (nahrané soubory) se nikdy nenahrává z lokálu ani nemaže na serveru (`PRESERVE`); po nasazení deploy vypíše diagnostiku serveru (PHP, GD, zapisovatelné úložiště).
 - Testy: 55 unit testů enginu (včetně povinného Monk 5 / Warlock 1, multiclass sloty, AC, přepisy, resty, attunement), 98 API testů, 33 E2E (desktop + mobil) včetně UI scénáře Hajoš a nahrání fotky.
 
+### Fáze 4 – Kouzla a inventář: HOTOVO
+- **Kouzla** (`character_spells`, odkaz na `rules_entries`, SRD i homebrew kampaně): přidání do seznamu třídy (nebo mimo třídu), připravená kouzla u cleric/druid/paladin/wizard (limity jen jako upozornění, nikdy neblokují),
+  detail kouzla, **seslání**: výběr slotu (kouzlo na vyšší úrovni ukáže text „na vyšší úrovni“), pact slot (např. warlock v multiclassu), rituál bez slotu, cantripy bez slotu, **koncentrace** (`characters.concentration`, adjust op `concentration`).
+- **Inventář** (`character_items`): položka je kopie z pravidel (`Items::fromRule`: zbraň, zbroj, štít, magický item včetně známých efektů jako Ring of Protection, +N zbroj/štít/zbraň) nebo vlastní.
+  Equip se promítá do enginu (AC, útoky, efekty); nosí se jedna zbroj a jeden štít; **attunement max 3** vynucuje server (transakce se zámkem postavy, souběžné požadavky se nepředběhnou).
+  Efekty itemů (bonusy k AC, savům, skillům, rychlosti, ...) se započítají jen u nošeného (a u attunement itemů attunovaného) itemu a s původem se ukážou v rozpisu hodnoty.
+- **Peníze**: cp/sp/ep/gp/pp, převod mincí (`money.ts`, jen celé násobky), celková hodnota. **Předávání** (`POST /characters/{id}/transfer`): item (i část stacku) a/nebo peníze jiné postavě ve stejné kampani, v transakci s zámkem obou postav
+  (souběžné předání stejného itemu projde jen jednou). Předaný item se odequipuje a ztratí attunement.
+- **Nosnost/přetížení**: volitelné pravidlo kampaně (`campaigns.settings.encumbrance`, přepíná DM v kampani), engine: nad 5× STR −10 ft, nad 10× STR −20 ft, váha a limity vždy vidět.
+- API: `POST/PATCH/DELETE /characters/{id}/items[/{itemId}]`, `POST /characters/{id}/transfer`, `POST/PATCH/DELETE /characters/{id}/spells[/{spellId}]`, `PATCH /campaigns/{id}` s `settings`.
+- Testy: 58 unit testů enginu, 129 API testů (inventář, attunement, souběhy, předávání, kouzla, oprávnění), 46 E2E (desktop + mobil) včetně warlocka z pact slotu a předání mezi DM na počítači a hráčem na telefonu.
+
 ### Další fáze (dle zadání)
-4. Kouzla a inventář. 5. Level up. 6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
+5. Level up. 6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

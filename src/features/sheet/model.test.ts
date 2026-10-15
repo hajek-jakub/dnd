@@ -12,6 +12,7 @@ const base: CharacterState = {
   pactSlotsUsed: 0,
   resources: {},
   conditions: [],
+  concentration: null,
 }
 const extras = { xp: 100, inspiration: false }
 
@@ -63,6 +64,11 @@ describe('applyOps (optimistická verze serverových úprav)', () => {
     )
     expect(r.state).toMatchObject({ deathFailures: 2, deathSuccesses: 3, conditions: ['Prone'] })
     expect(r).toMatchObject({ inspiration: true, xp: 0 })
+  })
+
+  it('koncentrace se nastaví a zruší', () => {
+    expect(applyOps(base, [{ op: 'concentration', set: 'Bless' }], extras).state.concentration).toBe('Bless')
+    expect(applyOps({ ...base, concentration: 'Bless' }, [{ op: 'concentration', set: null }], extras).state.concentration).toBeNull()
   })
 
   it('nemění původní stav (immutabilita)', () => {

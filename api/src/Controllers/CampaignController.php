@@ -78,6 +78,22 @@ final class CampaignController
             $sets[] = 'description = ?';
             $values[] = Input::string($data, 'description', 0, 2000, 'Popis');
         }
+        if (array_key_exists('settings', $data)) {
+            $in = $data['settings'];
+            if (!is_array($in) || array_diff(array_keys($in), ['encumbrance']) !== []) {
+                throw HttpError::validation('Neznámé nastavení kampaně.', 'settings');
+            }
+            $current = json_decode((string) Db::value('SELECT settings FROM campaigns WHERE id = ?', [$params['id']]), true);
+            $current = is_array($current) ? $current : [];
+            if (array_key_exists('encumbrance', $in)) {
+                if (!is_bool($in['encumbrance'])) {
+                    throw HttpError::validation('encumbrance musí být true/false.', 'settings');
+                }
+                $current['encumbrance'] = $in['encumbrance'];
+            }
+            $sets[] = 'settings = ?';
+            $values[] = json_encode($current === [] ? new \stdClass() : $current, JSON_UNESCAPED_UNICODE);
+        }
         if ($sets !== []) {
             $values[] = $params['id'];
             Db::exec('UPDATE campaigns SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
