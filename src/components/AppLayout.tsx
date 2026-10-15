@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOutIcon, SwordsIcon } from 'lucide-react'
+import { LogOutIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/features/auth/auth-context'
@@ -19,7 +19,7 @@ export function AppLayout() {
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 lg:max-w-6xl">
           <Link to="/" className="flex min-h-11 items-center gap-2 font-semibold">
-            <SwordsIcon aria-hidden className="size-5" />
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="size-7" />
             D&amp;D kampaně
           </Link>
           <div className="flex items-center gap-1">
