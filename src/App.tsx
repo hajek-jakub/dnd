@@ -1,0 +1,42 @@
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
+import { AppLayout } from '@/components/AppLayout'
+import { buttonVariants } from '@/components/ui/button'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { RequireAuth } from '@/features/auth/RequireAuth'
+import { CampaignPage } from '@/features/campaigns/CampaignPage'
+import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
+import { JoinPage } from '@/features/campaigns/JoinPage'
+import { ProfilePage } from '@/features/profile/ProfilePage'
+
+function NotFound() {
+  return (
+    <div className="space-y-4 py-10 text-center">
+      <h1 className="text-2xl font-bold">Stránka neexistuje</h1>
+      <Link to="/" className={buttonVariants()}>
+        Zpět na kampaně
+      </Link>
+    </div>
+  )
+}
+
+export default function App() {
+  // basename = Vite base (např. "/" nebo "/dnd/"), bez koncového lomítka
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+  return (
+    <BrowserRouter basename={basename}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<CampaignsPage />} />
+            <Route path="campaigns/:campaignId" element={<CampaignPage />} />
+            <Route path="join/:code" element={<JoinPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}

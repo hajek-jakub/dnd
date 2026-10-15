@@ -1,0 +1,56 @@
+# D&D kampaně – statická SPA na Apache (Endora)
+# Soubor se kopíruje z public/ do dist/ při buildu.
+
+Options -Indexes
+DirectoryIndex index.html
+
+# Vynutit HTTPS (přihlášení a schránka fungují jen přes https).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteCond %{HTTP_HOST} !^localhost
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # SPA routing: cokoli, co není existující soubor nebo složka, jde na index.html.
+  # Pokud nasadíš do podsložky, změň RewriteBase (např. /dnd/) a odpovídající cestu níže.
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  # Chybějící soubory v /assets/ mají vrátit 404, ne index.html (jinak by se při zastaralé cache hlásily záhadné chyby).
+  RewriteCond %{REQUEST_URI} !/assets/
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# Bezpečnostní hlavičky
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# Komprese
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json image/svg+xml
+</IfModule>
+
+# Cachování: assety ve /assets/ mají hash v názvu, takže mohou být cachované na rok.
+# index.html se nikdy necachuje, aby se po nasazení hned načetla nová verze.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(?:js|css|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "^(?:index\.html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
