@@ -110,7 +110,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Kampaně, členové, role per kampaň, pozvánky (kód 10 znaků, platnost, max. použití, zrušení), odchod/odebrání hráče, smazání kampaně.
 - Minimální postavy s veřejným náhledem a DM poznámky (zatím jen API, UI přijde ve fázi 3 a 6).
 - 48 API testů autorizace, 12 E2E testů (desktop i mobil), unit testy, deploy skript otestovaný proti lokálnímu FTP.
-- **Čeká na uživatele**: nastavit na Endoře PHP 8, databázi, HTTPS a udělat první `npm run deploy` (postup v `docs/NASAZENI.md`).
+- **Nasazeno** na https://dnd.hajekjakub.cz (PHP 8, MariaDB 11.8 na `db.db055.endora.cz`, Let's Encrypt). FTP účet `dnd.hajekjakub.cz` je zamčený v `_sub/dnd`. Další nasazení: `npm run deploy`. První účet DM se zakládá registračním heslem z `api/config.production.php`.
 
 ### Další fáze (dle zadání)
 2. Data: import SRD 5.1 (5e-bits/5e-database) do MySQL, model pro homebrew, prohlížeč kouzel/itemů/featur, stránka „O aplikaci“ s atribucí SRD 5.1 (CC-BY-4.0).
