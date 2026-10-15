@@ -83,16 +83,27 @@ final class Db
     public static function transaction(callable $fn): mixed
     {
         $pdo = self::pdo();
-        $pdo->beginTransaction();
-        try {
-            $result = $fn();
-            $pdo->commit();
-            return $result;
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
+        // Deadlock (MySQL 1213) databáze vyřeší tím, že jednu transakci zruší. Ta se celá vrátila zpět, takže ji jde bezpečně zopakovat.
+        for ($attempt = 1;; $attempt++) {
+            $pdo->beginTransaction();
+            try {
+                $result = $fn();
+                $pdo->commit();
+                return $result;
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                if ($attempt >= 3 || !self::isDeadlock($e)) {
+                    throw $e;
+                }
+                usleep(random_int(20_000, 120_000));
             }
-            throw $e;
         }
+    }
+
+    private static function isDeadlock(Throwable $e): bool
+    {
+        return $e instanceof \PDOException && (int) ($e->errorInfo[1] ?? 0) === 1213;
     }
 }

@@ -26,7 +26,7 @@ final class CharacterSeeder
 {
     public const TEST_CAMPAIGN_NAME = 'Testovací kampaň (seed)';
 
-    private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'openQuestions'];
+    private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'tactics', 'openQuestions'];
     private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'xp', 'notes'];
     private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
     private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'description', 'note'];
@@ -36,15 +36,6 @@ final class CharacterSeeder
         // Kostku a typ zranění vezme seed z řádku v sekci attacks (homebrew zbraň s d8), kategorie a vlastnosti jsou odhad (monk zbraň: simple, melee).
         'nunchaku' => [
             'weapon' => ['damageDice' => '1d6', 'damageType' => 'Bludgeoning', 'category' => 'simple', 'range' => 'melee', 'properties' => ['Light'], 'weight' => 1],
-        ],
-    ];
-
-    /** Kouzla, která nejsou v SRD 5.1: jen fakta k filtrování a seslání, bez textu z příruček. */
-    private const NON_SRD_SPELLS = [
-        'hex' => [
-            'name' => 'Hex', 'level' => 1, 'school' => 'Enchantment', 'castingTime' => '1 bonus action', 'range' => '90 feet', 'components' => 'V, S, M',
-            'duration' => 'Concentration, up to 1 hour', 'concentration' => true, 'ritual' => false, 'classes' => 'Warlock',
-            'description' => 'Kouzlo není v SRD 5.1, popis najdeš v Player\'s Handbook.',
         ],
     ];
 
@@ -102,7 +93,12 @@ final class CharacterSeeder
             if ($item['equipped']) {
                 Db::exec('UPDATE character_items SET equipped = 1 WHERE id = ?', [$itemId]);
             }
+            if ($item['attuned']) {
+                // attunement má smysl jen u itemu, který ho vyžaduje
+                Db::exec('UPDATE character_items SET requires_attunement = 1, attuned = 1 WHERE id = ?', [$itemId]);
+            }
         }
+        Tactics::replaceAll($id, $plan['tactics']);
         foreach ($plan['spells'] as $spell) {
             $ruleId = $spell['ruleId'] ?? $ruleIds[$spell['ruleKey']];
             InventoryController::addSpell(self::req(['ruleId' => $ruleId, 'classIdx' => $spell['classIdx'], 'prepared' => true]), ['id' => $id], $user);
@@ -314,17 +310,13 @@ final class CharacterSeeder
             }
             foreach (['cantrips', 'known', 'leveled'] as $group) {
                 foreach (is_array($block[$group] ?? null) ? $block[$group] : [] as $spellName) {
-                    $rule = Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND is_srd = 1 AND LOWER(name) = LOWER(?)", [$spellName]);
+                    // SRD má přednost, jinak katalog kouzel mimo SRD (api/data/extra/warlock-spells.json)
+                    $rule = Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND is_srd = 1 AND LOWER(name) = LOWER(?)", [$spellName])
+                        ?? Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND ruleset = 'ref' AND LOWER(name) = LOWER(?)", [$spellName]);
                     if ($rule !== null) {
                         $spells[] = ['classIdx' => $classIdx, 'ruleId' => (string) $rule['id'], 'ruleKey' => null];
-                    } elseif (isset(self::NON_SRD_SPELLS[strtolower((string) $spellName)])) {
-                        $def = self::NON_SRD_SPELLS[strtolower((string) $spellName)];
-                        $key = 'spell:' . strtolower((string) $spellName);
-                        $homebrew[$key] = ['kind' => 'spell', 'body' => ['kind' => 'spell'] + $def];
-                        $spells[] = ['classIdx' => $classIdx, 'ruleId' => null, 'ruleKey' => $key];
-                        $warnings[] = "Kouzlo $spellName není v SRD 5.1: založeno jako homebrew kampaně (jen fakta, bez popisu).";
                     } else {
-                        $fail("Kouzlo \"$spellName\" není v SRD a nemám pro něj údaje na homebrew. Doplň je do CharacterSeeder::NON_SRD_SPELLS.");
+                        $fail("Kouzlo \"$spellName\" není ani v SRD, ani v katalogu kouzel (api/data/extra/warlock-spells.json).");
                     }
                 }
             }
@@ -421,6 +413,9 @@ final class CharacterSeeder
                     }
                 }
                 $body = ['kind' => 'weapon', 'name' => $itemName, 'description' => ''] + $weapon;
+                if (($entry['attunement'] ?? null) === true) {
+                    $body['attunement'] = true;
+                }
                 if (isset($entry['magicBonus'])) {
                     if (!is_int($entry['magicBonus'])) {
                         $fail("Homebrew \"$itemName\": magicBonus musí být celé číslo.");
@@ -450,8 +445,11 @@ final class CharacterSeeder
                 }
                 $ruleId = (string) $rule['id'];
             }
-            $items[] = ['qty' => $qty, 'equipped' => $equipped, 'ruleId' => $ruleId, 'ruleKey' => $ruleKey, 'notes' => implode("\n", $itemNotes)];
+            $items[] = ['qty' => $qty, 'equipped' => $equipped, 'attuned' => ($entry['attunement'] ?? null) === true, 'ruleId' => $ruleId, 'ruleKey' => $ruleKey, 'notes' => implode("\n", $itemNotes)];
         }
+
+        // taktiky (combat cheat sheet): validuje stejný kód jako API, takže seed nemůže uložit nic, co by UI neumělo upravit
+        $tactics = self::tacticsFrom($seed, $fail);
 
         // peníze (poslední zbylé TO_CONFIRM z openQuestions se do poznámek nepřenáší, jen vypíše)
         try {
@@ -472,6 +470,7 @@ final class CharacterSeeder
             'name' => $name,
             'warnings' => $warnings,
             'homebrew' => $homebrew,
+            'tactics' => $tactics,
             'items' => $items,
             'spells' => $spells,
             'create' => [
@@ -495,6 +494,73 @@ final class CharacterSeeder
                 'state' => ['hpCurrent' => $hpCurrent, 'hpTemp' => $hpTemp],
             ],
         ];
+    }
+
+    /**
+     * Jen taktiky existující postavy: smaže její taktiky a vloží nové ze seedu (idempotentní, zbytek postavy se nemění).
+     * @param array<string, mixed> $seed
+     * @return array{status: string, characterId: string, count: int}
+     */
+    public static function replaceTactics(array $seed, string $ownerUsername, ?string $campaignId): array
+    {
+        $problems = [];
+        $fail = static function (string $m) use (&$problems): void {
+            $problems[] = $m;
+        };
+        $tactics = self::tacticsFrom($seed, $fail);
+        $name = is_array($seed['character'] ?? null) && is_string($seed['character']['name'] ?? null) ? trim($seed['character']['name']) : '';
+        $owner = Db::one('SELECT id FROM users WHERE username = ?', [$ownerUsername]);
+        if ($owner === null) {
+            $fail("Uživatel \"$ownerUsername\" neexistuje.");
+        }
+        $char = null;
+        if ($owner !== null) {
+            $char = Db::one(
+                'SELECT id FROM characters WHERE owner_id = ? AND name = ?' . ($campaignId !== null && $campaignId !== '' ? ' AND campaign_id = ?' : '') . ' ORDER BY created_at DESC LIMIT 1',
+                $campaignId !== null && $campaignId !== '' ? [$owner['id'], $name, $campaignId] : [$owner['id'], $name],
+            );
+            if ($char === null) {
+                $fail("Postava \"$name\" uživatele \"$ownerUsername\" neexistuje (nejdřív ji naseeduj).");
+            }
+        }
+        if ($problems !== [] || $char === null) {
+            throw new SeedStop($problems);
+        }
+        Db::transaction(static function () use ($char, $tactics): void {
+            Tactics::replaceAll((string) $char['id'], $tactics);
+        });
+        return ['status' => 'tactics', 'characterId' => (string) $char['id'], 'count' => count($tactics)];
+    }
+
+    /**
+     * @param array<string, mixed> $seed
+     * @param callable(string): void $fail
+     * @return list<array{kind: string, title: string, data: array<string, mixed>}>
+     */
+    private static function tacticsFrom(array $seed, callable $fail): array
+    {
+        $out = [];
+        $block = $seed['tactics'] ?? [];
+        if (!is_array($block)) {
+            $fail('Sekce tactics musí být objekt.');
+            return [];
+        }
+        foreach ($block as $key => $list) {
+            $kind = Tactics::SEED_KEYS[$key] ?? null;
+            if ($kind === null || !is_array($list)) {
+                $fail("Neznámá sekce taktik \"$key\": datový model ji neumí uložit.");
+                continue;
+            }
+            foreach ($list as $i => $entry) {
+                try {
+                    $n = Tactics::normalize($kind, is_array($entry) ? $entry : []);
+                    $out[] = ['kind' => $kind, 'title' => $n['title'], 'data' => $n['data']];
+                } catch (HttpError $e) {
+                    $fail("Taktika $key #" . ($i + 1) . ': ' . $e->getMessage() . ($e->field !== null ? " (pole {$e->field})" : ''));
+                }
+            }
+        }
+        return $out;
     }
 
     // ------------------------------------------------------------------ pomocné

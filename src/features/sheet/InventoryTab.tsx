@@ -307,7 +307,7 @@ function AddItemDialog({ open, onClose }: { open: boolean; onClose: () => void }
               <option value="equipment">Vybavení</option>
               <option value="magic_item">Magické itemy</option>
             </NativeSelect>
-            <ul className="max-h-[45dvh] space-y-2 overflow-y-auto">
+            <ul className="scroll-area max-h-[45dvh] space-y-2 pr-2">
               {entries.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border p-2">
                   <span className="min-w-0">

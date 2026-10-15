@@ -16,6 +16,7 @@ use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
+use Dnd\Controllers\TacticsController;
 use Dnd\Controllers\AdminController;
 use Throwable;
 
@@ -127,6 +128,13 @@ final class App
         $r->add('POST', '/maps/{id}/pins', [MapController::class, 'createPin']);
         $r->add('PATCH', '/pins/{id}', [MapController::class, 'updatePin']);
         $r->add('DELETE', '/pins/{id}', [MapController::class, 'deletePin']);
+
+        // Taktiky postavy (útoky, kouzla, ki, pasivky, komba, poučky)
+        $r->add('GET', '/characters/{id}/tactics', [TacticsController::class, 'index']);
+        $r->add('POST', '/characters/{id}/tactics', [TacticsController::class, 'create']);
+        $r->add('POST', '/characters/{id}/tactics/reorder', [TacticsController::class, 'reorder']);
+        $r->add('PATCH', '/tactics/{id}', [TacticsController::class, 'update']);
+        $r->add('DELETE', '/tactics/{id}', [TacticsController::class, 'delete']);
 
         // Kostky: hody na serveru a sdílený log kampaně
         $r->add('POST', '/campaigns/{id}/rolls', [DiceController::class, 'roll']);

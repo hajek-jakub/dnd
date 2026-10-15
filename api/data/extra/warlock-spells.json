@@ -1,0 +1,1025 @@
+{
+ "_info": "Katalog warlockových kouzel, která nejsou v SRD 5.1 (seznam podle rpgbot.net/dnd5/characters/classes/warlock/spells/). Jen fakta pro filtrování a seslání (úroveň, škola, doba seslání, dosah, složky, trvání, koncentrace, zdroj), žádné popisy z příruček. Popis je v příručce uvedené jako zdroj.",
+ "spells": [
+  {
+   "name": "Blade Ward",
+   "level": 0,
+   "school": "Abjuration",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "1 round",
+   "concentration": false,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Booming Blade",
+   "level": 0,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "Self (5-foot radius)",
+   "components": "S, M",
+   "duration": "1 round",
+   "concentration": false,
+   "ritual": false,
+   "source": "SCAG, TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Create Bonfire",
+   "level": 0,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Friends",
+   "level": 0,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Frostbite",
+   "level": 0,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "EEPC, XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Green-Flame Blade",
+   "level": 0,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "Self (5-foot radius)",
+   "components": "S, M",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "SCAG, TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Infestation",
+   "level": 0,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V, S, M",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Lightning Lure",
+   "level": 0,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "Self (15-foot radius)",
+   "components": "V",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "SCAG, TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Magic Stone",
+   "level": 0,
+   "school": "Transmutation",
+   "castingTime": "1 bonus action",
+   "range": "Touch",
+   "components": "V, S",
+   "duration": "1 minute",
+   "concentration": false,
+   "ritual": false,
+   "source": "EEPC, XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Mind Sliver",
+   "level": 0,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V",
+   "duration": "1 round",
+   "concentration": false,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Sword Burst",
+   "level": 0,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "Self (5-foot radius)",
+   "components": "V",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "SCAG, TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Thunderclap",
+   "level": 0,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "Self (5-foot radius)",
+   "components": "S",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "EEPC, XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Toll the Dead",
+   "level": 0,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Armor of Agathys",
+   "level": 1,
+   "school": "Abjuration",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S, M",
+   "duration": "1 hour",
+   "concentration": false,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Arms of Hadar",
+   "level": 1,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "Self (10-foot radius)",
+   "components": "V, S",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Cause Fear",
+   "level": 1,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Distort Value",
+   "level": 1,
+   "school": "Illusion",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V",
+   "duration": "8 hours",
+   "concentration": false,
+   "ritual": false,
+   "source": "AI",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Hex",
+   "level": 1,
+   "school": "Enchantment",
+   "castingTime": "1 bonus action",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Witch Bolt",
+   "level": 1,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Borrowed Knowledge",
+   "level": 2,
+   "school": "Divination",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S, M",
+   "duration": "1 hour",
+   "concentration": false,
+   "ritual": false,
+   "source": "SCoC",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Cloud of Daggers",
+   "level": 2,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Crown of Madness",
+   "level": 2,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "120 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Earthbind",
+   "level": 2,
+   "school": "Transmutation",
+   "castingTime": "1 action",
+   "range": "300 feet",
+   "components": "V",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Mind Spike",
+   "level": 2,
+   "school": "Divination",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "S",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Shadow Blade",
+   "level": 2,
+   "school": "Illusion",
+   "castingTime": "1 bonus action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Spray of Cards",
+   "level": 2,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "Self (15-foot cone)",
+   "components": "V, S, M",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "BoMT",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Antagonize",
+   "level": 3,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V, S, M",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "BoMT",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Enemies Abound",
+   "level": 3,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "120 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Hunger of Hadar",
+   "level": 3,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "150 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Incite Greed",
+   "level": 3,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "AI",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Intellect Fortress",
+   "level": 3,
+   "school": "Abjuration",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Spirit Shroud",
+   "level": 3,
+   "school": "Necromancy",
+   "castingTime": "1 bonus action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Fey",
+   "level": 3,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Lesser Demons",
+   "level": 3,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Shadowspawn",
+   "level": 3,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Undead",
+   "level": 3,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Thunder Step",
+   "level": 3,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Charm Monster",
+   "level": 4,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V, S",
+   "duration": "1 hour",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Elemental Bane",
+   "level": 4,
+   "school": "Transmutation",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Raulothim's Psychic Lance",
+   "level": 4,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "120 feet",
+   "components": "V",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "FToD",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Shadow of Moil",
+   "level": 4,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Sickening Radiance",
+   "level": 4,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "120 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Spirit of Death",
+   "level": 4,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "BoMT",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Aberration",
+   "level": 4,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Greater Demon",
+   "level": 4,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Danse Macabre",
+   "level": 5,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Enervation",
+   "level": 5,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Far Step",
+   "level": 5,
+   "school": "Conjuration",
+   "castingTime": "1 bonus action",
+   "range": "Self",
+   "components": "V",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Infernal Calling",
+   "level": 5,
+   "school": "Conjuration",
+   "castingTime": "1 minute",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Negative Energy Flood",
+   "level": 5,
+   "school": "Necromancy",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V, M",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Synaptic Static",
+   "level": 5,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "120 feet",
+   "components": "V, S",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Wall of Light",
+   "level": 5,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "120 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Arcane Gate",
+   "level": 6,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "500 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "PHB",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Investiture of Flame",
+   "level": 6,
+   "school": "Transmutation",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Investiture of Ice",
+   "level": 6,
+   "school": "Transmutation",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Investiture of Stone",
+   "level": 6,
+   "school": "Transmutation",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Investiture of Wind",
+   "level": 6,
+   "school": "Transmutation",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Mental Prison",
+   "level": 6,
+   "school": "Illusion",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Scatter",
+   "level": 6,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "30 feet",
+   "components": "V",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Soul Cage",
+   "level": 6,
+   "school": "Necromancy",
+   "castingTime": "1 reaction",
+   "range": "60 feet",
+   "components": "V, S, M",
+   "duration": "8 hours",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Summon Fiend",
+   "level": 6,
+   "school": "Conjuration",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 hour",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Tasha's Otherworldly Guise",
+   "level": 6,
+   "school": "Transmutation",
+   "castingTime": "1 bonus action",
+   "range": "Self",
+   "components": "V, S, M",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Crown of Stars",
+   "level": 7,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "Self",
+   "components": "V, S",
+   "duration": "1 hour",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Dream of the Blue Veil",
+   "level": 7,
+   "school": "Conjuration",
+   "castingTime": "10 minutes",
+   "range": "20 feet",
+   "components": "V, S, M",
+   "duration": "6 hours",
+   "concentration": false,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Power Word Pain",
+   "level": 7,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "60 feet",
+   "components": "V",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Maddening Darkness",
+   "level": 8,
+   "school": "Evocation",
+   "castingTime": "1 action",
+   "range": "150 feet",
+   "components": "V, M",
+   "duration": "Concentration, up to 10 minutes",
+   "concentration": true,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Blade of Disaster",
+   "level": 9,
+   "school": "Conjuration",
+   "castingTime": "1 bonus action",
+   "range": "60 feet",
+   "components": "V, S",
+   "duration": "Concentration, up to 1 minute",
+   "concentration": true,
+   "ritual": false,
+   "source": "TCoE",
+   "classes": [
+    "Warlock"
+   ]
+  },
+  {
+   "name": "Psychic Scream",
+   "level": 9,
+   "school": "Enchantment",
+   "castingTime": "1 action",
+   "range": "90 feet",
+   "components": "S",
+   "duration": "Instantaneous",
+   "concentration": false,
+   "ritual": false,
+   "source": "XGtE",
+   "classes": [
+    "Warlock"
+   ]
+  }
+ ]
+}

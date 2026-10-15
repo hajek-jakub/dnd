@@ -1,8 +1,6 @@
 {
   "_info": "Seed data pro postavu Hajoš. Přepsáno z papírového character sheetu (15. 10. 2026). Pravidla D&D 5e 2014 (SRD 5.1). Hodnoty null a položky v openQuestions ještě čekají na doplnění. Sekce sheetValues obsahuje čísla tak, jak jsou napsaná na papíře. Slouží jako kontrola pravidlového enginu, ne jako zdroj pravdy.",
-
   "ruleset": "5e-2014 (SRD 5.1)",
-
   "character": {
     "name": "Hajoš",
     "race": "Human",
@@ -11,12 +9,18 @@
     "xp": null,
     "notes": "Na sheetu je pod nadpisem připsáno „Heroic“, význam zatím neznámý."
   },
-
   "classes": [
-    { "class": "Monk", "level": 5, "subclass": "Way of the Open Hand" },
-    { "class": "Warlock", "level": 1, "subclass": "The Fiend" }
+    {
+      "class": "Monk",
+      "level": 5,
+      "subclass": "Way of the Open Hand"
+    },
+    {
+      "class": "Warlock",
+      "level": 1,
+      "subclass": "The Fiend"
+    }
   ],
-
   "abilityScores": {
     "STR": 10,
     "DEX": 18,
@@ -25,50 +29,120 @@
     "WIS": 15,
     "CHA": 16
   },
-
   "proficiencies": {
-    "savingThrows": ["STR", "DEX"],
-    "skills": ["Acrobatics", "Medicine", "Religion", "Stealth"],
+    "savingThrows": [
+      "STR",
+      "DEX"
+    ],
+    "skills": [
+      "Acrobatics",
+      "Medicine",
+      "Religion",
+      "Stealth"
+    ],
     "expertise": [],
-    "languages": ["Common", "Orc"],
-    "weapons": ["Simple weapons", "Shortswords"],
-    "armor": ["Light armor (z multiclassu do warlocka)"],
+    "languages": [
+      "Common",
+      "Orc"
+    ],
+    "weapons": [
+      "Simple weapons",
+      "Shortswords"
+    ],
+    "armor": [
+      "Light armor (z multiclassu do warlocka)"
+    ],
     "tools": null
   },
-
   "hitPoints": {
     "max": 39,
     "current": 39,
     "temp": 4,
     "tempSource": "Dark One's Blessing (CHA +3 + warlock level 1)",
-    "hitDice": { "d8_monk": 5, "d8_warlock": 1 }
+    "hitDice": {
+      "d8_monk": 5,
+      "d8_warlock": 1
+    }
   },
-
   "resources": [
-    { "name": "Ki", "max": 5, "current": 5, "recharge": "short_rest" },
-    { "name": "Pact Magic slot (1st level)", "max": 1, "current": 1, "recharge": "short_rest" }
+    {
+      "name": "Ki",
+      "max": 5,
+      "current": 5,
+      "recharge": "short_rest"
+    },
+    {
+      "name": "Pact Magic slot (1st level)",
+      "max": 1,
+      "current": 1,
+      "recharge": "short_rest"
+    }
   ],
-
   "spells": {
     "warlock": {
       "spellcastingAbility": "CHA",
-      "cantrips": ["Eldritch Blast", "Minor Illusion"],
-      "known": ["Hex", "Command"],
-      "note": "Command je z rozšířeného seznamu Fiend patronu. Eldritch Blast má na celkovém levelu 6 dva paprsky."
+      "cantrips": [
+        "Eldritch Blast",
+        "Minor Illusion"
+      ],
+      "known": [
+        "Hex",
+        "Command",
+        "Armor of Agathys",
+        "Burning Hands"
+      ],
+      "note": "Command a Burning Hands jsou z rozšířeného seznamu Fiend patronu, Hex a Armor of Agathys jsou vlastní výběr (DM povolil všechna čtyři). Eldritch Blast má na celkovém levelu 6 dva paprsky."
     }
   },
-
   "attacks": [
-    { "name": "Nunchaku", "toHit": 7, "damage": "1d8+4", "damageType": "bludgeoning", "homebrew": true, "note": "Homebrew zbraň s kostkou d8. Martial arts kostka Monk 5 je v pravidlech 2014 jen d6." },
-    { "name": "Unarmed Strike", "toHit": 7, "damage": "1d6+4", "damageType": "bludgeoning", "note": "Martial arts d6" },
-    { "name": "Dart", "toHit": 7, "damage": "1d4+4", "damageType": "piercing" },
-    { "name": "Crossbow", "toHit": 7, "damage": "1d8+4", "damageType": "piercing", "note": "TO_CONFIRM: na sheetu „Cross“, předpokládám Light Crossbow" },
-    { "name": "Demonic Spear", "toHit": 8, "damage": "1d8+5 + 1d4 fire", "damageType": "piercing + fire", "homebrew": true }
+    {
+      "name": "Nunchaku",
+      "toHit": 7,
+      "damage": "1d8+4",
+      "damageType": "bludgeoning",
+      "homebrew": true,
+      "note": "Homebrew zbraň s kostkou d8. Martial arts kostka Monk 5 je v pravidlech 2014 jen d6."
+    },
+    {
+      "name": "Unarmed Strike",
+      "toHit": 7,
+      "damage": "1d6+4",
+      "damageType": "bludgeoning",
+      "note": "Martial arts d6"
+    },
+    {
+      "name": "Dart",
+      "toHit": 7,
+      "damage": "1d4+4",
+      "damageType": "piercing"
+    },
+    {
+      "name": "Crossbow",
+      "toHit": 7,
+      "damage": "1d8+4",
+      "damageType": "piercing",
+      "note": "TO_CONFIRM: na sheetu „Cross“, předpokládám Light Crossbow"
+    },
+    {
+      "name": "Demonic Spear",
+      "toHit": 8,
+      "damage": "1d8+5 + 1d4 fire",
+      "damageType": "piercing + fire",
+      "homebrew": true
+    }
   ],
-
   "inventory": [
-    { "item": "Nunchaku", "qty": 1, "equipped": true, "homebrew": true },
-    { "item": "Light Crossbow", "qty": 1, "note": "TO_CONFIRM" },
+    {
+      "item": "Nunchaku",
+      "qty": 1,
+      "equipped": true,
+      "homebrew": true
+    },
+    {
+      "item": "Light Crossbow",
+      "qty": 1,
+      "note": "TO_CONFIRM"
+    },
     {
       "item": "Demonic Spear",
       "qty": 1,
@@ -78,34 +152,95 @@
       "magicBonus": 1,
       "damageDice": "1d8",
       "extraDamage": "1d4 fire",
-      "attunement": null,
+      "attunement": true,
       "description": null
     },
-    { "item": "Dart", "qty": 9 },
-    { "item": "Backpack", "qty": 1 },
-    { "item": "Bedroll", "qty": 1 },
-    { "item": "Mess Kit", "qty": 1 },
-    { "item": "Torch", "qty": 8 },
-    { "item": "Tinderbox", "qty": 1 },
-    { "item": "Rations (1 day)", "qty": 10 },
-    { "item": "Waterskin", "qty": 1 },
-    { "item": "Rope, Hempen (50 feet)", "qty": 1 },
-    { "item": "Blanket", "qty": 1 }
+    {
+      "item": "Dart",
+      "qty": 9
+    },
+    {
+      "item": "Backpack",
+      "qty": 1
+    },
+    {
+      "item": "Bedroll",
+      "qty": 1
+    },
+    {
+      "item": "Mess Kit",
+      "qty": 1
+    },
+    {
+      "item": "Torch",
+      "qty": 8
+    },
+    {
+      "item": "Tinderbox",
+      "qty": 1
+    },
+    {
+      "item": "Rations (1 day)",
+      "qty": 10
+    },
+    {
+      "item": "Waterskin",
+      "qty": 1
+    },
+    {
+      "item": "Rope, Hempen (50 feet)",
+      "qty": 1
+    },
+    {
+      "item": "Blanket",
+      "qty": 1
+    }
   ],
-
-  "currency": { "cp": 6, "sp": 9, "ep": 0, "gp": 628, "pp": 0 },
-
+  "currency": {
+    "cp": 6,
+    "sp": 9,
+    "ep": 0,
+    "gp": 628,
+    "pp": 0
+  },
   "sheetValues": {
-    "_info": "Engine by měl dopočítat tyto hodnoty. U položek v discrepancies platí opravená hodnota.",
+    "_info": "Engine by měl dopočítat tyto hodnoty. U položek v discrepancies platí opravená hodnota. Spell save DC warlocka je 14 (8 + proficiency 3 + CHA 3), 13 je DC ki.",
     "proficiencyBonus": 3,
-    "modifiers": { "STR": 0, "DEX": 4, "CON": 1, "INT": -1, "WIS": 2, "CHA": 3 },
-    "savingThrows": { "STR": 3, "DEX": 7, "CON": 1, "INT": -1, "WIS": 2, "CHA": 3 },
+    "modifiers": {
+      "STR": 0,
+      "DEX": 4,
+      "CON": 1,
+      "INT": -1,
+      "WIS": 2,
+      "CHA": 3
+    },
+    "savingThrows": {
+      "STR": 3,
+      "DEX": 7,
+      "CON": 1,
+      "INT": -1,
+      "WIS": 2,
+      "CHA": 3
+    },
     "skills": {
-      "Acrobatics": 7, "Animal Handling": 2, "Arcana": -1, "Athletics": 0,
-      "Deception": 3, "History": -1, "Insight": 2, "Intimidation": 3,
-      "Investigation": -1, "Medicine": 5, "Nature": -1, "Perception": 2,
-      "Performance": 3, "Persuasion": 3, "Religion": 2, "Sleight of Hand": 4,
-      "Stealth": 7, "Survival": 2
+      "Acrobatics": 7,
+      "Animal Handling": 2,
+      "Arcana": -1,
+      "Athletics": 0,
+      "Deception": 3,
+      "History": -1,
+      "Insight": 2,
+      "Intimidation": 3,
+      "Investigation": -1,
+      "Medicine": 5,
+      "Nature": -1,
+      "Perception": 2,
+      "Performance": 3,
+      "Persuasion": 3,
+      "Religion": 2,
+      "Sleight of Hand": 4,
+      "Stealth": 7,
+      "Survival": 2
     },
     "passivePerception": 12,
     "armorClass": 16,
@@ -115,7 +250,7 @@
     "kiMax": 5,
     "kiSaveDC": 13,
     "martialArtsDie": "d6",
-    "warlockSpellSaveDC": 13,
+    "warlockSpellSaveDC": 14,
     "warlockSpellAttack": 6,
     "eldritchBlastBeams": 2,
     "darkOnesBlessingTempHp": 4,
@@ -124,7 +259,6 @@
       "STR save: na papíře „+5 +3“, správně je +3 (STR 0 + proficiency +3)"
     ]
   },
-
   "openQuestions": [
     "Background: skilly Medicine + Religion odpovídají Hermitovi. Je to on?",
     "Co znamená „Heroic“ pod nadpisem sheetu?",
@@ -132,5 +266,278 @@
     "Crossbow: light, nebo jiná? A bolty?",
     "Zlaťáky: 628 gp? (číslo je na papíře přepisované)",
     "Alignment, XP, vzhled a příběh postavy"
-  ]
+  ],
+  "tactics": {
+    "attacks": [
+      {
+        "title": "Démonické kopí (hlavní)",
+        "actionType": "action",
+        "toHit": "d20+8",
+        "damage": "1d8+5 + 1d4 fire",
+        "roll": "1d8+5+1d4",
+        "range": "5 ft (vrh 20/60 ft)",
+        "usage": "Attack 2× (Extra Attack)",
+        "note": "Magické +1, ~12 dmg na zásah. Obouruč 1d8+5, jednoruč 1d6+5, vždy + 1d4 fire."
+      },
+      {
+        "title": "Nunchaku",
+        "actionType": "action",
+        "toHit": "d20+7",
+        "damage": "1d8+4 bludgeoning",
+        "roll": "1d8+4",
+        "range": "5 ft",
+        "usage": "Attack 2×"
+      },
+      {
+        "title": "Úder beze zbraně",
+        "actionType": "bonus",
+        "toHit": "d20+7",
+        "damage": "1d6+4 bludgeoning",
+        "roll": "1d6+4",
+        "range": "5 ft",
+        "usage": "Bonusová akce po akci Attack, nebo v rámci Flurry of Blows",
+        "note": "Jen po akci Attack."
+      },
+      {
+        "title": "Šipka (dart), 9 ks",
+        "actionType": "action",
+        "toHit": "d20+7",
+        "damage": "1d4+4 piercing",
+        "roll": "1d4+4",
+        "range": "20/60 ft",
+        "usage": "Attack"
+      },
+      {
+        "title": "Kuše",
+        "actionType": "action",
+        "toHit": "d20+7",
+        "damage": "1d8+4 piercing",
+        "roll": "1d8+4",
+        "range": "80/320 ft",
+        "usage": "Attack",
+        "note": "Light crossbow (typ čeká na potvrzení)."
+      },
+      {
+        "title": "Eldritch Blast (cantrip)",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "2 paprsky × 1d10 force",
+        "roll": "2d10",
+        "range": "120 ft",
+        "usage": "Cast a Spell: každý paprsek se hází zvlášť",
+        "note": "Ztrácíš Extra Attack i Flurry."
+      }
+    ],
+    "spells": [
+      {
+        "title": "Hex",
+        "level": 1,
+        "actionType": "bonus",
+        "range": "90 ft",
+        "duration": "1 hodina",
+        "concentration": true,
+        "save": "",
+        "effect": "+1d6 necrotic na každý zásah do cíle. Cíl má nevýhodu na checky jedné zvolené vlastnosti. Cíl padne na 0 HP: přehoď Hex bonus akcí na nový cíl bez dalšího slotu.",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Armor of Agathys",
+        "level": 1,
+        "actionType": "action",
+        "range": "Self",
+        "duration": "1 hodina",
+        "concentration": false,
+        "save": "",
+        "effect": "Bez koncentrace. 5 temp HP. Kdo tě zasáhne na blízko, dokud je máš, dostane 5 cold dmg.",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Burning Hands",
+        "level": 1,
+        "actionType": "action",
+        "range": "kužel 15 ft",
+        "duration": "Okamžité",
+        "concentration": false,
+        "save": "DEX DC 14",
+        "effect": "3d6 fire, úspěch = polovina.",
+        "roll": "3d6",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Command",
+        "level": 1,
+        "actionType": "action",
+        "range": "60 ft",
+        "duration": "1 kolo",
+        "concentration": false,
+        "save": "WIS DC 14",
+        "effect": "Jedno slovo, cíl ho splní ve svém tahu: Lehni! (prone), Pusť!, Uteč!, Stůj!, Pojď!",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Eldritch Blast",
+        "level": 0,
+        "actionType": "action",
+        "range": "120 ft",
+        "duration": "Okamžité",
+        "concentration": false,
+        "save": "",
+        "effect": "Viz útoky: 2 paprsky d20+6, každý 1d10 force. S Hexem +1d6 ke každému zásahu.",
+        "cost": "free"
+      },
+      {
+        "title": "Minor Illusion",
+        "level": 0,
+        "actionType": "action",
+        "range": "30 ft",
+        "duration": "1 minuta",
+        "concentration": false,
+        "save": "",
+        "effect": "Zvuk nebo obraz (max kostka 5 ft). Prohlédne ji jen Investigation proti DC 14.",
+        "cost": "free"
+      }
+    ],
+    "ki": [
+      {
+        "title": "Flurry of Blows",
+        "actionType": "bonus",
+        "cost": "ki:1",
+        "description": "Po akci Attack: 2 údery d20+7, 1d6+4. Open Hand: při každém zásahu vyber: shodit (DEX save), odhodit 15 ft (STR save), nebo cíl nemá reakce do konce tvého dalšího tahu."
+      },
+      {
+        "title": "Stunning Strike",
+        "actionType": "none",
+        "cost": "ki:1",
+        "description": "Po zásahu zbraní na blízko. CON save DC 13, neúspěch = stunned do konce tvého dalšího tahu (nic nedělá, všichni na něj mají výhodu)."
+      },
+      {
+        "title": "Patient Defense",
+        "actionType": "bonus",
+        "cost": "ki:1",
+        "description": "Dodge: útoky na tebe mají nevýhodu, DEX savy s výhodou."
+      },
+      {
+        "title": "Step of the Wind",
+        "actionType": "bonus",
+        "cost": "ki:1",
+        "description": "Dash nebo Disengage, skok na dvojnásobnou vzdálenost."
+      }
+    ],
+    "passives": [
+      {
+        "title": "Dark One's Blessing",
+        "type": "passive",
+        "description": "Srazíš nepřítele na 0 HP: 4 temp HP (CHA +3 a level warlocka 1). Nesčítá se s Armor of Agathys, platí vyšší."
+      },
+      {
+        "title": "Deflect Missiles",
+        "type": "reaction",
+        "description": "Zásah střelou: sniž damage o 1d10+9 (1d10 + DEX +4 + level mnicha 5). Na 0: chytíš ji a za 1 ki hodíš zpět (d20+7, 1d6+4, 20/60 ft)."
+      },
+      {
+        "title": "Slow Fall",
+        "type": "reaction",
+        "description": "Pád: damage −25."
+      }
+    ],
+    "combos": [
+      {
+        "title": "Otevření s Hexem",
+        "steps": [
+          "Bonusová akce: Hex na nejsilnějšího nepřítele",
+          "Akce: Attack 2× kopí (oba útoky dostanou +1d6 necrotic)"
+        ],
+        "expectedDamage": "~31 dmg",
+        "cost": "slot:1",
+        "highlight": false,
+        "description": "Hex se sesílá jako první, aby oba útoky dostaly +1d6. V tomhle kole už nemáš Flurry, bonusová akce je spotřebovaná."
+      },
+      {
+        "title": "Maximální burst",
+        "steps": [
+          "Hex už běží na cíli",
+          "Akce: Attack 2× kopí",
+          "Bonusová akce: Flurry of Blows (2 údery)"
+        ],
+        "expectedDamage": "~53 dmg (4 zásahy)",
+        "cost": "ki:1",
+        "highlight": true,
+        "description": "Všechno s aktivním Hexem."
+      },
+      {
+        "title": "Vypni bosse",
+        "steps": [
+          "První zásah zbraní: Stunning Strike (CON save DC 13)",
+          "Omráčený cíl: výhoda pro celou partu"
+        ],
+        "expectedDamage": "",
+        "cost": "ki:1",
+        "highlight": false,
+        "description": "Stunned do konce tvého dalšího tahu."
+      },
+      {
+        "title": "„Lehni!“",
+        "steps": [
+          "Command: Lehni! (WIS save DC 14)",
+          "Cíl padne na zem: výhoda na všechny údery na blízko"
+        ],
+        "expectedDamage": "",
+        "cost": "slot:1",
+        "highlight": false,
+        "description": "Nejde v jednom souboji s Hexem (jen 1 slot)."
+      },
+      {
+        "title": "Obklíčení",
+        "steps": [
+          "3+ slabší nepřátelé v kuželu",
+          "Burning Hands: 3d6 fire, DEX save DC 14"
+        ],
+        "expectedDamage": "3d6 fire",
+        "cost": "slot:1",
+        "highlight": false,
+        "description": ""
+      },
+      {
+        "title": "Cíl daleko",
+        "steps": [
+          "Nedoběhneš (40 ft)? Eldritch Blast, 2 paprsky",
+          "S Hexem +1d6 ke každému paprsku, dosah 120 ft"
+        ],
+        "expectedDamage": "",
+        "cost": "free",
+        "highlight": false,
+        "description": ""
+      }
+    ],
+    "rules": [
+      {
+        "title": "1 slot = 1 kouzlo",
+        "text": "Buď Hex, nebo jiné kouzlo 1. levelu. Slot i ki se vrací po short restu."
+      },
+      {
+        "title": "Kouzlo místo útoku",
+        "text": "Když sešleš kouzlo akcí (Eldritch Blast, Command…), nemáš ten tah Extra Attack ani Flurry. Hex je bonusová akce, takže útok neruší."
+      },
+      {
+        "title": "Pořadí v tahu",
+        "text": "Bonusová akce může být kdykoli v tahu (Hex klidně jako první). Úder beze zbraně a Flurry jdou až po akci Attack."
+      },
+      {
+        "title": "Koncentrace (Hex)",
+        "text": "Při každém zásahu hoď CON save d20+1 proti DC 10 nebo ½ damage (co je vyšší). Neúspěch = Hex končí. Končí i při 0 HP, incapacitated (stunned), sešlání jiného koncentračního kouzla nebo po 1 hodině. Udržíš ho přes Patient Defense, odskakování (Step of the Wind) a tím, že se nehrneš do davu."
+      },
+      {
+        "title": "Útok bonus",
+        "text": "d20 + bonus ≥ AC nepřítele = zásah, teprve pak házíš damage."
+      },
+      {
+        "title": "Kritický zásah (přirozená 20)",
+        "text": "Všechny damage kostky hoď dvakrát, modifikátor (+5) jen jednou. Přirozená 1 = vždycky minutí."
+      },
+      {
+        "title": "Typy damage",
+        "text": "Piercing, fire, necrotic, force, cold hlas DM, protože nepřátelé můžou mít odolnosti (ďáblové typicky na oheň)."
+      }
+    ]
+  }
 }

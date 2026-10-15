@@ -28,7 +28,7 @@ test('kouzla: hledání, detail a (podle displeje) rozložení seznam + detail',
   await registerDm(page, 'rules')
   await page.getByRole('link', { name: 'Pravidla' }).click()
   await expect(page.getByRole('heading', { name: 'Pravidla a obsah' })).toBeVisible()
-  await expect(page.getByText(/319 záznamů/)).toBeVisible()
+  await expect(page.getByText(/387 záznamů/)).toBeVisible()
   await expectNoHorizontalScroll(page)
 
   await page.getByRole('searchbox', { name: 'Hledat podle názvu' }).fill('fireball')
@@ -118,6 +118,8 @@ test('třídy: Monk a Way of the Open Hand mají popis, featury a tabulky', asyn
   await registerDm(page, 'classes')
   await page.goto('/rules?g=classes')
   await page.getByRole('searchbox', { name: 'Hledat podle názvu' }).fill('Open Hand')
+  // hledání se do URL zapisuje se zpožděním; klik dřív by ho přebil zápisem z odloženého hledání
+  await expect(page).toHaveURL(/q=Open\+Hand/)
   await page.getByRole('link', { name: /^Open Hand/ }).click()
   const detail = page.getByRole('article')
   await expect(detail.getByRole('heading', { name: 'Open Hand' })).toBeVisible()
@@ -131,7 +133,7 @@ test('třídy: Monk a Way of the Open Hand mají popis, featury a tabulky', asyn
 test('na seznamu a v detailu jsou dotykové prvky dost velké', async ({ page }) => {
   await registerDm(page, 'touch')
   await page.goto('/rules')
-  await expect(page.getByText(/319 záznamů/)).toBeVisible()
+  await expect(page.getByText(/387 záznamů/)).toBeVisible()
   const small = await page.evaluate(() => {
     const result: string[] = []
     for (const el of document.querySelectorAll<HTMLElement>('main button, main input, main select, main a')) {

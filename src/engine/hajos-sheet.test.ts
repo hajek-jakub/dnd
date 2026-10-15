@@ -201,14 +201,11 @@ describe('Hajoš ze seedu: další hodnoty z papíru', () => {
   })
 })
 
-/**
- * Rozdíly mezi papírem a enginem, které NEJSOU chyba výpočtu. Každý je vědomě zdokumentovaný, ať se nepletou do testů výše.
- */
-describe('Hajoš ze seedu: známé rozdíly proti papíru', () => {
-  it('Spell save DC warlocka: papír má 13, správně je 14 (8 + proficiency 3 + CHA 3)', () => {
-    // Rozdíl NENÍ v seznamu discrepancies. Papírových 13 je DC záchranného hodu ki (8 + 3 + WIS 2), warlockovo DC je o 1 vyšší.
+describe('Hajoš ze seedu: save DC kouzel', () => {
+  it('Spell save DC warlocka je 14 (8 + proficiency 3 + CHA 3), DC ki je 13 (8 + 3 + WIS 2)', () => {
     const warlock = sheet.spellcasting.classes.find((c) => c.classIndex === 'warlock')!
+    expect(warlock.saveDc.value).toBe(v.warlockSpellSaveDC)
     expect(warlock.saveDc.value).toBe(14)
-    expect(v.warlockSpellSaveDC).toBe(13)
+    expect(8 + sheet.proficiencyBonus.value + sheet.abilities.wis.modifier).toBe(v.kiSaveDC)
   })
 })

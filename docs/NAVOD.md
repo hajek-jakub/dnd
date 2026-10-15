@@ -13,14 +13,16 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
 1. **Připojení**: otevři odkaz od DM, vymysli si jméno a heslo (aspoň 8 znaků). Rovnou se připojíš do kampaně.
 2. **Postava**: na stránce kampaně „Nová postava“ → jméno, rasa, třída (i multiclass přes level up), vlastnosti, dovednosti. Hodnoty (modifikátory, záchranné hody, AC, sloty, ki…) se počítají samy.
    Cokoli, co si myslíš, že je jinak, půjde **přepsat klepnutím na číslo**. Přepsaná hodnota má značku „ručně“ a jde vrátit k výpočtu.
-3. **Sheet** (záložky Přehled, Kouzla, Inventář, Featury, Postava): HP a dočasná HP, odpočinky (short a long rest), sloty a zdroje, útoky, kouzla (seslání ze slotu, koncentrace), inventář s nosností a attunementem, peníze (tlačítko **Utratit** zaplatí třeba pivo nebo úplatek a samo rozmění mince, **Předat peníze** je pro jinou postavu), level up s historií.
-4. **Kostky**: u dovedností, záchranných hodů, iniciativy, útoků a zranění je malá kostka. Hod losuje server: ukáže se animace kostek, pak hozená čísla a součet (tlačítko „Hodit znovu“ ho zopakuje) a výsledek vidí celá družina v logu (plovoucí tlačítko s kostkou). Nahoře přepneš **Výhodu / Nevýhodu**, „Krit“ zdvojí kostky zranění.
+3. **Sheet** (záložky Přehled, Kouzla, Inventář, Taktiky, Featury, Postava): HP a dočasná HP, odpočinky (short a long rest), sloty a zdroje, útoky, kouzla (seslání ze slotu, koncentrace), inventář s nosností a attunementem, peníze (tlačítko **Utratit** zaplatí třeba pivo nebo úplatek a samo rozmění mince, **Předat peníze** je pro jinou postavu), level up s historií.
+4. **Taktiky** (záložka na sheetu): tvůj tahák do boje. Nahoře máš klíčová čísla (AC, iniciativa, HP, ki, DC), pod nimi útoky, kouzla, ki schopnosti, pasivky a reakce, komba (nejsilnější je zvýrazněné) a pravidla. Štítek ceny ukazuje, co položka stojí: tmavý je ki, červený spell slot, obrys zdarma; když ti ki nebo slot došel, štítek zešedne a přeškrtne se. Tlačítko **Použít** cenu odečte (hod kostkou nic neodečítá).
+   **Úprava:** zapni „Upravit taktiky“, pak u každé položky šipkami změníš pořadí, „Upravit“ otevře formulář a koš ji smaže; „Přidat“ u nadpisu sekce založí novou. Taktiky smí upravovat hráč i DM.
+5. **Kostky**: u dovedností, záchranných hodů, iniciativy, útoků a zranění je malá kostka. Hod losuje server: ukáže se animace kostek, pak hozená čísla a součet (tlačítko „Hodit znovu“ ho zopakuje) a výsledek vidí celá družina v logu (tlačítko s kostkou v horní liště). Nahoře přepneš **Výhodu / Nevýhodu**, „Krit“ zdvojí kostky zranění.
    **Skrytý hod** vidíš jen ty a DM. Volný hod napíšeš třeba jako `2d6+3`.
-5. **Zprávy**: Skupina (vidí všichni), soukromě s DM (nikdo jiný to nevidí) a Tajné zprávy od DM jen pro vybrané. Nepřečtené ukazuje odznak v horní liště a u vlákna.
-6. **Mapy**: DM zveřejní mapu, ty na ní vidíš body, které ti DM ukázal. Vlastní **soukromé poznámky** na mapě (tlačítko „Přidat poznámku“) uvidíš jen ty, ani DM ne.
-7. **Deník**: informace od DM podle témat (příběh, místa, postavy, frakce…). Nové zápisy ukazuje odznak v liště a štítek „nové“; důležité jsou připnuté nahoře. Můžeš hledat a filtrovat podle tématu a psát si **soukromé zápisky**, které uvidíš jen ty.
-8. **Oznámení** (zvonek): když ti DM něco dá nebo změní (item, XP, bonus, zranění), ukáže se to hned.
-9. **Fotka postavy** a změna hesla jsou v profilu a na záložce Postava.
+6. **Zprávy**: Skupina (vidí všichni), soukromě s DM (nikdo jiný to nevidí) a Tajné zprávy od DM jen pro vybrané. Nepřečtené ukazuje odznak v horní liště a u vlákna.
+7. **Mapy**: DM zveřejní mapu, ty na ní vidíš body, které ti DM ukázal. Vlastní **soukromé poznámky** na mapě (tlačítko „Přidat poznámku“) uvidíš jen ty, ani DM ne.
+8. **Deník**: informace od DM podle témat (příběh, místa, postavy, frakce…). Nové zápisy ukazuje odznak v liště a štítek „nové“; důležité jsou připnuté nahoře. Můžeš hledat a filtrovat podle tématu a psát si **soukromé zápisky**, které uvidíš jen ty.
+9. **Oznámení** (zvonek): když ti DM něco dá nebo změní (item, XP, bonus, zranění), ukáže se to hned.
+10. **Fotka postavy** a změna hesla jsou v profilu a na záložce Postava.
 
 ## Pro DM
 

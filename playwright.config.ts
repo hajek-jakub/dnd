@@ -23,7 +23,8 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // Jeden opakovaný pokus: pod zátěží (vývojový server Vite překládá líné stránky za běhu) občas vyprší časový limit; Playwright to označí jako flaky.
+  retries: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
@@ -47,7 +48,8 @@ export default defineConfig({
     {
       command: `php api/bin/migrate.php --fresh && php api/bin/seed.php && php -S 127.0.0.1:${API_PORT} -t api api/index.php`,
       url: `http://127.0.0.1:${API_PORT}/health`,
-      env: { DND_CONFIG: testConfig },
+      // Vestavěný server PHP obsluhuje jeden požadavek najednou; při několika paralelních prohlížečích by testy zbytečně čekaly na sebe.
+      env: { DND_CONFIG: testConfig, PHP_CLI_SERVER_WORKERS: '4' },
       reuseExistingServer: false,
       timeout: 60_000,
     },

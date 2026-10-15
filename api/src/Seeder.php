@@ -10,6 +10,7 @@ use RuntimeException;
  * Načte pravidla z api/data do tabulky rules_entries (idempotentně).
  *  - srd51/*.json: SRD 5.1 z 5e-bits/5e-database
  *  - extra/item-catalog.json: katalog magických itemů (fakta, ceny, odkazy; bez popisů mimo SRD)
+ *  - extra/warlock-spells.json: warlocková kouzla mimo SRD (jen fakta, bez popisů)
  * Existující záznamy se aktualizují (české překlady a homebrew zůstávají), zmizelé se smažou.
  * Pokud se data od posledního běhu nezměnila, seed se přeskočí.
  */
@@ -26,6 +27,7 @@ final class Seeder
         $dir = dirname(__DIR__) . '/data';
         $files = glob($dir . '/srd51/*.json') ?: [];
         $files[] = $dir . '/extra/item-catalog.json';
+        $files[] = $dir . '/extra/warlock-spells.json';
         sort($files);
         $hashInput = 'v' . self::VERSION;
         foreach ($files as $f) {
@@ -80,6 +82,9 @@ final class Seeder
 
         foreach (self::load($dir, 'Spells') as $r) {
             $rows[] = self::spell($r);
+        }
+        foreach (self::catalogSpells($dir . '/extra/warlock-spells.json') as $r) {
+            $rows[] = $r;
         }
         $usedCatalog = [];
         foreach (self::load($dir, 'Magic-Items') as $r) {
@@ -239,6 +244,47 @@ final class Seeder
             ],
             $data,
         );
+    }
+
+    /**
+     * Kouzla mimo SRD z katalogu (jen fakta, bez popisů): záznamy sady 'ref', viditelné všem, jdou přidat postavě.
+     * @return list<array<string, mixed>>
+     */
+    private static function catalogSpells(string $file): array
+    {
+        $json = json_decode((string) file_get_contents($file), true);
+        $rows = [];
+        foreach (is_array($json['spells'] ?? null) ? $json['spells'] : [] as $c) {
+            $classes = array_map('strval', $c['classes'] ?? []);
+            $data = [
+                'casting_time' => (string) $c['castingTime'],
+                'range' => (string) $c['range'],
+                'components' => (string) $c['components'],
+                'duration' => (string) $c['duration'],
+                'concentration' => (bool) $c['concentration'],
+                'ritual' => (bool) ($c['ritual'] ?? false),
+                'classes' => $classes,
+            ];
+            $rows[] = [
+                'ruleset' => 'ref',
+                'kind' => 'spell',
+                'idx' => substr(trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower((string) $c['name'])), '-'), 0, 100),
+                'name' => (string) $c['name'],
+                'desc_text' => '',
+                'level' => (int) $c['level'],
+                'category' => (string) $c['school'],
+                'rarity' => null,
+                'attunement' => null,
+                'source' => (string) $c['source'],
+                'is_srd' => 0,
+                'price_gp' => null,
+                'price_note' => null,
+                'ref_url' => null,
+                'tags' => self::tags($classes),
+                'data' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            ];
+        }
+        return $rows;
     }
 
     /**

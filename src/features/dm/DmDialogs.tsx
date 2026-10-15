@@ -315,7 +315,7 @@ function ItemPicker({ campaignId, targets, onClose }: DialogProps) {
             </NativeSelect>
             <Input aria-label="Počet kusů" type="number" min={1} max={9999} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
           </div>
-          <ul className="max-h-[40dvh] space-y-2 overflow-y-auto">
+          <ul className="scroll-area max-h-[40dvh] space-y-2 pr-2">
             {entries.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border p-2">
                 <span className="min-w-0">

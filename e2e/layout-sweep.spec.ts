@@ -10,6 +10,24 @@ async function problems(page: Page): Promise<string[]> {
     const out: string[] = []
     const overflow = document.documentElement.scrollWidth - document.documentElement.clientWidth
     if (overflow > 0) out.push(`stránka jezdí do stran o ${overflow} px`)
+    // Obsah nesmí přetékat z karty (i když stránka jako celek nejezdí do stran).
+    for (const el of document.querySelectorAll<HTMLElement>('main [data-slot="card"] *, main li *')) {
+      if (el.closest('.leaflet-container')) continue
+      const rect = el.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) continue
+      const box = el.closest<HTMLElement>('[data-slot="card"], li')?.getBoundingClientRect()
+      if (!box || el.matches('[data-slot="card"], li')) continue
+      // prvky uvnitř posuvného kontejneru (řádek záložek apod.) přetékat smějí
+      let scrolled = false
+      for (let p: HTMLElement | null = el.parentElement; p && !p.matches('[data-slot="card"], li'); p = p.parentElement) {
+        const o = getComputedStyle(p).overflowX
+        if (o === 'auto' || o === 'scroll' || o === 'hidden') scrolled = true
+      }
+      if (scrolled) continue
+      if (rect.right > box.right + 1 || rect.left < box.left - 1) {
+        out.push(`přetéká z karty: ${el.tagName} "${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 30)}" o ${Math.round(Math.max(rect.right - box.right, box.left - rect.left))} px`)
+      }
+    }
     for (const el of document.querySelectorAll<HTMLElement>('main button, main input, main select, main textarea, main summary')) {
       if (el.closest('.leaflet-container')) continue
       const target = el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? (el.closest('label') ?? el) : el
@@ -46,6 +64,14 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   await page.request.patch(`/api/characters/${character}/items/${(await weapon.json()).item.id}`, { data: { equipped: true } })
   const spell = (await (await page.request.get('/api/rules?kinds=spell&q=expeditious')).json()).entries[0]
   await page.request.post(`/api/characters/${character}/spells`, { data: { ruleId: spell.id, classIdx: 'warlock' } })
+  for (const t of [
+    { kind: 'attack', title: 'Dlouhý název útoku, který se musí na telefonu zalomit', toHit: 'd20+8', damage: '1d8+5 + 1d4 fire', cost: 'ki:1', usage: 'Použij vždy, když je protivník v dosahu. '.repeat(3) },
+    { kind: 'spell', title: 'Hex', level: 1, actionType: 'bonus', concentration: true, cost: 'slot:1', effect: 'Dlouhý efekt. '.repeat(30), roll: '1d10' },
+    { kind: 'combo', title: 'Maximální burst', steps: ['Krok jedna', 'Krok dva'], highlight: true, expectedDamage: '~50 dmg', cost: 'ki:2' },
+    { kind: 'rule', title: 'Pravidlo', text: 'Text pravidla. '.repeat(20) },
+  ]) {
+    await page.request.post(`/api/characters/${character}/tactics`, { data: t })
+  }
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'x'.repeat(300) } })
   await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis s dlouhým názvem '.repeat(4), body: 'Text '.repeat(200), pinned: true } })
   await page.request.post(`/api/campaigns/${campaignId}/dm-notes`, { data: { body: 'Poznámka\n'.repeat(5) } })
@@ -78,9 +104,14 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
 
   await page.goto(`/characters/${character}`)
   await page.waitForLoadState('networkidle')
-  for (const tab of ['Přehled', 'Kouzla', 'Inventář', 'Featury', 'Postava']) {
+  for (const tab of ['Přehled', 'Kouzla', 'Inventář', 'Taktiky', 'Featury', 'Postava']) {
     await page.getByRole('button', { name: tab, exact: true }).click()
     for (const p of await problems(page)) failures.push(`sheet ${tab}: ${p}`)
+    if (tab === 'Taktiky') {
+      await page.getByRole('button', { name: 'Upravit taktiky' }).click()
+      for (const p of await problems(page)) failures.push(`sheet Taktiky (úpravy): ${p}`)
+      await page.getByRole('button', { name: 'Upravit taktiky' }).click()
+    }
   }
 
   // dialogy: panel kostek

@@ -705,7 +705,7 @@ function SpellStep({
           ))}
         </NativeSelect>
       </div>
-      <ul className="max-h-[40dvh] space-y-2 overflow-y-auto">
+      <ul className="scroll-area max-h-[40dvh] space-y-2 pr-2">
         {entries
           .filter((e) => (e.level ?? 0) <= Math.max(allowance.maxSpellLevel, 0) || allowance.maxSpellLevel === 0)
           .map((e) => {

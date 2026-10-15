@@ -84,6 +84,17 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>O aplikaci</CardTitle>
+          <CardDescription>Licence herního obsahu (SRD 5.1, CC-BY 4.0) a informace o aplikaci.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link to="/about" className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4">
+            O aplikaci a licence SRD 5.1
+          </Link>
+        </CardContent>
+      </Card>
       <CampaignDangerCard campaigns={campaigns} />
       <Card>
         <CardHeader>

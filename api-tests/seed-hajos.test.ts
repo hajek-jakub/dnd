@@ -103,7 +103,9 @@ describe('seed postavy Hajoš', () => {
     expect(crossbow.notes).toContain('TO_CONFIRM')
     expect(crossbow.notes).toContain('Cross')
     const spear = character.items.find((i: any) => i.name === 'Demonic Spear')
-    expect(spear.notes).toContain('TO_CONFIRM: nedoplněno (v seedu null): attunement, description.')
+    expect(spear.notes).toContain('TO_CONFIRM: nedoplněno (v seedu null): description.')
+    // attunement je v seedu vyplněný: hráč je na kopí naladěný
+    expect(spear).toMatchObject({ requiresAttunement: true, attuned: true })
   })
 
   it('itemy a kouzla míří na SRD záznamy, co v SRD není je homebrew kampaně', async () => {
@@ -131,16 +133,18 @@ describe('seed postavy Hajoš', () => {
     expect(byName('Demonic Spear').equipped).toBe(true)
     expect(byName('Demonic Spear').weapon).toMatchObject({ damageDice: '1d8', damageType: 'Piercing', magicBonus: 1, extraDamage: [{ dice: '1d4', type: 'Fire' }] })
 
-    expect(character.spells).toHaveLength(4)
+    expect(character.spells).toHaveLength(6)
     const spells: Record<string, any> = {}
     for (const sp of character.spells) {
       const entry = (await owner.client.get(`/rules/${sp.ruleId}`)).body.entry
       spells[entry.name] = { entry, sp }
       expect(sp.classIdx).toBe('warlock')
     }
-    expect(Object.keys(spells).sort()).toEqual(['Command', 'Eldritch Blast', 'Hex', 'Minor Illusion'])
-    expect(spells.Hex.entry.isHomebrew).toBe(true) // Hex není v SRD 5.1
-    for (const name of ['Eldritch Blast', 'Minor Illusion', 'Command']) expect(spells[name].entry.isSrd, name).toBe(true)
+    expect(Object.keys(spells).sort()).toEqual(['Armor of Agathys', 'Burning Hands', 'Command', 'Eldritch Blast', 'Hex', 'Minor Illusion'])
+    // Hex a Armor of Agathys nejsou v SRD 5.1: jsou v katalogu kouzel (jen fakta), ne jako homebrew kampaně
+    for (const name of ['Hex', 'Armor of Agathys']) expect(spells[name].entry, name).toMatchObject({ isSrd: false, isHomebrew: false, source: 'PHB', level: 1 })
+    for (const name of ['Eldritch Blast', 'Minor Illusion', 'Command', 'Burning Hands']) expect(spells[name].entry.isSrd, name).toBe(true)
+    expect(spells.Hex.entry.data).toMatchObject({ concentration: true, casting_time: '1 bonus action' })
     expect(spells['Eldritch Blast'].entry.level).toBe(0)
     expect(spells.Command.entry.level).toBe(1)
   })
@@ -180,10 +184,54 @@ describe('seed postavy Hajoš', () => {
     expect(sheet.attacks.find((a) => a.name === 'Crossbow, light')!.toHit.value).toBe(7)
   })
 
+  it('taktiky Hajoše jsou v DB a jde je číst jako data, ne jako natvrdo v UI', async () => {
+    const tactics = (await owner.client.get(`/characters/${characterId}/tactics`)).body.tactics as any[]
+    const count = (kind: string) => tactics.filter((t) => t.kind === kind).length
+    expect({ attack: count('attack'), spell: count('spell'), ki: count('ki'), passive: count('passive'), combo: count('combo'), rule: count('rule') }).toEqual({ attack: 6, spell: 6, ki: 4, passive: 3, combo: 6, rule: 7 })
+    const spear = tactics.find((t) => t.title === 'Démonické kopí (hlavní)')
+    expect(spear.data).toMatchObject({ actionType: 'action', toHit: 'd20+8', damage: '1d8+5 + 1d4 fire', roll: '1d8+5+1d4', cost: 'free', hex: true })
+    expect(tactics.find((t) => t.title === 'Hex').data).toMatchObject({ level: 1, actionType: 'bonus', concentration: true, cost: 'slot:1' })
+    expect(tactics.find((t) => t.title === 'Flurry of Blows').data).toMatchObject({ cost: 'ki:1', actionType: 'bonus' })
+    const burst = tactics.find((t) => t.title === 'Maximální burst')
+    expect(burst.data).toMatchObject({ highlight: true, cost: 'ki:1' })
+    expect(burst.data.steps).toHaveLength(3)
+    expect(tactics.filter((t) => t.kind === 'combo' && t.data.highlight)).toHaveLength(1)
+    expect(tactics.find((t) => t.title === 'Deflect Missiles').data.description).toContain('1d10+9') // 1d10 + DEX 4 + level mnicha 5
+    // pořadí podle seedu
+    expect(tactics.filter((t) => t.kind === 'attack').map((t) => t.position)).toEqual([0, 1, 2, 3, 4, 5])
+  })
+
+  it('--tactics-only nahradí taktiky existující postavy a nic jiného nezmění', async () => {
+    const tactics = async () => (await owner.client.get(`/characters/${characterId}/tactics`)).body.tactics as any[]
+    const before = (await owner.client.get(`/characters/${characterId}`)).body.character
+    // hráč si taktiky upraví a jednu přidá, seed je vrátí do stavu ze souboru
+    const first = (await tactics()).find((t) => t.title === 'Nunchaku')
+    await owner.client.patch(`/tactics/${first.id}`, { title: 'Nunchaku (upraveno)' })
+    await owner.client.post(`/characters/${characterId}/tactics`, { kind: 'rule', title: 'Vlastní poučka', text: 'x' })
+    expect((await tactics()).length).toBe(33)
+    const res = runSeed({ SEED_OWNER_USERNAME: owner.username, SEED_CAMPAIGN_ID: campaignId }, ['--tactics-only'])
+    expect(res.code, res.err).toBe(0)
+    expect(res.out).toContain('32 položek')
+    const after = await tactics()
+    expect(after).toHaveLength(32)
+    expect(after.map((t) => t.title)).not.toContain('Vlastní poučka')
+    expect(after.map((t) => t.title)).toContain('Nunchaku')
+    const char = (await owner.client.get(`/characters/${characterId}`)).body.character
+    expect(char.id).toBe(before.id)
+    expect(char.items).toHaveLength(before.items.length)
+    expect(char.spells).toHaveLength(before.spells.length)
+    expect(char.currency).toEqual(before.currency)
+    // postava, která neexistuje, se nezaloží
+    const nobody = await registerUser('bezpostavy')
+    const none = runSeed({ SEED_OWNER_USERNAME: nobody.username }, ['--tactics-only'])
+    expect(none.code).toBe(3)
+    expect(none.err).toContain('neexistuje')
+  })
+
   it('druhé spuštění je idempotentní: žádná druhá postava ani homebrew', async () => {
     const homebrewCount = async () => (await owner.client.get(`/rules?kinds=weapon,spell&campaignId=${campaignId}&scope=homebrew`)).body.total
     const before = await homebrewCount()
-    expect(before).toBe(3)
+    expect(before).toBe(2) // Nunchaku a Demonic Spear (kouzla jsou v katalogu)
     const res = runSeed({ SEED_OWNER_USERNAME: owner.username, SEED_CAMPAIGN_ID: campaignId })
     expect(res.code, res.err).toBe(0)
     expect(res.out).toContain('už v kampani')
@@ -200,7 +248,7 @@ describe('seed postavy Hajoš', () => {
     const list = await hajosOf()
     expect(list).toHaveLength(1)
     expect(list[0].id).not.toBe(characterId)
-    expect((await owner.client.get(`/rules?kinds=weapon,spell&campaignId=${campaignId}&scope=homebrew`)).body.total).toBe(3)
+    expect((await owner.client.get(`/rules?kinds=weapon,spell&campaignId=${campaignId}&scope=homebrew`)).body.total).toBe(2)
     characterId = list[0].id
   })
 
@@ -236,6 +284,9 @@ describe('seed postavy Hajoš', () => {
       ['neznámý zdroj', (s) => s.resources.push({ name: 'Rage', max: 2, current: 2 }), 'Neznámý zdroj'],
       ['neznámé kouzlo', (s) => s.spells.warlock.known.push('Fireball Of Doom'), 'Fireball Of Doom'],
       ['neznámý extraDamage', (s) => (s.inventory[2].extraDamage = 'hodně ohně'), 'extraDamage'],
+      ['neplatná cena taktiky', (s) => (s.tactics.attacks[0].cost = 'mana:1'), 'cost'],
+      ['neznámá sekce taktik', (s) => (s.tactics.potions = []), 'Neznámá sekce taktik'],
+      ['taktika bez názvu', (s) => delete s.tactics.rules[0].title, 'Taktika rules #1'],
     ]
     const before = (await characters()).length
     for (const [label, mutate, expected] of cases) {

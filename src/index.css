@@ -139,11 +139,27 @@
   /* Vyhlazení a lepší čitelnost na telefonu */
   html {
     -webkit-text-size-adjust: 100%;
+    /* Místo pro posuvník je vyhrazené, takže se při přepnutí na delší stránku obsah neposune. */
+    scrollbar-gutter: stable;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 40%, transparent) transparent;
+  }
+  * {
+    scrollbar-width: thin;
   }
   html {
     @apply font-sans;
     }
 }
+/*
+ * Svislý posuvník uvnitř karet a dialogů: vyhrazené místo (gutter) a vnitřní okraj vpravo (pr-2 u použití),
+ * takže posuvník nepřekrývá text ani tlačítka. Scroll se nepřenáší na stránku pod dialogem.
+ */
+@utility scroll-area {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 /* Body na mapě (Leaflet divIcon) */
 .map-pin {
   display: flex;

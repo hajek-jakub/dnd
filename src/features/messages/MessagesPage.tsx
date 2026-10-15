@@ -157,7 +157,7 @@ function MessageList({ messages, me }: { messages: ChatMessage[]; me: string }) 
   }, [count])
 
   return (
-    <div role="log" aria-label="Zprávy" aria-live="polite" className="max-h-[50dvh] min-h-40 space-y-3 overflow-y-auto pr-1">
+    <div role="log" aria-label="Zprávy" aria-live="polite" className="scroll-area max-h-[50dvh] min-h-40 space-y-3 pr-2">
       {messages.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nic není. Napiš první zprávu.</p>}
       {messages.map((m) => {
         const mine = m.senderId === me

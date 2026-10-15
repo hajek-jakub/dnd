@@ -21,10 +21,10 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
       onClick={(e) => {
         if (e.target === ref.current) onClose() // klik na pozadí
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border bg-background p-0 text-foreground shadow-xl backdrop:bg-black/50"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg overflow-hidden rounded-2xl border bg-background p-0 text-foreground shadow-xl backdrop:bg-black/50"
     >
       {open && (
-        <div className="max-h-[85dvh] overflow-y-auto p-5">
+        <div className="scroll-area max-h-[85dvh] p-5 pr-3">
           <div className="mb-4 flex items-start justify-between gap-3">
             <h2 className="text-lg font-semibold">{title}</h2>
             <Button variant="ghost" size="icon" aria-label="Zavřít" onClick={onClose}>

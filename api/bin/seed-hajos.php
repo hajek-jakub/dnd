@@ -5,6 +5,7 @@
 //   SEED_CAMPAIGN_ID=<uuid>    volitelné; chybí-li, založí se (a příště znovu použije) "Testovací kampaň (seed)"
 //   php api/bin/seed-hajos.php --force      smaže už existující Hajoše v té kampani a založí ho znovu
 //   php api/bin/seed-hajos.php --check      jen ověří, že jde všechno namapovat, nic nezapíše
+//   php api/bin/seed-hajos.php --tactics-only  jen smaže a znovu vloží taktiky už existující postavy (zbytek postavy se nemění)
 //   php api/bin/seed-hajos.php [soubor.json]  jiný vstupní soubor (výchozí seed/hajos.json)
 declare(strict_types=1);
 
@@ -60,7 +61,10 @@ $db = Config::get('db', []);
 fwrite(STDOUT, 'Databáze: ' . ($db['name'] ?? '?') . ' @ ' . ($db['host'] ?? '?') . "\n");
 
 try {
-    if (in_array('--check', $flags, true)) {
+    if (in_array('--tactics-only', $flags, true)) {
+        $res = CharacterSeeder::replaceTactics($seed, $owner, $campaignId);
+        fwrite(STDOUT, "Taktiky postavy {$res['characterId']} nahrazeny: {$res['count']} položek.\n");
+    } elseif (in_array('--check', $flags, true)) {
         $plan = CharacterSeeder::plan($seed, $owner, $campaignId);
         fwrite(STDOUT, 'V pořádku, jde to namapovat: ' . count($plan['items']) . ' itemů, ' . count($plan['spells']) . ' kouzel, ' . count($plan['homebrew']) . " homebrew záznamů. Nic se nezapsalo.\n");
         foreach ($plan['warnings'] as $w) {

@@ -10,6 +10,7 @@ import { AttacksCard } from './AttacksCard'
 import { FeaturesTab } from './FeaturesTab'
 import { InventoryTab } from './InventoryTab'
 import { SpellsTab } from './SpellsTab'
+import { TacticsTab } from '@/features/tactics/TacticsTab'
 import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
@@ -30,6 +31,7 @@ const TABS = [
   { id: 'overview', label: 'Přehled' },
   { id: 'spells', label: 'Kouzla' },
   { id: 'inventory', label: 'Inventář' },
+  { id: 'tactics', label: 'Taktiky' },
   { id: 'features', label: 'Featury' },
   { id: 'profile', label: 'Postava' },
 ] as const
@@ -148,6 +150,7 @@ function SheetView() {
       )}
       {tab === 'spells' && <SpellsTab />}
       {tab === 'inventory' && <InventoryTab />}
+      {tab === 'tactics' && <TacticsTab />}
       {tab === 'features' && <FeaturesTab />}
       {tab === 'profile' && <ProfileTab />}
       <DiceDock campaignId={character.campaignId} characterId={character.id} />

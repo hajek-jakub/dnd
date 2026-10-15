@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { DicesIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +9,7 @@ import { useAuth } from '@/features/auth/auth-context'
 import { cn } from '@/lib/utils'
 import { useRolls, type DiceRoll } from './api'
 import { breakdown, modeLabel, naturalNote } from './format'
+import { useDiceSlot } from './dice-slot-context'
 import { RollModeSwitch } from './RollModeSwitch'
 import { showRoll, useRoller } from './useRoller'
 
@@ -23,6 +25,8 @@ export function DiceDock({ campaignId, characterId }: { campaignId: string; char
   const { data: rolls } = useRolls(campaignId)
   const { roll, pending } = useRoller(campaignId, characterId)
   const [expression, setExpression] = useState('')
+  // Tlačítko kostek je v horní liště (kontejner vykresluje AppLayout), ne plovoucí nad obsahem.
+  const slot = useDiceSlot()
 
   // Hody ostatních se ukážou jako toast (první načtení jen zapamatuje, co už v logu je).
   const seen = useRef<number | null>(null)
@@ -47,15 +51,19 @@ export function DiceDock({ campaignId, characterId }: { campaignId: string; char
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Kostky"
-        title="Kostky"
-        className="fixed bottom-24 right-4 z-20 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
-      >
-        <DicesIcon aria-hidden className="size-7" />
-      </button>
+      {slot &&
+        createPortal(
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Kostky"
+            title="Kostky"
+            className="inline-flex size-11 items-center justify-center rounded-lg text-primary transition-colors hover:bg-muted"
+          >
+            <DicesIcon aria-hidden className="size-6" />
+          </button>,
+          slot,
+        )}
       <Modal open={open} onClose={() => setOpen(false)} title="Kostky">
         {open && (
           <div className="space-y-4">
@@ -90,7 +98,7 @@ function RollLog({ rolls, me }: { rolls: DiceRoll[]; me: string }) {
     <section aria-label="Log hodů" className="space-y-2">
       <h3 className="text-sm font-medium text-muted-foreground">Log hodů kampaně</h3>
       {list.length === 0 && <p className="text-sm text-muted-foreground">Zatím se nehodilo nic.</p>}
-      <ul className="max-h-[40dvh] space-y-2 overflow-y-auto">
+      <ul className="scroll-area max-h-[40dvh] space-y-2 pr-2">
         {list.map((r) => {
           const note = naturalNote(r)
           return (

@@ -48,6 +48,14 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   })).json()).character.id as string
   const item = await page.request.post(`/api/characters/${character}/items`, { data: { name: 'Meč', kind: 'weapon', weapon: { damageDice: '1d8', damageType: 'Slashing', extraDamage: [{ dice: '1d4', type: 'Fire' }] } } })
   await page.request.patch(`/api/characters/${character}/items/${(await item.json()).item.id}`, { data: { equipped: true } })
+  for (const t of [
+    { kind: 'attack', title: 'Dlouhý název útoku, který se musí na telefonu zalomit', toHit: 'd20+8', damage: '1d8+5 + 1d4 fire', cost: 'ki:1', usage: 'Použij vždy, když je protivník v dosahu. '.repeat(3) },
+    { kind: 'spell', title: 'Hex', level: 1, actionType: 'bonus', concentration: true, cost: 'slot:1', effect: 'Dlouhý efekt. '.repeat(30), roll: '1d10' },
+    { kind: 'combo', title: 'Maximální burst', steps: ['Krok jedna', 'Krok dva'], highlight: true, expectedDamage: '~50 dmg', cost: 'ki:2' },
+    { kind: 'rule', title: 'Pravidlo', text: 'Text pravidla. '.repeat(20) },
+  ]) {
+    await page.request.post(`/api/characters/${character}/tactics`, { data: t })
+  }
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Ahoj' } })
   await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis', body: '# Nadpis\n- odrážka\n**tučně**', pinned: true } })
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(300, 200)) } } })).json()).map.id as string
@@ -77,7 +85,7 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
 
   // záložky sheetu
   await page.goto(`/characters/${character}`)
-  for (const tab of ['Kouzla', 'Inventář', 'Featury', 'Postava']) {
+  for (const tab of ['Kouzla', 'Inventář', 'Taktiky', 'Featury', 'Postava']) {
     await page.getByRole('button', { name: tab, exact: true }).click()
     for (const theme of ['light', 'dark'] as const) {
       await setTheme(page, theme)

@@ -36,8 +36,9 @@ describe('SRD 5.1 a katalog itemů', () => {
     expect((await anon.get('/rules/00000000-0000-0000-0000-000000000000')).status).toBe(401)
   })
 
-  it('obsahuje celý SRD: 319 kouzel, 12 tříd a 12 subclass', async () => {
-    expect((await list(user.client, 'kinds=spell&limit=1')).total).toBe(319)
+  it('obsahuje celý SRD: 319 kouzel (a 68 warlockových kouzel mimo SRD v katalogu), 12 tříd a 12 subclass', async () => {
+    expect((await list(user.client, 'kinds=spell&limit=1&source=SRD 5.1')).total).toBe(319)
+    expect((await list(user.client, 'kinds=spell&limit=1')).total).toBe(387)
     expect((await list(user.client, 'kinds=class&limit=1')).total).toBe(12)
     expect((await list(user.client, 'kinds=subclass&limit=1')).total).toBe(12)
     expect((await list(user.client, 'kinds=condition&limit=1')).total).toBe(15)
@@ -181,7 +182,7 @@ describe('SRD 5.1 a katalog itemů', () => {
     const before = (await list(user.client, 'kinds=spell&limit=1')).total
     const forced = await c.request('POST', '/admin/seed?force=1', {}, { 'X-Migrate-Key': 'test-migrate' })
     expect(forced.body.skipped).toBe(false)
-    expect(forced.body.counts.spell).toBe(319)
+    expect(forced.body.counts.spell).toBe(387)
     expect(forced.body.removed).toBe(0)
     expect((await list(user.client, 'kinds=spell&limit=1')).total).toBe(before)
   })
@@ -345,7 +346,7 @@ describe('homebrew obsah', () => {
     const res = await bob.client.post(`/campaigns/${campaignId}/homebrew`, { kind: 'feature', name: evil, description: evil })
     expect(res.status).toBe(201)
     expect(res.body.entry.name).toBe(evil)
-    expect((await list(bob.client, 'kinds=spell&limit=1')).total).toBe(319)
+    expect((await list(bob.client, 'kinds=spell&limit=1')).total).toBe(387)
   })
 
   it('po smazání kampaně zmizí i její homebrew', async () => {

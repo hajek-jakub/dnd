@@ -1,7 +1,8 @@
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { BellIcon, LibraryBigIcon, UserRoundCogIcon } from 'lucide-react'
 import { Link, Outlet } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
+import { DiceSlotContext } from '@/features/dice/dice-slot-context'
 import { RollOverlayProvider } from '@/features/dice/RollOverlay'
 import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useActiveCampaign } from '@/features/campaigns/active-campaign'
@@ -16,6 +17,7 @@ export function AppLayout() {
   const { active } = useActiveCampaign()
   useNewMessageToasts(messageUnread)
   const unread = notifications?.unread ?? 0
+  const [diceSlot, setDiceSlot] = useState<HTMLElement | null>(null)
 
   return (
     <div className="min-h-dvh">
@@ -28,6 +30,8 @@ export function AppLayout() {
             <span className="truncate font-display font-semibold">{active?.name ?? 'D&D kampaně'}</span>
           </div>
           <div className="flex shrink-0 items-center">
+            {/* Sem se vykreslí tlačítko kostek stránky (DiceDock), ať nic neplave nad obsahem. */}
+            <div ref={setDiceSlot} className="contents" />
             <Link to="/rules" className={iconLink} aria-label="Pravidla" title="Pravidla a obsah (SRD, homebrew)">
               <LibraryBigIcon aria-hidden className="size-5" />
             </Link>
@@ -46,18 +50,15 @@ export function AppLayout() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 lg:max-w-6xl">
-        <RollSettingsProvider>
-          <RollOverlayProvider>
-            <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
-              <Outlet />
-            </Suspense>
-          </RollOverlayProvider>
-        </RollSettingsProvider>
-        <p className="pt-2">
-          <Link to="/about" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
-            O aplikaci a licence SRD 5.1
-          </Link>
-        </p>
+        <DiceSlotContext.Provider value={diceSlot}>
+          <RollSettingsProvider>
+            <RollOverlayProvider>
+              <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
+                <Outlet />
+              </Suspense>
+            </RollOverlayProvider>
+          </RollSettingsProvider>
+        </DiceSlotContext.Provider>
       </main>
       <BottomNav />
     </div>

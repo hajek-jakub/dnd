@@ -48,7 +48,7 @@ export function SavesCard() {
         <CardTitle>Záchranné hody</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="grid grid-cols-2 gap-x-4">
+        <ul>
           {ABILITIES.map((a) => (
             <li key={a} className="flex items-center justify-between gap-2 border-b py-0.5 last:border-b-0">
               <span className="flex items-center gap-2 text-sm">
