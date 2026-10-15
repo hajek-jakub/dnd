@@ -15,14 +15,15 @@
     "deploy:dry": "node scripts/deploy.mjs --dry",
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report",
-    "db:start": "docker compose up -d --wait && php api/bin/migrate.php",
+    "db:start": "docker compose up -d --wait && php api/bin/migrate.php && php api/bin/seed.php",
     "db:stop": "docker compose stop",
     "db:migrate": "php api/bin/migrate.php",
-    "db:reset": "php api/bin/migrate.php --fresh",
+    "db:reset": "php api/bin/migrate.php --fresh && php api/bin/seed.php",
     "api": "php -S 127.0.0.1:8080 -t api api/index.php",
     "test:api": "vitest run --config vitest.api.config.ts",
     "start": "concurrently -k -n api,web -c blue,green \"npm:api\" \"npm:dev\"",
-    "test:all": "npm run typecheck && npm run lint && npm test && npm run test:api && npm run test:e2e"
+    "test:all": "npm run typecheck && npm run lint && npm test && npm run test:api && npm run test:e2e",
+    "db:seed": "php api/bin/seed.php"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

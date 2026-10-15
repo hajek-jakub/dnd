@@ -90,7 +90,8 @@ Co deploy udělá:
 2. Postaví frontend (`dist/`).
 3. Nahraje frontend do `/_sub/dnd`, PHP API do `/_sub/dnd/api` a konfiguraci jako `api/config.php`.
 4. Smaže na serveru soubory, které v nové verzi nejsou (jen uvnitř `FTP_REMOTE_DIR`).
-5. Zavolá `https://dnd.hajekjakub.cz/api/admin/migrate`, které založí nebo aktualizuje tabulky v databázi.
+5. Zavolá `https://dnd.hajekjakub.cz/api/admin/migrate`, které založí nebo aktualizuje tabulky v databázi,
+   a `https://dnd.hajekjakub.cz/api/admin/seed`, které načte pravidla (SRD 5.1 a katalog itemů). Pokud se data nezměnila, přeskočí se.
 
 Každá další verze se nasazuje stejným příkazem `npm run deploy`. Data v databázi se při tom nemažou.
 

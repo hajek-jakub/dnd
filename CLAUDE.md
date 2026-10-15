@@ -34,10 +34,12 @@ to na Endoře nejde, proto je backend **vlastní PHP API + MySQL**. Důsledky pr
 
 ```
 src/components/        sdílené komponenty (AppLayout, theme, ui/ = shadcn)
-src/features/<modul>/  auth, campaigns, profile (další: sheet, spells, inventory, levelup, dm, messages, maps, dice)
+src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), about (další: sheet, inventory, levelup, dm, messages, maps, dice)
 src/lib/               api.ts (fetch klient), types.ts (tvary API), utils.ts
 src/engine/            (fáze 3) pravidla
-api/                   PHP backend (index.php, src/, migrations/, bin/, config*.php)
+api/                   PHP backend (index.php, src/, migrations/, bin/, data/, config*.php)
+api/data/              srd51/*.json (SRD 5.1 z 5e-bits/5e-database, beze změn) a extra/item-catalog.json (katalog itemů); seed je načte do DB
+scripts/data/          build-item-catalog.mjs (jednorázové sestavení katalogu itemů z aidedd + Eventyr)
 api-tests/             API testy autorizace (Vitest proti skutečnému PHP + MySQL)
 e2e/                   Playwright E2E (Chromium, desktop + mobil)
 scripts/deploy.mjs     FTP nasazení + migrace
@@ -52,6 +54,7 @@ docs/NASAZENI.md       postup nastavení Endory (PHP, DB, HTTPS, deploy)
 | --- | --- |
 | `npm run db:start` | spustí lokální MySQL (Docker musí běžet) a aplikuje migrace |
 | `npm run db:migrate` | aplikuje nové migrace do vývojové DB (`dnd`) |
+| `npm run db:seed` | načte pravidla (SRD 5.1 + katalog itemů) do vývojové DB; přeskočí se, když se data nezměnila (`--force` vynutí) |
 | `npm run db:reset` | SMAŽE vývojovou DB a aplikuje vše znovu |
 | `npm run db:stop` | zastaví MySQL |
 | `npm start` | PHP API (8080) + Vite dev server (5173) najednou |
@@ -109,12 +112,24 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Přihlášení jménem a heslem, registrace kódem pozvánky nebo registračním heslem, změna hesla, profil.
 - Kampaně, členové, role per kampaň, pozvánky (kód 10 znaků, platnost, max. použití, zrušení), odchod/odebrání hráče, smazání kampaně.
 - Minimální postavy s veřejným náhledem a DM poznámky (zatím jen API, UI přijde ve fázi 3 a 6).
-- 48 API testů autorizace, 12 E2E testů (desktop i mobil), unit testy, deploy skript otestovaný proti lokálnímu FTP.
+- API testy autorizace (viz fáze 2: celkem 71), E2E testy (desktop i mobil), unit testy, deploy skript otestovaný proti lokálnímu FTP.
 - **Nasazeno** na https://dnd.hajekjakub.cz (PHP 8, MariaDB 11.8 na `db.db055.endora.cz`, Let's Encrypt). FTP účet `dnd.hajekjakub.cz` je zamčený v `_sub/dnd`. Další nasazení: `npm run deploy`. První účet DM se zakládá registračním heslem z `api/config.production.php`.
 
+### Fáze 2 – Data: HOTOVO
+- Tabulka `rules_entries` (migrace 002): jeden řádek = jedna položka (kouzlo, item, featura, třída, ...). Sloupce pro filtry (`kind`, `level`, `category`, `rarity`, `attunement`, `source`, `tags`, `price_gp`),
+  zbytek v JSON sloupci `data`, připravené `name_cs`/`desc_cs` pro češtinu, `ruleset` (`srd51`, později `srd52`; `ref` = jen odkazový záznam mimo SRD).
+  Homebrew = řádek s `campaign_id`, `owner_id`, `visibility` (`campaign` nebo `private`). Oficiální obsah je přes API neměnný.
+- Seed (`api/src/Seeder.php`): idempotentní upsert z `api/data`, hash dat v `seed_state`; běží lokálně (`php api/bin/seed.php`) i na serveru (`POST /api/admin/seed`, volá ho deploy). Překlady (`name_cs`, `desc_cs`) a homebrew seed nepřepíše.
+- Obsah: SRD 5.1 celý (319 kouzel, 12 tříd, 12 subclass, featury, levelové tabulky, rasy, conditions, zbraně, zbroje, vybavení, 362 SRD magických itemů). Magické itemy mimo SRD (Xanathar, Tasha, DMG mimo SRD, komunitní) jsou **jen fakta**
+  (název, typ, vzácnost, attunement, zdroj, cena) + odkaz na aidedd.org; jejich popisy se NEkopírují (autorská práva). Ceny z Eventyr Games ceníku.
+- API: `GET /rules` (filtry `kinds,q,level,category,rarity,attunement,source,tag,scope,campaignId`), `GET /rules/facets`, `GET /rules/{id}`, `POST /campaigns/{id}/homebrew`, `PATCH|DELETE /rules/{id}`.
+  Viditelnost homebrew: jen členové kampaně, `private` jen autor a DM; úprava jen autor a DM.
+- UI: `/rules` (kategorie, hledání, filtry v URL, na počítači seznam + detail vedle sebe, na telefonu seznam a detail po sobě), `/rules/new`, `/rules/:id/edit`, veřejná `/about` s atribucí SRD 5.1 (CC-BY-4.0).
+- Testy: 71 API testů (viditelnost homebrew, oprávnění, filtry, seed), 25 E2E (desktop + mobil).
+- Zdroj dat `class_level` (levelové tabulky) a `proficiency` jsou jen pro engine (fáze 3), v procházeči se nezobrazují.
+
 ### Další fáze (dle zadání)
-2. Data: import SRD 5.1 (5e-bits/5e-database) do MySQL, model pro homebrew, prohlížeč kouzel/itemů/featur, stránka „O aplikaci“ s atribucí SRD 5.1 (CC-BY-4.0).
-3. Sheet a engine (včetně povinného testu Monk 5 Open Hand / Warlock 1 Fiend).
+3. Sheet a engine (včetně povinného testu Monk 5 Open Hand / Warlock 1 Fiend); navrženo rozdělit na 3a engine a 3b sheet UI.
 4. Kouzla a inventář. 5. Level up. 6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
