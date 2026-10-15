@@ -12,6 +12,8 @@ import { AboutPage } from '@/features/about/AboutPage'
 import { HomebrewFormPage } from '@/features/rules/HomebrewFormPage'
 import { RuleDetailPage } from '@/features/rules/RuleDetailPage'
 import { RulesPage } from '@/features/rules/RulesPage'
+import { CharacterPage } from '@/features/sheet/CharacterPage'
+import { CreateCharacterPage } from '@/features/sheet/CreateCharacterPage'
 
 function NotFound() {
   return (
@@ -38,6 +40,8 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
+            <Route path="campaigns/:campaignId/characters/new" element={<CreateCharacterPage />} />
+            <Route path="characters/:id" element={<CharacterPage />} />
             <Route path="join/:code" element={<JoinPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="rules" element={<RulesPage />}>

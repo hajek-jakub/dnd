@@ -7,4 +7,6 @@ return [
     'debug' => true,
     // Povolí hlavičku X-Test-Ip (simulace různých klientů pro rate limit). NIKDY ne na ostrém serveru.
     'trust_test_ip_header' => true,
+    // Nahrané soubory testů se ukládají do dočasné složky, ne do api/storage.
+    'storage_dir' => sys_get_temp_dir() . '/dnd-test-storage',
 ];

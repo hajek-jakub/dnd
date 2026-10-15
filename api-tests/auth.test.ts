@@ -168,6 +168,16 @@ describe('registrace a přihlášení', () => {
     expect(second.status).toBe(403)
   })
 
+  it('diagnostika prostředí je chráněná klíčem a hlásí GD i zapisovatelné úložiště', async () => {
+    const c = new Client()
+    expect((await c.request('POST', '/admin/diagnostics', {})).status).toBe(403)
+    expect((await c.request('POST', '/admin/diagnostics', {}, { 'X-Migrate-Key': 'spatny' })).status).toBe(403)
+    const ok = await c.request('POST', '/admin/diagnostics', {}, { 'X-Migrate-Key': 'test-migrate' })
+    expect(ok.status).toBe(200)
+    expect(ok.body).toMatchObject({ gd: true, storageWritable: true })
+    expect(ok.body.php).toMatch(/^8\./)
+  })
+
   it('neexistující endpoint a špatná metoda vrací JSON chybu', async () => {
     const c = new Client()
     expect((await c.get('/neexistuje')).status).toBe(404)

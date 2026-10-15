@@ -3,6 +3,12 @@ import { createCampaign, expectStatus, joinAsPlayer, registerUser, type TestUser
 
 // Zadání: hráč nesmí přes API přečíst ani změnit cizí postavu, DM poznámky (a později zprávy).
 
+/** Minimální platné tělo pro vytvoření postavy (vlastnosti a levely jsou povinné). */
+const BASE = {
+  abilityScores: { str: 10, dex: 14, con: 12, int: 10, wis: 13, cha: 8 },
+  levels: [{ classIndex: 'monk', hpRoll: null }],
+}
+
 describe('postavy a DM poznámky: oprávnění', () => {
   let dm: TestUser
   let bob: TestUser
@@ -22,11 +28,14 @@ describe('postavy a DM poznámky: oprávnění', () => {
     dave = await registerUser('dave')
 
     const b = await bob.client.post(`/campaigns/${campaignId}/characters`, {
-      name: 'Hajoš', race: 'Human', classSummary: 'Monk 5 / Warlock 1', level: 6, notes: 'TAJNÉ: bobova poznámka',
+      ...BASE,
+      levels: [...Array(5).fill({ classIndex: 'monk', hpRoll: null }), { classIndex: 'warlock', hpRoll: null }],
+      subclasses: { monk: 'open-hand' },
+      name: 'Hajoš', race: 'Human', notes: 'TAJNÉ: bobova poznámka',
     })
     expectStatus(b, 201)
     bobChar = b.body.character.id
-    const c = await carol.client.post(`/campaigns/${campaignId}/characters`, { name: 'Carolina postava', notes: 'carol soukromě' })
+    const c = await carol.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'Carolina postava', notes: 'carol soukromě' })
     expectStatus(c, 201)
     carolChar = c.body.character.id
   })
@@ -43,7 +52,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
     const hajos = res.body.characters.find((c: { id: string }) => c.id === bobChar)
     expect(hajos).toBeDefined()
     expect(hajos).toMatchObject({ name: 'Hajoš', race: 'Human', classSummary: 'Monk 5 / Warlock 1', level: 6, access: 'public' })
-    expect(Object.keys(hajos).sort()).toEqual(['access', 'campaignId', 'classSummary', 'id', 'level', 'name', 'ownerId', 'photoPath', 'race'])
+    expect(Object.keys(hajos).sort()).toEqual(['access', 'campaignId', 'classSummary', 'id', 'level', 'name', 'ownerId', 'photoVersion', 'race'])
     expect(JSON.stringify(res.body)).not.toContain('TAJNÉ')
     // vlastní postavu vidí celou
     expect(res.body.characters.find((c: { id: string }) => c.id === carolChar).notes).toBe('carol soukromě')
@@ -60,8 +69,8 @@ describe('postavy a DM poznámky: oprávnění', () => {
   it('hráč si nemůže sám povolit viditelnost, předat postavu ani vytvořit postavu na cizí jméno', async () => {
     expect((await bob.client.patch(`/characters/${bobChar}`, { visibility: 'full' })).status).toBe(403)
     expect((await bob.client.patch(`/characters/${bobChar}`, { ownerId: carol.id })).status).toBe(403)
-    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'Podvrh', ownerId: carol.id })).status).toBe(403)
-    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'Podvrh', visibility: 'full' })).status).toBe(403)
+    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'Podvrh', ownerId: carol.id })).status).toBe(403)
+    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'Podvrh', visibility: 'full' })).status).toBe(403)
     expect((await bob.client.get(`/characters/${bobChar}`)).body.character.visibility).toBe('public_only')
   })
 
@@ -71,7 +80,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
     expect(res.body.character.campaignId).toBe(campaignId)
     // a DM kampaně 2 (jiný uživatel) by do ní stejně nevložil cizí postavu
     const intruder = await registerUser('intruder')
-    expect((await intruder.client.post(`/campaigns/${campaignId}/characters`, { name: 'Vetřelec' })).status).toBe(404)
+    expect((await intruder.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'Vetřelec' })).status).toBe(404)
   })
 
   it('cizinec nevidí nic: ani seznam, ani postavu, ani veřejný náhled', async () => {
@@ -79,7 +88,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
     expect((await dave.client.get(`/characters/${bobChar}`)).status).toBe(404)
     expect((await dave.client.patch(`/characters/${bobChar}`, { name: 'Hack' })).status).toBe(404)
     expect((await dave.client.delete(`/characters/${bobChar}`)).status).toBe(404)
-    expect((await dave.client.post(`/campaigns/${campaignId}/characters`, { name: 'Votrok' })).status).toBe(404)
+    expect((await dave.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'Votrok' })).status).toBe(404)
     expect((await dave.client.get('/characters/neexistuje')).status).toBe(404)
   })
 
@@ -88,7 +97,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
     expect(all.body.characters).toHaveLength(2)
     expect(all.body.characters.every((c: { access: string }) => c.access === 'full')).toBe(true)
 
-    expect((await dm.client.patch(`/characters/${bobChar}`, { level: 7 })).body.character.level).toBe(7)
+    expect((await dm.client.patch(`/characters/${bobChar}`, { xp: 7000 })).body.character.xp).toBe(7000)
 
     expect((await dm.client.patch(`/characters/${bobChar}`, { visibility: 'full' })).status).toBe(200)
     const carolView = await carol.client.get(`/characters/${bobChar}`)
@@ -107,11 +116,12 @@ describe('postavy a DM poznámky: oprávnění', () => {
   })
 
   it('vstup se validuje a SQL injection je jen text', async () => {
-    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { name: '' })).status).toBe(422)
-    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'x', level: 99 })).status).toBe(422)
-    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'x', level: '5' })).status).toBe(422)
+    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: '' })).status).toBe(422)
+    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'bez vlastností' })).status).toBe(422)
+    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'x', levels: [] })).status).toBe(422)
+    expect((await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'x', levels: [{ classIndex: 'ninja' }] })).status).toBe(422)
     const evil = "Robert'); DROP TABLE users;--"
-    const res = await bob.client.post(`/campaigns/${campaignId}/characters`, { name: evil })
+    const res = await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: evil })
     expect(res.status).toBe(201)
     expect(res.body.character.name).toBe(evil)
     expect((await bob.client.get('/auth/me')).body.user).not.toBeNull() // tabulka users stále existuje
@@ -154,7 +164,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
     })
 
     it('poznámka nemůže odkazovat na postavu z jiné kampaně', async () => {
-      const foreign = await dm.client.post(`/campaigns/${otherCampaignId}/characters`, { name: 'Cizí' })
+      const foreign = await dm.client.post(`/campaigns/${otherCampaignId}/characters`, { ...BASE, name: 'Cizí' })
       expectStatus(foreign, 201)
       const res = await dm.client.post(`/campaigns/${campaignId}/dm-notes`, { body: 'x', characterId: foreign.body.character.id })
       expect(res.status).toBe(422)
@@ -162,7 +172,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
   })
 
   it('smazání postavy odstraní i její DM poznámky, ostatní zůstanou', async () => {
-    const temp = await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'Dočasná' })
+    const temp = await bob.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'Dočasná' })
     expectStatus(temp, 201)
     await dm.client.post(`/campaigns/${campaignId}/dm-notes`, { body: 'k dočasné', characterId: temp.body.character.id })
     const before = (await dm.client.get(`/campaigns/${campaignId}/dm-notes`)).body.notes.length

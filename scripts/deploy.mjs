@@ -142,7 +142,10 @@ function listLocal(dir, prefix = '') {
 const uploads = []
 for (const rel of listLocal(distDir)) uploads.push({ local: path.join(distDir, rel), remote: rel })
 
-const API_EXCLUDE = [/^config\.php$/, /^config\.example\.php$/, /^config\.test\.php$/, /^config\.production\.php$/, /^bin\//, /^\.gitignore$/]
+// storage/ obsahuje nahrané soubory (fotky, mapy): nikdy se nenahrává z lokálu a na serveru se nikdy nemaže (viz PRESERVE).
+const API_EXCLUDE = [/^config\.php$/, /^config\.example\.php$/, /^config\.test\.php$/, /^config\.production\.php$/, /^bin\//, /^\.gitignore$/, /^storage\/(?!\.htaccess$)/]
+// Cesty na serveru, které deploy nikdy nesmí smazat (data nahraná uživateli).
+const PRESERVE = [/^api\/storage(\/|$)/]
 for (const rel of listLocal(apiDir)) {
   if (API_EXCLUDE.some((re) => re.test(rel))) continue
   uploads.push({ local: path.join(apiDir, rel), remote: `api/${rel}` })
@@ -182,9 +185,9 @@ try {
   const remote = await listRemote(client, remoteDir || '/')
 
   const uploadSet = new Set(uploads.map((u) => u.remote))
-  const staleFiles = remote.files.filter((f) => !uploadSet.has(f))
+  const staleFiles = remote.files.filter((f) => !uploadSet.has(f) && !PRESERVE.some((re) => re.test(f)))
   const keptDirs = new Set(uploads.flatMap((u) => u.remote.split('/').slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join('/'))))
-  const staleDirs = remote.dirs.filter((d) => !keptDirs.has(d)).sort((a, b) => b.length - a.length)
+  const staleDirs = remote.dirs.filter((d) => !keptDirs.has(d) && !PRESERVE.some((re) => re.test(d))).sort((a, b) => b.length - a.length)
 
   console.log(`\nNahraju ${uploads.length} souborů, smažu ${staleFiles.length} starých souborů v ${remoteDir || '/ (uzamčený FTP účet)'}.`)
   if (dryRun) {
@@ -249,5 +252,13 @@ if (!dryRun && !skipMigrate) {
   } catch (error) {
     fail(`Migrace se nepodařilo zavolat: ${error instanceof Error ? error.message : String(error)}`)
   }
+  const diagRes = await fetch(`${siteUrl}/api/admin/diagnostics`, { method: 'POST', headers: { 'X-Migrate-Key': cfg.migrate_key } })
+  if (diagRes.ok) {
+    const d = await diagRes.json()
+    console.log(`Server: PHP ${d.php}, GD (obrázky) ${d.gd ? 'ano' : 'NE'}, složka pro nahrané soubory ${d.storageWritable ? 'zapisovatelná' : 'NENÍ ZAPISOVATELNÁ'}, limit uploadu ${d.uploadMaxFilesize}`)
+    if (!d.gd) console.warn('POZOR: chybí rozšíření GD, nahrávání fotek a map nebude fungovat. Zapni GD v nastavení PHP na Endoře.')
+    if (!d.storageWritable) console.warn('POZOR: PHP nemůže zapisovat do api/storage, nahrávání fotek a map nebude fungovat (zkontroluj oprávnění složky).')
+  }
+
   console.log(`\nHotovo. Aplikace běží na ${siteUrl}`)
 }

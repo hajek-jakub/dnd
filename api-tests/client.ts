@@ -1,3 +1,7 @@
+import { makePng } from '../test-utils/png'
+
+export { makePng }
+
 /** Malý HTTP klient s cookie jar, který se chová jako jeden prohlížeč / jeden uživatel. */
 const BASE = 'http://127.0.0.1:8181'
 
@@ -39,6 +43,26 @@ export class Client {
 
     const text = await res.text()
     return { status: res.status, body: (text ? JSON.parse(text) : null) as T, setCookie }
+  }
+
+  /** Nahrání souboru (multipart/form-data) jako prohlížeč. */
+  async upload<T = any>(path: string, field: string, bytes: Uint8Array, filename: string, type: string): Promise<ApiResult<T>> {
+    const form = new FormData()
+    form.append(field, new Blob([bytes], { type }), filename)
+    const res = await fetch(BASE + path, { method: 'POST', headers: { 'X-Test-Ip': this.ip, ...this.cookieHeader() }, body: form })
+    const text = await res.text()
+    return { status: res.status, body: (text ? JSON.parse(text) : null) as T, setCookie: [] }
+  }
+
+  /** Stažení binární odpovědi (obrázek). */
+  async raw(path: string, headers: Record<string, string> = {}): Promise<{ status: number; headers: Headers; bytes: Uint8Array }> {
+    const res = await fetch(BASE + path, { headers: { 'X-Test-Ip': this.ip, ...this.cookieHeader(), ...headers } })
+    return { status: res.status, headers: res.headers, bytes: new Uint8Array(await res.arrayBuffer()) }
+  }
+
+  private cookieHeader(): Record<string, string> {
+    const cookie = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ')
+    return cookie ? { Cookie: cookie } : {}
   }
 
   get = <T = any>(path: string) => this.request<T>('GET', path)
@@ -102,4 +126,18 @@ export function expectStatus(res: ApiResult, status: number): void {
   if (res.status !== status) {
     throw new Error(`Očekáván stav ${status}, přišel ${res.status}: ${JSON.stringify(res.body)}`)
   }
+}
+
+/** Rozměry JPEG ze značky SOF. */
+export function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return null
+  let i = 2
+  while (i < bytes.length - 9) {
+    if (bytes[i] !== 0xff) return null
+    const marker = bytes[i + 1]!
+    const length = (bytes[i + 2]! << 8) | bytes[i + 3]!
+    if (marker >= 0xc0 && marker <= 0xc3) return { height: (bytes[i + 5]! << 8) | bytes[i + 6]!, width: (bytes[i + 7]! << 8) | bytes[i + 8]! }
+    i += 2 + length
+  }
+  return null
 }

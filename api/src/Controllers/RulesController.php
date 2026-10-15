@@ -88,6 +88,90 @@ final class RulesController
         ];
     }
 
+    /**
+     * Data pro pravidlový engine v prohlížeči: třídy a tabulky levelů z SRD (stejný tvar jako zdrojová data).
+     * @param array{id:string} $user
+     */
+    public static function engine(Request $req, array $params, array $user): array
+    {
+        $classes = Db::all("SELECT idx, name, data FROM rules_entries WHERE kind = 'class' AND scope = '' ORDER BY idx");
+        $levels = Db::all("SELECT idx, name, level, category, data FROM rules_entries WHERE kind = 'class_level' AND scope = '' ORDER BY idx");
+        $decode = static fn (string $json): mixed => json_decode($json, true) ?? new \stdClass();
+        return [
+            'classes' => array_map(static fn (array $r): array => ['idx' => $r['idx'], 'name' => $r['name'], 'data' => $decode((string) $r['data'])], $classes),
+            'levels' => array_map(static fn (array $r): array => [
+                'idx' => $r['idx'], 'name' => $r['name'], 'level' => (int) $r['level'], 'category' => $r['category'], 'data' => $decode((string) $r['data']),
+            ], $levels),
+        ];
+    }
+
+    /**
+     * Featury třídy (a případně subclassu) získané do daného levelu, s plným popisem.
+     * Dotaz: ?class=monk&level=5&subclass=open-hand
+     * @param array{id:string} $user
+     */
+    public static function classFeatures(Request $req, array $params, array $user): array
+    {
+        $class = (string) ($req->query['class'] ?? '');
+        $subclass = (string) ($req->query['subclass'] ?? '');
+        $level = max(1, min(20, (int) ($req->query['level'] ?? 1)));
+        if (preg_match('/^[a-z0-9-]{1,100}$/', $class) !== 1 || ($subclass !== '' && preg_match('/^[a-z0-9-]{1,100}$/', $subclass) !== 1)) {
+            throw HttpError::validation('Neplatná třída nebo subclass.', 'class');
+        }
+
+        $byLevel = [];
+        $collect = static function (string $prefix, string $source, string $label) use ($level, &$byLevel): void {
+            $idxs = array_map(static fn (int $n): string => $prefix . '-' . $n, range(1, $level));
+            $rows = Db::all(
+                "SELECT level, data FROM rules_entries WHERE kind = 'class_level' AND scope = '' AND idx IN (" . implode(',', array_fill(0, count($idxs), '?')) . ')',
+                $idxs,
+            );
+            foreach ($rows as $r) {
+                $data = json_decode((string) $r['data'], true);
+                foreach (($data['features'] ?? []) as $f) {
+                    $byLevel[] = ['featureIdx' => (string) $f['index'], 'level' => (int) $r['level'], 'source' => $source, 'className' => $label];
+                }
+            }
+        };
+        $className = (string) (Db::value("SELECT name FROM rules_entries WHERE kind = 'class' AND idx = ? AND scope = ''", [$class]) ?? '');
+        if ($className === '') {
+            throw HttpError::notFound('Třída nenalezena.');
+        }
+        $collect($class, 'class', $className);
+        if ($subclass !== '') {
+            $subName = (string) (Db::value("SELECT name FROM rules_entries WHERE kind = 'subclass' AND idx = ? AND scope = ''", [$subclass]) ?? '');
+            if ($subName !== '') {
+                $collect($subclass, 'subclass', $subName);
+            }
+        }
+        if ($byLevel === []) {
+            return ['features' => []];
+        }
+
+        $featureIdxs = array_values(array_unique(array_column($byLevel, 'featureIdx')));
+        $rows = Db::all(
+            "SELECT id, idx, name, desc_text FROM rules_entries WHERE kind = 'feature' AND scope = '' AND idx IN (" . implode(',', array_fill(0, count($featureIdxs), '?')) . ')',
+            $featureIdxs,
+        );
+        $byIdx = [];
+        foreach ($rows as $r) {
+            $byIdx[$r['idx']] = $r;
+        }
+        usort($byLevel, static fn (array $a, array $b): int => [$a['level'], $a['source'] === 'class' ? 0 : 1] <=> [$b['level'], $b['source'] === 'class' ? 0 : 1]);
+        $out = [];
+        foreach ($byLevel as $f) {
+            $row = $byIdx[$f['featureIdx']] ?? null;
+            if ($row === null) {
+                continue;
+            }
+            $out[] = [
+                'id' => $row['id'], 'idx' => $row['idx'], 'name' => $row['name'], 'level' => $f['level'], 'source' => $f['source'],
+                'className' => $f['className'], 'description' => $row['desc_text'],
+            ];
+        }
+        return ['features' => $out];
+    }
+
     /** @param array{id:string} $user */
     public static function show(Request $req, array $params, array $user): array
     {

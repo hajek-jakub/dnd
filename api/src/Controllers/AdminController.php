@@ -41,6 +41,26 @@ final class AdminController
         return Response::json(Seeder::run($force));
     }
 
+    /** Kontrola prostředí serveru: verze PHP, GD pro obrázky, zapisovatelnost složky pro nahrané soubory. */
+    public static function diagnostics(Request $req): Response
+    {
+        self::requireKey($req);
+        $dir = Config::storageDir();
+        $writable = false;
+        if (is_dir($dir) || @mkdir($dir, 0755, true)) {
+            $probe = $dir . '/.write-test-' . bin2hex(random_bytes(4));
+            $writable = @file_put_contents($probe, 'ok') !== false;
+            @unlink($probe);
+        }
+        return Response::json([
+            'php' => PHP_VERSION,
+            'gd' => function_exists('imagecreatefromstring') && function_exists('imagejpeg'),
+            'storageWritable' => $writable,
+            'uploadMaxFilesize' => (string) ini_get('upload_max_filesize'),
+            'postMaxSize' => (string) ini_get('post_max_size'),
+        ]);
+    }
+
     private static function requireKey(Request $req): void
     {
         $key = (string) Config::get('migrate_key', '');

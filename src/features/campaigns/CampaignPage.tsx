@@ -17,6 +17,7 @@ import {
 } from './api'
 import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
+import { CharactersSection } from '@/features/sheet/CharactersSection'
 
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
@@ -64,6 +65,8 @@ export function CampaignPage() {
         {myRole && <RoleBadge role={myRole} />}
         {campaign.description && <p className="whitespace-pre-line text-muted-foreground">{campaign.description}</p>}
       </div>
+
+      {campaignId && <CharactersSection campaignId={campaignId} />}
 
       {/* Telefon: jeden sloupec (členové, pozvánky, nebezpečná zóna).
           Počítač (DM): členové a nebezpečná zóna vlevo, pozvánky vpravo přes obě řady. */}

@@ -74,6 +74,16 @@ final class Request
         );
     }
 
+    /** @return array{tmp_name:string,size:int,error:int}|null  nahraný soubor z multipart formuláře */
+    public function file(string $field): ?array
+    {
+        $f = $_FILES[$field] ?? null;
+        if (!is_array($f) || !isset($f['tmp_name']) || is_array($f['tmp_name'])) {
+            return null;
+        }
+        return ['tmp_name' => (string) $f['tmp_name'], 'size' => (int) ($f['size'] ?? 0), 'error' => (int) ($f['error'] ?? UPLOAD_ERR_NO_FILE)];
+    }
+
     public function header(string $name): ?string
     {
         return $this->headers[strtolower($name)] ?? null;

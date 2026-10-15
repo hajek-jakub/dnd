@@ -70,6 +70,10 @@ final class App
         $r->add('GET', '/characters/{id}', [CharacterController::class, 'show']);
         $r->add('PATCH', '/characters/{id}', [CharacterController::class, 'update']);
         $r->add('DELETE', '/characters/{id}', [CharacterController::class, 'delete']);
+        $r->add('POST', '/characters/{id}/adjust', [CharacterController::class, 'adjust']);
+        $r->add('POST', '/characters/{id}/photo', [CharacterController::class, 'uploadPhoto']);
+        $r->add('GET', '/characters/{id}/photo', [CharacterController::class, 'photo']);
+        $r->add('DELETE', '/characters/{id}/photo', [CharacterController::class, 'deletePhoto']);
         $r->add('GET', '/campaigns/{id}/dm-notes', [CharacterController::class, 'notes']);
         $r->add('POST', '/campaigns/{id}/dm-notes', [CharacterController::class, 'createNote']);
         $r->add('PATCH', '/dm-notes/{id}', [CharacterController::class, 'updateNote']);
@@ -78,6 +82,8 @@ final class App
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);
         $r->add('GET', '/rules/facets', [RulesController::class, 'facets']);
+        $r->add('GET', '/rules/engine', [RulesController::class, 'engine']);
+        $r->add('GET', '/rules/class-features', [RulesController::class, 'classFeatures']);
         $r->add('GET', '/rules/{id}', [RulesController::class, 'show']);
         $r->add('PATCH', '/rules/{id}', [RulesController::class, 'update']);
         $r->add('DELETE', '/rules/{id}', [RulesController::class, 'delete']);
@@ -86,5 +92,6 @@ final class App
         // Správa (migrace databáze a seed pravidel z deploye)
         $r->add('POST', '/admin/migrate', [AdminController::class, 'migrate'], auth: false);
         $r->add('POST', '/admin/seed', [AdminController::class, 'seed'], auth: false);
+        $r->add('POST', '/admin/diagnostics', [AdminController::class, 'diagnostics'], auth: false);
     }
 }

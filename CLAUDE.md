@@ -34,9 +34,9 @@ to na Endoře nejde, proto je backend **vlastní PHP API + MySQL**. Důsledky pr
 
 ```
 src/components/        sdílené komponenty (AppLayout, theme, ui/ = shadcn)
-src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), about (další: sheet, inventory, levelup, dm, messages, maps, dice)
+src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about (další: inventory, levelup, dm, messages, maps, dice)
 src/lib/               api.ts (fetch klient), types.ts (tvary API), utils.ts
-src/engine/            (fáze 3) pravidla
+src/engine/            pravidlový engine (čisté TS, unit testy)
 api/                   PHP backend (index.php, src/, migrations/, bin/, data/, config*.php)
 api/data/              srd51/*.json (SRD 5.1 z 5e-bits/5e-database, beze změn) a extra/item-catalog.json (katalog itemů); seed je načte do DB
 scripts/data/          build-item-catalog.mjs (jednorázové sestavení katalogu itemů z aidedd + Eventyr)
@@ -59,7 +59,7 @@ docs/NASAZENI.md       postup nastavení Endory (PHP, DB, HTTPS, deploy)
 | `npm run db:stop` | zastaví MySQL |
 | `npm start` | PHP API (8080) + Vite dev server (5173) najednou |
 | `npm run api` / `npm run dev` | jen API / jen frontend |
-| `npm test` | Vitest unit testy (frontend) |
+| `npm test` | Vitest unit testy (frontend a engine) |
 | `npm run test:api` | API testy proti PHP + testovací DB `dnd_test` (DB se při každém běhu smaže) |
 | `npm run test:e2e` | Playwright v Chromiu: projekt `desktop` (1440x900) a `mobile` (Pixel 7); vlastní porty 5174/8182, DB `dnd_test` |
 | `npm run test:all` | typecheck + lint + unit + API + E2E |
@@ -128,8 +128,25 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Testy: 71 API testů (viditelnost homebrew, oprávnění, filtry, seed), 25 E2E (desktop + mobil).
 - Zdroj dat `class_level` (levelové tabulky) a `proficiency` jsou jen pro engine (fáze 3), v procházeči se nezobrazují.
 
+### Fáze 3 – Sheet a engine: HOTOVO
+- **Engine** (`src/engine`, čisté TS, bez UI a DB): `computeSheet(input, bundle)` počítá proficiency, vlastnosti, savy, skilly, passive perception, iniciativu, rychlost
+  (Unarmored Movement, Fast Movement), AC (zbroj + štít + limit DEX, Unarmored Defense mnicha a barbara), HP z levelů, hit dice, útoky (finesse, martial arts), Extra Attack (nesčítá se),
+  sesílání po třídách (DC, bonus, cantripy, prepared), sloty (multiclass tabulka, half/third caster), pact magic zvlášť, třídní zdroje (ki, rage, bardic inspiration, channel divinity, ...).
+  Každá hodnota je `Computed` {value, base, overridden, sources}; ruční přepis = klíč v `overrides` (např. `ac`, `save.wis`, `spellDc.warlock`, `resource.monk.ki.max`, `slots.1`).
+  Efekty (`Effect`: target, value, source) od DM a z equipnutých/attunovaných itemů se propisují s původem. `rest.ts`: short rest, long rest, utracení hit dice.
+- Pravidla pro engine dodává `GET /rules/engine` (třídy + tabulky levelů ze SRD); `buildRulesBundle` je jediná implementace (app i testy). Popisy featur: `GET /rules/class-features`.
+- **Datový model postavy** (migrace 003): `characters` rozšířeno (vlastnosti, HP, death saves, sloty, skilly, přepisy, osobnost, peníze, `rev`), `character_levels` (každý získaný level = řádek, základ pro level up),
+  `character_resources`. Class/level shrnutí a `level` se přepočítávají (`Sheets::syncDerived`).
+- **API**: `POST/GET/PATCH/DELETE /characters/...`; `PATCH` s `rev` (409 při souběhu), `POST /characters/{id}/adjust` = atomické změny o hodnotu (HP, temp HP, sloty, pact, zdroje, hit dice, death saves, XP, inspirace, stavy),
+  aby se kliknutí hráče a DM nepřepisovala; `POST/GET/DELETE /characters/{id}/photo` (fotka: klient ořízne na čtverec, server přegeneruje přes GD na 512 px JPEG, soubory v `api/storage`, vidí je členové kampaně).
+- **UI** (`src/features/sheet`): vytvoření postavy, sheet s přehledem (AC, iniciativa, rychlost, proficiency, passive perception, HP s velkými tlačítky, sloty a zdroje se steppery, útoky, vlastnosti, savy, skilly,
+  sesílání), klepnutím na hodnotu se ukáže rozpis a jde ji přepsat (značka „ručně“, tlačítko vrácení), short a long rest (včetně hodu hit dice), featury s popisy, záložka Postava (údaje, osobnost, poznámky, fotka s ořezem, viditelnost pro DM).
+  Optimistické UI: `useAdjust` mění cache hned (`applyOps`), při chybě vrací; odpověď serveru platí jen pro poslední změnu.
+- Logo (`public/logo.svg`) je i favicon; PNG ikony se generují `node scripts/build-icons.mjs`; `site.webmanifest` pro „přidat na plochu“.
+- Deploy: `api/storage` (nahrané soubory) se nikdy nenahrává z lokálu ani nemaže na serveru (`PRESERVE`); po nasazení deploy vypíše diagnostiku serveru (PHP, GD, zapisovatelné úložiště).
+- Testy: 55 unit testů enginu (včetně povinného Monk 5 / Warlock 1, multiclass sloty, AC, přepisy, resty, attunement), 98 API testů, 33 E2E (desktop + mobil) včetně UI scénáře Hajoš a nahrání fotky.
+
 ### Další fáze (dle zadání)
-3. Sheet a engine (včetně povinného testu Monk 5 Open Hand / Warlock 1 Fiend); navrženo rozdělit na 3a engine a 3b sheet UI.
 4. Kouzla a inventář. 5. Level up. 6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.

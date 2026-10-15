@@ -10,7 +10,18 @@ final class Response
     public function __construct(
         public int $status = 200,
         public ?array $body = null,
+        /** Binární tělo (obrázek) místo JSON; nastaví se i Content-Type. */
+        public ?string $raw = null,
+        public ?string $contentType = null,
+        /** @var array<string, string> */
+        public array $headers = [],
     ) {
+    }
+
+    /** @param array<string, string> $headers */
+    public static function binary(string $bytes, string $contentType, array $headers = []): self
+    {
+        return new self(200, null, $bytes, $contentType, $headers);
     }
 
     /** @param array<string, mixed>|list<mixed> $data */
@@ -39,6 +50,15 @@ final class Response
     public function send(): void
     {
         http_response_code($this->status);
+        foreach ($this->headers as $name => $value) {
+            header($name . ': ' . $value);
+        }
+        if ($this->raw !== null) {
+            header('Content-Type: ' . ($this->contentType ?? 'application/octet-stream'));
+            header('Content-Length: ' . strlen($this->raw));
+            echo $this->raw;
+            return;
+        }
         if ($this->body !== null && $this->status !== 204) {
             echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         }
