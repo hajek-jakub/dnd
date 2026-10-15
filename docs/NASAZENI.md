@@ -2,11 +2,26 @@
 
 Všechno běží na Endoře: statický frontend, PHP API a MySQL databáze. Žádné další služby ani účty nejsou potřeba.
 
-Subdoménu už máš hotovou (složka `/_sub/dnd` v FTP prostoru domény). Zbývá pět věcí:
-PHP 8, databáze, konfigurace, HTTPS a samotné nahrání.
+Zbývá čtyři věci: subdoména, PHP 8, databáze a HTTPS, a potom samotné nahrání.
+
+**Důležité o FTP účtech Endory.** Hlavní FTP účet domény (login `hajekjakub.cz`) vidí celý prostor domény `/home/html/hajekjakub.cz`,
+kde je i speciální složka `/_sub` pro automatické subdomény. Účet `jakubhajek` (ten ze stafety, a ten používá deploy)
+je ale zamčený do podsložky `public_html`. Složka `/_sub/dnd`, kterou deploy vytvoří přes tento účet, je proto ve skutečnosti
+`public_html/_sub/dnd` a automatická subdoména ji nenajde. Proto se subdoména nastavuje **ručně** (krok 0).
 
 Názvy menu v administraci Endory se mohou lišit podle tarifu. Když něco nenajdeš nebo vypadá jinak,
 napiš mi, co přesně vidíš, a postup upravíme.
+
+## 0. Subdoména `dnd` (ručně, směrovaná na složku s aplikací)
+
+1. V administraci Endory otevři **Subdomény** pro `hajekjakub.cz` a v části **Manuálně vytvořené subdomény** klepni na **Přidat subdoménu**.
+2. Název: `dnd`. Směrování: složka `public_html/_sub/dnd` (v FTP účtu `jakubhajek` je to `/_sub/dnd`).
+   Vyber ji v nabídce, případně zadej `/public_html/_sub/dnd`.
+3. PHP verze: nastav **8.1 nebo novější** přímo u této subdomény (sloupec „PHP verze“). Stafeta tak může zůstat na své verzi.
+4. Ulož. Změna může trvat od několika minut do hodiny. Manuální subdoména má přednost před automatickými.
+5. Certifikát Let's Encrypt pro `dnd.hajekjakub.cz` si už objednal(a) a funguje.
+
+Kontrola: `https://dnd.hajekjakub.cz/api/health` ukáže `{"ok":true}`.
 
 ## 1. Zkontroluj verzi PHP (musí být 8.0 nebo novější)
 

@@ -3,7 +3,8 @@ import path from 'node:path'
 
 export const API_PORT = 8181
 const root = path.resolve(import.meta.dirname, '..')
-const env = { ...process.env, DND_CONFIG: path.join(root, 'api/config.test.php') }
+// DND_CONFIG jde přepsat (např. pro ověření proti MariaDB); výchozí je api/config.test.php.
+const env = { ...process.env, DND_CONFIG: process.env.DND_CONFIG ?? path.join(root, 'api/config.test.php') }
 
 async function waitForHealth(url: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs
