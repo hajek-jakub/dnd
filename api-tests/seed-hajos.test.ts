@@ -129,7 +129,7 @@ describe('seed postavy Hajoš', () => {
     expect(byName('Nunchaku').weapon).toMatchObject({ damageDice: '1d8', damageType: 'Bludgeoning' }) // homebrew d8 podle papíru
     expect(byName('Nunchaku').equipped).toBe(true)
     expect(byName('Demonic Spear').equipped).toBe(true)
-    expect(byName('Demonic Spear').weapon).toMatchObject({ damageDice: '1d6', damageType: 'Piercing', magicBonus: 1, extraDamage: [{ dice: '1d4', type: 'Fire' }] })
+    expect(byName('Demonic Spear').weapon).toMatchObject({ damageDice: '1d8', damageType: 'Piercing', magicBonus: 1, extraDamage: [{ dice: '1d4', type: 'Fire' }] })
 
     expect(character.spells).toHaveLength(4)
     const spells: Record<string, any> = {}

@@ -33,6 +33,8 @@ describe('výrazy kostek', () => {
     expect(damageExpression('1d8', -1)).toBe('1d8-1')
     expect(damageExpression('2d6', 0)).toBe('2d6')
     expect(damageExpression('1', 4)).toBeNull()
+    expect(damageExpression('1', 4, [{ dice: '1d6' }])).toBe('1+4+1d6') // nezbraňový útok s Hexem
+    expect(damageExpression('1d6', 5, [{ dice: '1d4' }, { dice: '1d6' }])).toBe('1d6+5+1d4+1d6')
   })
 })
 

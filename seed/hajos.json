@@ -63,7 +63,7 @@
     { "name": "Unarmed Strike", "toHit": 7, "damage": "1d6+4", "damageType": "bludgeoning", "note": "Martial arts d6" },
     { "name": "Dart", "toHit": 7, "damage": "1d4+4", "damageType": "piercing" },
     { "name": "Crossbow", "toHit": 7, "damage": "1d8+4", "damageType": "piercing", "note": "TO_CONFIRM: na sheetu „Cross“, předpokládám Light Crossbow" },
-    { "name": "Demonic Spear", "toHit": 8, "damage": "1d6+5 (versatile 1d8+5) + 1d4 fire", "damageType": "piercing + fire", "homebrew": true }
+    { "name": "Demonic Spear", "toHit": 8, "damage": "1d8+5 + 1d4 fire", "damageType": "piercing + fire", "homebrew": true }
   ],
 
   "inventory": [
@@ -76,6 +76,7 @@
       "homebrew": true,
       "base": "Spear",
       "magicBonus": 1,
+      "damageDice": "1d8",
       "extraDamage": "1d4 fire",
       "attunement": null,
       "description": null

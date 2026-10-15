@@ -176,3 +176,38 @@ test('panel kostek jde použít na telefonu i na počítači (volný hod, bez po
   expect(total).toBeLessThanOrEqual(20)
   await expectNoHorizontalScroll(page)
 })
+
+test('Hex na cíli: ke zranění se přidá 1d6 necrotic a jde to vypnout pro jiného protivníka', async ({ page }) => {
+  await registerDm(page, 'dicehex')
+  const { campaignId } = await newCampaign(page, 'Hex')
+  const char = (await (await page.request.post(`/api/campaigns/${campaignId}/characters`, {
+    data: { name: 'Čaroděj', abilityScores: { str: 16, dex: 10, con: 12, int: 10, wis: 10, cha: 16 }, levels: [{ classIndex: 'warlock', hpRoll: null }] },
+  })).json()).character.id as string
+  const item = await page.request.post(`/api/characters/${char}/items`, { data: { name: 'Meč', kind: 'weapon', weapon: { damageDice: '1d8', damageType: 'Slashing', category: 'martial', range: 'melee', properties: [] } } })
+  await page.request.patch(`/api/characters/${char}/items/${(await item.json()).item.id}`, { data: { equipped: true } })
+
+  // bez soustředění na Hex se nic nepřidává
+  await page.goto(`/characters/${char}`)
+  await expect(page.getByRole('button', { name: /^Hodit: Meč: zranění \(1d8\+3\)$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Cíl je pod kouzlem/ })).toHaveCount(0)
+
+  // po seslání Hexu (soustředění) se zapne přídavek 1d6 necrotic
+  await page.request.patch(`/api/characters/${char}`, { data: { state: { concentration: 'Hex' } } })
+  await page.reload()
+  const toggle = page.getByRole('button', { name: /Cíl je pod kouzlem Hex/ })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('+ 1d6 necrotic (hex)').first()).toBeVisible()
+  await page.getByRole('button', { name: /^Hodit: Meč: zranění \+ Hex \(1d8\+3\+1d6\)$/ }).click()
+  const win = await settled(page)
+  await expect(win.locator('[data-die]')).toHaveCount(2) // d8 a d6 z Hexu
+  await closeRoll(page)
+  await page.getByRole('button', { name: /^Hodit: Meč: zranění \+ Hex \(kritický\) \(1d8\+3\+1d6\)$/ }).click()
+  await expect((await settled(page)).locator('[data-die]')).toHaveCount(4)
+  await closeRoll(page)
+
+  // jiný protivník: přídavek se vypne
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('button', { name: /^Hodit: Meč: zranění \(1d8\+3\)$/ })).toBeVisible()
+  await expectNoHorizontalScroll(page)
+})

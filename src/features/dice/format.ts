@@ -34,6 +34,7 @@ export function d20(modifier: number): string {
 
 /** Výraz zranění: kostka + bonus + doplňková zranění, např. "1d6+5+1d4". */
 export function damageExpression(dice: string, bonus: number, extra: { dice: string }[] = []): string | null {
-  if (!/d/.test(dice)) return null
+  // Bez kostky (nezbraňový útok se základním zraněním 1) se hází jen tehdy, když je co přidat (např. Hex).
+  if (!/d/.test(dice) && extra.length === 0) return null
   return `${dice}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `${bonus}` : ''}${extra.map((e) => `+${e.dice}`).join('')}`
 }

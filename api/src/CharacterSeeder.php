@@ -29,7 +29,7 @@ final class CharacterSeeder
     private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'openQuestions'];
     private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'xp', 'notes'];
     private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
-    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'extraDamage', 'attunement', 'description', 'note'];
+    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'description', 'note'];
     private const ALIASES = ['light crossbow' => 'Crossbow, light', 'heavy crossbow' => 'Crossbow, heavy', 'hand crossbow' => 'Crossbow, hand'];
     /** Základ homebrew zbraní, které nejsou v SRD a papír k nim neříká víc než název. Co je odhad, dostane TO_CONFIRM v poznámce. */
     private const HOMEBREW_DEFAULTS = [
@@ -408,6 +408,17 @@ final class CharacterSeeder
                 if ($weapon === null) {
                     $fail("Homebrew \"$itemName\": nevím, jaké má staty (chybí základní zbraň ani výchozí hodnoty).");
                     continue;
+                }
+                if (isset($entry['damageDice'])) {
+                    // Kostka zranění zbraně, která se liší od základní zbraně (např. Demonic Spear s d8 místo d6 u Spear).
+                    if (!is_string($entry['damageDice']) || preg_match('/^\d{1,2}d\d{1,3}$/', $entry['damageDice']) !== 1) {
+                        $fail("Homebrew \"$itemName\": damageDice \"" . json_encode($entry['damageDice']) . '" neumím přečíst (čekám např. "1d8").');
+                        continue;
+                    }
+                    $weapon['damageDice'] = strtolower($entry['damageDice']);
+                    if (($weapon['versatileDice'] ?? null) === $weapon['damageDice']) {
+                        $weapon['versatileDice'] = null; // oběma rukama už není nic navíc
+                    }
                 }
                 $body = ['kind' => 'weapon', 'name' => $itemName, 'description' => ''] + $weapon;
                 if (isset($entry['magicBonus'])) {

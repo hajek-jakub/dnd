@@ -197,6 +197,10 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Dva rozdíly jsou vědomě zdokumentované: spell save DC warlocka je 14 (8 + 3 + CHA 3), papír má 13 (to je DC ki; **není v `discrepancies`**), a versatile 1d8 spearu se v útoku nemodeluje. Opravené hodnoty ze `discrepancies` (Stealth +7, STR save +3) engine dává přímo.
 - API test `api-tests/seed-hajos.test.ts` (18 testů): spouští seed skript proti testovací DB, kontroluje uložená data, SRD vs. homebrew mapování, engine z uložených dat, idempotenci, `--force`, zastavení před zápisem a soukromí postavy. E2E `e2e/hajos.spec.ts` (počítač i telefon): sheet ze seedu a formulář homebrew zbraně.
 
+- **Přídavek ke zranění od kouzla (Hex, Hunter's Mark)**: když se postava soustředí na Hex (seslání ze záložky Kouzla nastaví soustředění), objeví se na kartě Útoky přepínač „Cíl je pod kouzlem Hex“ (výchozí zapnuto). Zapnutý přidá ke každému zranění 1d6 necrotic (v hodu i v kritu, kde se kostky zdvojí); vypne se pro útok na jiného protivníka, protože bonus platí jen proti jednomu cíli.
+  Aplikace cíle nesleduje. Seznam kouzel je v `features/sheet/riders.ts`. Jinak se Hex dá hodit i jako volný hod `1d6` v panelu kostek.
+- Seed: položka může mít `damageDice` (kostka jiná než u základní zbraně); Demonic Spear má d8 místo d6 u Spear.
+
 ### Pravidla kampaně: 2014 / 2024
 - DM je nastaví na stránce kampaně („Nastavení kampaně“ → Pravidla kampaně); uloží se do `campaigns.settings.ruleset` (`'2014'` | `'2024'`, bez hodnoty = 2014, bez migrace), API: `PATCH /campaigns/{id}` `{settings: {ruleset}}` jen DM, jiná hodnota 422, ostatní nastavení se nepřepíše.
   Odznak „Pravidla 2014/2024“ je v hlavičce kampaně. Frontend skládá pravidla pro engine přes `engineRulesOf(settings)` (`src/features/campaigns/ruleset.ts`): sheet, panel DM i průvodce level upem.

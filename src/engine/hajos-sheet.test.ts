@@ -18,7 +18,7 @@ interface SeedFile {
   proficiencies: { skills: string[]; expertise: string[]; savingThrows: string[] }
   hitPoints: { max: number; current: number; temp: number }
   attacks: { name: string; toHit: number; damage: string; damageType: string }[]
-  inventory: { item: string; qty: number; equipped?: boolean; base?: string; magicBonus?: number; extraDamage?: string }[]
+  inventory: { item: string; qty: number; equipped?: boolean; base?: string; magicBonus?: number; damageDice?: string; extraDamage?: string }[]
   sheetValues: {
     proficiencyBonus: number
     modifiers: Record<string, number>
@@ -83,7 +83,7 @@ function inventoryFromSeed(): InventoryItem[] {
     // Nunchaku nejsou v SRD: kostku a typ zranění seed bere z řádku útoku na papíře (homebrew d8), simple melee je odhad (viz CharacterSeeder)
     weapon('nunchaku', 'Nunchaku', { damageDice: nunchakuRow.damage.slice(0, nunchakuRow.damage.indexOf('+')), damageType: 'Bludgeoning', category: 'simple', range: 'melee', properties: ['Light'], weight: 1 }),
     weapon('crossbow', 'Light Crossbow', srdWeapon('Crossbow, light')),
-    weapon('spear', 'Demonic Spear', srdWeapon(spearRow.base!), {
+    weapon('spear', 'Demonic Spear', { ...srdWeapon(spearRow.base!), damageDice: spearRow.damageDice ?? srdWeapon(spearRow.base!).damageDice }, {
       magicBonus: spearRow.magicBonus,
       extraDamage: [{ dice: extraDice!, type: extraType.join(' ').replace(/^./, (c) => c.toUpperCase()) }],
     }),
@@ -171,7 +171,7 @@ describe('Hajoš ze seedu: engine vychází stejně jako papírový sheet', () =
     const spear = sheet.attacks.find((a) => a.name === 'Demonic Spear')!
     expect(spear.toHit.value).toBe(8) // DEX 4 + proficiency 3 + magie 1
     expect(spear.damageBonus.value).toBe(5) // DEX 4 + magie 1
-    expect(spear.damageDice).toBe('1d6')
+    expect(spear.damageDice).toBe('1d8') // homebrew: d8 místo d6 u obyčejného Spear
     expect(spear.extraDamage).toEqual([{ dice: '1d4', type: 'Fire' }])
   })
 })
@@ -210,9 +210,5 @@ describe('Hajoš ze seedu: známé rozdíly proti papíru', () => {
     const warlock = sheet.spellcasting.classes.find((c) => c.classIndex === 'warlock')!
     expect(warlock.saveDc.value).toBe(14)
     expect(v.warlockSpellSaveDC).toBe(13)
-  })
-
-  it('Demonic Spear: versatile 1d8 se v útoku nemodeluje (engine ukazuje jednoruční 1d6)', () => {
-    expect(sheet.attacks.find((a) => a.name === 'Demonic Spear')!.damageDice).toBe('1d6')
   })
 })

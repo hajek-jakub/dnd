@@ -1,12 +1,20 @@
 import { formatModifier } from '@/engine'
+import { useState } from 'react'
+import { SkullIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RollButton } from '@/features/dice/RollButton'
 import { d20, damageExpression } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
+import { riderFor } from './riders'
 import { useSheet } from './sheet-context'
 
 export function AttacksCard() {
-  const { sheet } = useSheet()
+  const { sheet, character, canEdit } = useSheet()
+  // Soustředění na Hex apod.: ke každému zásahu proti označenému cíli přibývá kostka zranění.
+  const rider = riderFor(character.state.concentration)
+  const [riderOn, setRiderOn] = useState(true)
+  const active = rider !== null && riderOn
   return (
     <Card>
       <CardHeader>
@@ -17,6 +25,15 @@ export function AttacksCard() {
         </p>
       </CardHeader>
       <CardContent>
+        {rider && canEdit && (
+          <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={() => setRiderOn((v) => !v)} className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
+            <SkullIcon aria-hidden />
+            <span>
+              Cíl je pod kouzlem {rider.name}: ke zranění se přidá {rider.dice} {rider.type.toLowerCase()}
+              <span className="block text-xs font-normal opacity-80">Vypni, když útočíš na jiného protivníka (bonus platí jen proti jednomu cíli).</span>
+            </span>
+          </Button>
+        )}
         <ul className="divide-y">
           {sheet.attacks.map((a) => (
             <li key={a.id} className="space-y-1 py-2">
@@ -44,15 +61,15 @@ export function AttacksCard() {
                     overrideKey={`attack.${a.id}.damage`}
                     format={formatModifier}
                   />
-                  {a.extraDamage.map((x) => (
+                  {[...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : [])].map((x) => (
                     <span key={`${x.dice}${x.type}`} className="font-semibold" title="Doplňkové zranění">
                       + {x.dice} {x.type.toLowerCase()}
                     </span>
                   ))}
-                  {damageExpression(a.damageDice, a.damageBonus.value, a.extraDamage) && (
+                  {damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])]) && (
                     <>
-                      <RollButton label={`${a.name}: zranění`} expression={damageExpression(a.damageDice, a.damageBonus.value, a.extraDamage)!} />
-                      <RollButton label={`${a.name}: zranění`} expression={damageExpression(a.damageDice, a.damageBonus.value, a.extraDamage)!} crit text="Krit" />
+                      <RollButton label={`${a.name}: zranění${active ? ` + ${rider.name}` : ''}`} expression={damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])!} />
+                      <RollButton label={`${a.name}: zranění${active ? ` + ${rider.name}` : ''}`} expression={damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])!} crit text="Krit" />
                     </>
                   )}
                 </div>

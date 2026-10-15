@@ -46,9 +46,9 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
   await expect(page.getByText(/Ke ověření \(\d+\)/)).toBeVisible()
   await expect(page.getByText(/na sheetu „Cross“, předpokládám Light Crossbow/).first()).toBeVisible()
 
-  // útok Demonic Spear: +8 k útoku, kostka 1d6 a doplňkové zranění 1d4 fire
+  // útok Demonic Spear: +8 k útoku, kostka 1d8 a doplňkové zranění 1d4 fire
   const spear = page.getByRole('listitem').filter({ hasText: 'Demonic Spear' }).filter({ hasText: 'k20' })
-  await expect(spear).toContainText('1d6')
+  await expect(spear).toContainText('1d8')
   await expect(spear).toContainText('+ 1d4 fire')
   await expect(spear.getByRole('button', { name: /bonus k útoku: \+8/ })).toBeVisible()
   await expect(spear.getByRole('button', { name: /bonus ke zranění: \+5/ })).toBeVisible()
