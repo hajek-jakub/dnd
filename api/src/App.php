@@ -9,6 +9,7 @@ use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
 use Dnd\Controllers\DmController;
 use Dnd\Controllers\InventoryController;
+use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
@@ -104,6 +105,12 @@ final class App
         $r->add('DELETE', '/characters/{id}/effects/long-rest', [DmController::class, 'expireLongRestEffects']);
         $r->add('GET', '/notifications', [NotificationController::class, 'index']);
         $r->add('POST', '/notifications/read', [NotificationController::class, 'markRead']);
+
+        // Zprávy v kampani (skupinový chat, soukromě DM a hráč, tajné zprávy od DM)
+        $r->add('GET', '/campaigns/{id}/messages', [MessageController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/messages', [MessageController::class, 'send']);
+        $r->add('POST', '/campaigns/{id}/messages/read', [MessageController::class, 'markRead']);
+        $r->add('GET', '/messages/unread', [MessageController::class, 'unreadOverview']);
 
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);

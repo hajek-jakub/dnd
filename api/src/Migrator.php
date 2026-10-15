@@ -42,9 +42,14 @@ final class Migrator
     /** Smaže všechny tabulky (jen pro lokální vývoj a testy!). */
     public static function dropAll(): void
     {
-        $name = Config::db()['name'];
+        $db = Config::db();
+        $name = (string) $db['name'];
         if (!str_starts_with($name, 'dnd')) {
             throw new RuntimeException('Odmítám mazat databázi, která se nejmenuje dnd*.');
+        }
+        // Ostrá databáze na hostingu nikdy: mazat jde jen DB na tomhle počítači (docker-compose), nikdy vzdálený server.
+        if (!in_array(strtolower((string) ($db['host'] ?? '')), ['127.0.0.1', 'localhost', '::1'], true)) {
+            throw new RuntimeException('Odmítám mazat databázi na vzdáleném serveru (' . ($db['host'] ?? '?') . '). --fresh je jen pro lokální vývoj a testy.');
         }
         $pdo = Db::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');

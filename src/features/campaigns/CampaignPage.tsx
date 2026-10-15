@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, CopyIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
+import { ArrowLeftIcon, CopyIcon, MessageSquareIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -22,6 +22,7 @@ import {
 import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
 import { RULESETS, rulesetOf } from './ruleset'
+import { useUnreadMessages } from '@/features/messages/api'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 
 export function CampaignPage() {
@@ -32,6 +33,8 @@ export function CampaignPage() {
   const { data: members } = useCampaignMembers(campaignId)
   const myRole = members?.find((m) => m.userId === user?.id)?.role
   const isDm = myRole === 'dm'
+  const { data: unreadMessages } = useUnreadMessages()
+  const unreadHere = unreadMessages?.campaigns.find((c) => c.campaignId === campaignId)?.unread ?? 0
   const removeMember = useRemoveMember(campaignId ?? '')
   const deleteCampaign = useDeleteCampaign(campaignId ?? '')
 
@@ -73,10 +76,20 @@ export function CampaignPage() {
             Pravidla {rulesetOf(campaign.settings)}
           </span>
         </div>
-        {isDm && campaignId && (
-          <div>
-            <Link to={`/campaigns/${campaignId}/dm`} className={buttonVariants({ variant: 'default' })}>
-              <ShieldIcon aria-hidden /> Panel DM
+        {campaignId && (
+          <div className="flex flex-wrap gap-2">
+            {isDm && (
+              <Link to={`/campaigns/${campaignId}/dm`} className={buttonVariants({ variant: 'default' })}>
+                <ShieldIcon aria-hidden /> Panel DM
+              </Link>
+            )}
+            <Link to={`/campaigns/${campaignId}/messages`} className={buttonVariants({ variant: isDm ? 'secondary' : 'default' })}>
+              <MessageSquareIcon aria-hidden /> Zprávy
+              {unreadHere > 0 && (
+                <span data-testid="campaign-unread" aria-label={`${unreadHere} nepřečtených`} className="ml-1 rounded-full bg-primary-foreground px-1.5 text-xs font-semibold text-primary">
+                  {unreadHere}
+                </span>
+              )}
             </Link>
           </div>
         )}

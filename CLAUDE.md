@@ -208,8 +208,23 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - **Homebrew druh `weapon`** (`POST /campaigns/{id}/homebrew`, formulář „Nová zbraň“ ve skupině Vybavení): data mají tvar SRD zbraní (`damage`, `weapon_category`, `weapon_range`, `properties`, `weight`, `two_handed_damage`) plus `magic_bonus` a `extra_damage`;
   inventář z ní vyrobí zbraň včetně magického bonusu a doplňkových zranění.
 
+### Fáze 7 – Zprávy: HOTOVO
+- **Model** (migrace 007): `messages` (vlákno `thread`: `group` | `dm:<id hráče>` | `secret`), `message_recipients` (adresáti soukromých a tajných zpráv), `message_reads` (do které zprávy ve vlákně uživatel dočetl).
+- **Viditelnost** má jediné pravidlo (`MessageController::visibleSql`): skupinové zprávy vidí každý člen kampaně, ostatní jen odesílatel a příjemci. DM tedy nečte nic, co mu nebylo adresováno ani sám neposlal.
+  Kdo smí psát: skupinově každý člen; hráč soukromě jen DM (jednomu), jinak 403; DM jednomu hráči (vlákno `dm:<hráč>`) nebo víc hráčům naráz (`secret`); sám sobě, cizinci ani ne-hráči ne (422). Cizinec dostane 404, anonym 401, 40 zpráv za minutu na uživatele (429).
+- **API**: `GET /campaigns/{id}/messages[?after=]` (posledních 200, s `after` jen novější, plus nepřečtené po vláknech), `POST /campaigns/{id}/messages` `{to: 'all' | [userIds], body ≤ 4000}`, `POST /campaigns/{id}/messages/read` `{thread}` (server sám spočítá poslední viditelnou zprávu),
+  `GET /messages/unread` (nepřečtené napříč kampaněmi). Text se ukládá a vrací beze změny, UI ho ukazuje jako text (žádné HTML).
+- **UI** (`/campaigns/:id/messages`, odkaz „Zprávy“ na stránce kampaně pro všechny členy): vlákna Skupina, soukromé (hráč vidí jedno s DM, DM jedno na hráče) a Tajné zprávy (DM vybírá aspoň dva příjemce, hráč je jen čte a vidí, komu byla určena).
+  Na telefonu je nejdřív seznam vláken a pak vlákno, na počítači vedle sebe. Průběžné dotazování každé 4 s jen na novější zprávy, odznak nepřečtených u vláken, u kampaně i v hlavičce, toast při nové zprávě.
+- Testy: 17 API testů (`messages.test.ts`: autorizace, soukromí, tajné zprávy, validace, nepřečtené, rate limit) + E2E `messages.spec.ts` (DM počítač + dva hráči na telefonech; telefon i počítač bez horizontálního scrollu).
+
+### Bezpečnostní pojistky testů a databáze (po incidentu)
+- Jednou se omylem smazala ostrá databáze: v shellu zůstala `DND_CONFIG` na ostrou konfiguraci a API testy pustily `migrate --fresh`. Proto: **`DND_CONFIG` nikdy neexportovat do shellu** (nastavovat jen před jedním příkazem),
+  `Migrator::dropAll` odmítne cokoli jiného než lokální DB (`127.0.0.1`/`localhost`) a `api-tests/global-setup.ts` ignoruje `DND_CONFIG` z prostředí (vždy `api/config.test.php`, jiná jen přes `DND_TEST_CONFIG`). Hlídá to `api-tests/safety.test.ts`.
+- Ostrá DB nemá zálohy (Endora je nemá zapnuté). Než se na ostré DB spustí cokoli, co zapisuje, nejdřív `--check` / čtení. Postavu Hajoš do kampaně Mirabilis na ostré DB zakládá `seed-hajos.php` s `DND_CONFIG=<ostrá>` jen pro ten jeden příkaz.
+
 ### Další fáze (dle zadání)
-7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
+8. Mapy. 9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

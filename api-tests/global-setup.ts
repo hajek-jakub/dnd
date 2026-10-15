@@ -3,8 +3,9 @@ import path from 'node:path'
 
 export const API_PORT = 8181
 const root = path.resolve(import.meta.dirname, '..')
-// DND_CONFIG jde přepsat (např. pro ověření proti MariaDB); výchozí je api/config.test.php.
-const env = { ...process.env, DND_CONFIG: process.env.DND_CONFIG ?? path.join(root, 'api/config.test.php') }
+// Testy mažou celou databázi, proto vždy api/config.test.php (DB dnd_test). Proměnná DND_CONFIG z prostředí se ignoruje,
+// aby se testy nikdy nepustily proti vývojové nebo ostré databázi; jiná testovací konfigurace jde jen přes DND_TEST_CONFIG.
+const env = { ...process.env, DND_CONFIG: process.env.DND_TEST_CONFIG ?? path.join(root, 'api/config.test.php') }
 
 async function waitForHealth(url: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs

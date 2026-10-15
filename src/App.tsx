@@ -8,6 +8,7 @@ import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
 import { JoinPage } from '@/features/campaigns/JoinPage'
 import { DmPage } from '@/features/dm/DmPage'
+import { MessagesPage } from '@/features/messages/MessagesPage'
 import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { AboutPage } from '@/features/about/AboutPage'
@@ -44,6 +45,7 @@ export default function App() {
             <Route index element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
+            <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="campaigns/:campaignId/characters/new" element={<CreateCharacterPage />} />
             <Route path="characters/:id" element={<CharacterPage />} />

@@ -1,8 +1,9 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { BellIcon, LogOutIcon } from 'lucide-react'
+import { BellIcon, LogOutIcon, MessageSquareIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/features/auth/auth-context'
+import { useNewMessageToasts, useUnreadMessages } from '@/features/messages/api'
 import { useNotifications } from '@/features/notifications/api'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,11 @@ export function AppLayout() {
   const { user, logout } = useAuth()
   const { data: notifications } = useNotifications()
   const unread = notifications?.unread ?? 0
+  const { data: messageUnread } = useUnreadMessages()
+  useNewMessageToasts(messageUnread)
+  const unreadMessages = messageUnread?.total ?? 0
+  // Odznak vede do první kampaně s nepřečtenou zprávou, jinak na seznam kampaní.
+  const messagesTarget = messageUnread?.campaigns[0] ? `/campaigns/${messageUnread.campaigns[0].campaignId}/messages` : '/'
 
   return (
     <div className="min-h-dvh">
@@ -32,6 +38,22 @@ export function AppLayout() {
                 className="inline-flex min-h-11 min-w-11 max-w-32 items-center truncate text-sm text-muted-foreground hover:text-foreground"
               >
                 {user.displayName}
+              </Link>
+            )}
+            {unreadMessages > 0 && (
+              <Link
+                to={messagesTarget}
+                className="relative inline-flex size-11 items-center justify-center rounded-lg hover:bg-muted"
+                aria-label={`Zprávy (${unreadMessages} nepřečtených)`}
+                title="Nepřečtené zprávy"
+              >
+                <MessageSquareIcon aria-hidden className="size-5" />
+                <span
+                  data-testid="unread-messages-badge"
+                  className="absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground"
+                >
+                  {unreadMessages > 99 ? '99+' : unreadMessages}
+                </span>
               </Link>
             )}
             <Link
