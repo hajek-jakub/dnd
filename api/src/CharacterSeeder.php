@@ -501,14 +501,16 @@ final class CharacterSeeder
      * @param array<string, mixed> $seed
      * @return array{status: string, characterId: string, count: int}
      */
-    public static function replaceTactics(array $seed, string $ownerUsername, ?string $campaignId): array
+    public static function replaceTactics(array $seed, string $ownerUsername, ?string $campaignId, ?string $characterName = null): array
     {
         $problems = [];
         $fail = static function (string $m) use (&$problems): void {
             $problems[] = $m;
         };
         $tactics = self::tacticsFrom($seed, $fail);
-        $name = is_array($seed['character'] ?? null) && is_string($seed['character']['name'] ?? null) ? trim($seed['character']['name']) : '';
+        $name = $characterName !== null && trim($characterName) !== ''
+            ? trim($characterName)
+            : (is_array($seed['character'] ?? null) && is_string($seed['character']['name'] ?? null) ? trim($seed['character']['name']) : '');
         $owner = Db::one('SELECT id FROM users WHERE username = ?', [$ownerUsername]);
         if ($owner === null) {
             $fail("Uživatel \"$ownerUsername\" neexistuje.");

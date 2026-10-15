@@ -5,6 +5,7 @@
 //   SEED_CAMPAIGN_ID=<uuid>    volitelné; chybí-li, založí se (a příště znovu použije) "Testovací kampaň (seed)"
 //   php api/bin/seed-hajos.php --force      smaže už existující Hajoše v té kampani a založí ho znovu
 //   php api/bin/seed-hajos.php --check      jen ověří, že jde všechno namapovat, nic nezapíše
+//   SEED_CHARACTER_NAME=jméno  jen pro --tactics-only: postava se hledá pod tímhle jménem (když ji hráč v aplikaci přejmenoval)
 //   php api/bin/seed-hajos.php --tactics-only  jen smaže a znovu vloží taktiky už existující postavy (zbytek postavy se nemění)
 //   php api/bin/seed-hajos.php [soubor.json]  jiný vstupní soubor (výchozí seed/hajos.json)
 declare(strict_types=1);
@@ -62,7 +63,7 @@ fwrite(STDOUT, 'Databáze: ' . ($db['name'] ?? '?') . ' @ ' . ($db['host'] ?? '?
 
 try {
     if (in_array('--tactics-only', $flags, true)) {
-        $res = CharacterSeeder::replaceTactics($seed, $owner, $campaignId);
+        $res = CharacterSeeder::replaceTactics($seed, $owner, $campaignId, $get('SEED_CHARACTER_NAME'));
         fwrite(STDOUT, "Taktiky postavy {$res['characterId']} nahrazeny: {$res['count']} položek.\n");
     } elseif (in_array('--check', $flags, true)) {
         $plan = CharacterSeeder::plan($seed, $owner, $campaignId);

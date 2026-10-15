@@ -221,6 +221,14 @@ describe('seed postavy Hajoš', () => {
     expect(char.items).toHaveLength(before.items.length)
     expect(char.spells).toHaveLength(before.spells.length)
     expect(char.currency).toEqual(before.currency)
+    // hráč postavu přejmenoval: bez jména ji seed nenajde, se SEED_CHARACTER_NAME ano
+    expectStatus(await owner.client.patch(`/characters/${characterId}`, { name: 'Obalatomi' }), 200)
+    const base = { SEED_OWNER_USERNAME: owner.username, SEED_CAMPAIGN_ID: campaignId }
+    expect(runSeed(base, ['--tactics-only']).code).toBe(3)
+    const renamed = runSeed({ ...base, SEED_CHARACTER_NAME: 'Obalatomi' }, ['--tactics-only'])
+    expect(renamed.code, renamed.err).toBe(0)
+    expectStatus(await owner.client.patch(`/characters/${characterId}`, { name: 'Hajoš' }), 200)
+    character = (await owner.client.get(`/characters/${characterId}`)).body.character // přejmenování změnilo rev
     // postava, která neexistuje, se nezaloží
     const nobody = await registerUser('bezpostavy')
     const none = runSeed({ SEED_OWNER_USERNAME: nobody.username }, ['--tactics-only'])
