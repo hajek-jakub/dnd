@@ -175,7 +175,7 @@ function CharacterOverview({
             {[character.race, sheet.classSummary].filter(Boolean).join(' · ')} · level {sheet.totalLevel}
           </p>
           <p className="text-xs text-muted-foreground">
-            {character.xp} XP{character.inspiration && <span className="ml-2 font-medium text-amber-600">★ inspirace</span>}
+            {character.xp === null ? 'XP nedoplněno' : `${character.xp} XP`}{character.inspiration && <span className="ml-2 font-medium text-amber-600">★ inspirace</span>}
           </p>
         </div>
       </div>

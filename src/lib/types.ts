@@ -119,4 +119,4 @@ export interface RuleFacets {
   tags: string[]
 }
 
-export type HomebrewKind = 'spell' | 'magic_item' | 'feature' | 'subclass'
+export type HomebrewKind = 'spell' | 'magic_item' | 'feature' | 'subclass' | 'weapon'

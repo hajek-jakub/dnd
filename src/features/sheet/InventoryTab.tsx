@@ -14,6 +14,7 @@ import { metaLine } from '@/features/rules/labels'
 import { cn } from '@/lib/utils'
 import { effectLabel } from './effects'
 import { ItemForm } from './ItemForm'
+import { NotesText } from './NotesText'
 import { useAddItem, useCharacters, useDeleteItem, useTransfer, useUpdateItem, type ItemInput } from './api'
 import { COINS, COIN_LABELS, convertCoins, totalGold, type Coin } from './money'
 import { useSheet } from './sheet-context'
@@ -198,10 +199,11 @@ function ItemRow({ item }: { item: CharacterItem }) {
               {item.weapon.damageDice} {item.weapon.damageType}, {item.weapon.category}, {item.weapon.range === 'melee' ? 'na blízko' : 'na dálku'}
               {item.weapon.properties.length > 0 ? `, ${item.weapon.properties.join(', ')}` : ''}
               {item.weapon.magicBonus ? `, magický bonus +${item.weapon.magicBonus}` : ''}
+              {item.weapon.extraDamage?.length ? `, + ${item.weapon.extraDamage.map((x) => `${x.dice} ${x.type.toLowerCase()}`).join(', + ')}` : ''}
             </p>
           )}
           {item.description && <DescriptionText text={item.description} />}
-          {item.notes && <p className="whitespace-pre-line text-muted-foreground">{item.notes}</p>}
+          {item.notes && <NotesText text={item.notes} className="space-y-1 text-muted-foreground" />}
           {canEdit && (
             <div className="flex flex-wrap gap-2 pt-1">
               {item.quantity > 1 && (

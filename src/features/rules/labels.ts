@@ -11,7 +11,7 @@ export interface RuleGroup {
 export const GROUPS: RuleGroup[] = [
   { id: 'spells', label: 'Kouzla', kinds: ['spell'], homebrewKind: 'spell' },
   { id: 'items', label: 'Magické itemy', kinds: ['magic_item'], homebrewKind: 'magic_item' },
-  { id: 'gear', label: 'Vybavení', kinds: ['equipment', 'weapon', 'armor'] },
+  { id: 'gear', label: 'Vybavení', kinds: ['equipment', 'weapon', 'armor'], homebrewKind: 'weapon' },
   { id: 'features', label: 'Featury', kinds: ['feature', 'feat'], homebrewKind: 'feature' },
   { id: 'classes', label: 'Třídy', kinds: ['class', 'subclass'], homebrewKind: 'subclass' },
   { id: 'races', label: 'Rasy', kinds: ['race', 'subrace', 'trait'] },
@@ -44,7 +44,11 @@ export const HOMEBREW_KIND_LABELS: Record<HomebrewKind, string> = {
   magic_item: 'item',
   feature: 'featuru',
   subclass: 'subclassu',
+  weapon: 'zbraň',
 }
+
+/** "Nové kouzlo", ale "Nová zbraň". */
+export const newWord = (kind: HomebrewKind): string => (kind === 'weapon' ? 'Nová' : 'Nové')
 
 export const RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact', 'varies'] as const
 

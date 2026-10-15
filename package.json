@@ -21,6 +21,7 @@
     "db:reset": "php api/bin/migrate.php --fresh && php api/bin/seed.php",
     "api": "php -S 127.0.0.1:8080 -t api api/index.php",
     "test:api": "vitest run --config vitest.api.config.ts",
+    "seed:hajos": "php api/bin/seed-hajos.php",
     "start": "concurrently -k -n api,web -c blue,green \"npm:api\" \"npm:dev\"",
     "test:all": "npm run typecheck && npm run lint && npm test && npm run test:api && npm run test:e2e",
     "db:seed": "php api/bin/seed.php"

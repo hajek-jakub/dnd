@@ -1,0 +1,512 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Dnd;
+
+use Dnd\Controllers\CampaignController;
+use Dnd\Controllers\CharacterController;
+use Dnd\Controllers\InventoryController;
+use Dnd\Controllers\RulesController;
+
+/**
+ * Idempotentní seed jedné postavy ze souboru seed/*.json (přepis z papírového sheetu).
+ *
+ * Zásady:
+ *  - ukládají se jen VSTUPY (staty, třídy, proficiencies, HP, inventář, peníze, kouzla); co počítá engine
+ *    (modifikátory, savy, skilly, AC, ki, sloty, ...) se neukládá ani jako override,
+ *  - itemy a kouzla se mapují na SRD záznamy v DB, co v SRD není, vznikne jako homebrew kampaně,
+ *  - hodnoty null zůstanou prázdné ("nedoplněno" v UI), texty s TO_CONFIRM se uloží do poznámek tak, jak jsou,
+ *  - když seed narazí na něco, co model neumí uložit, vyhodí SeedStop DŘÍV, než cokoli zapíše,
+ *  - znovu spuštěný seed postavu nezdvojí (hledá ji podle kampaně, majitele a jména); --force ji smaže a založí znovu.
+ *
+ * Zápis jde přes stejné kontrolery jako API, takže platí stejná validace a autorizace.
+ */
+final class CharacterSeeder
+{
+    public const TEST_CAMPAIGN_NAME = 'Testovací kampaň (seed)';
+
+    private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'openQuestions'];
+    private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'xp', 'notes'];
+    private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
+    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'extraDamage', 'attunement', 'description', 'note'];
+    private const ALIASES = ['light crossbow' => 'Crossbow, light', 'heavy crossbow' => 'Crossbow, heavy', 'hand crossbow' => 'Crossbow, hand'];
+    /** Základ homebrew zbraní, které nejsou v SRD a papír k nim neříká víc než název. Co je odhad, dostane TO_CONFIRM v poznámce. */
+    private const HOMEBREW_DEFAULTS = [
+        'nunchaku' => [
+            'weapon' => ['damageDice' => '1d6', 'damageType' => 'Bludgeoning', 'category' => 'simple', 'range' => 'melee', 'properties' => ['Light'], 'weight' => 1],
+            'itemNote' => 'TO_CONFIRM: základní kostka nunchaku není na sheetu. Použito 1d6 bludgeoning, simple, melee, Light (sheet má 1d8 z martial arts kostky podle pravidel 2024).',
+        ],
+    ];
+
+    /** Kouzla, která nejsou v SRD 5.1: jen fakta k filtrování a seslání, bez textu z příruček. */
+    private const NON_SRD_SPELLS = [
+        'hex' => [
+            'name' => 'Hex', 'level' => 1, 'school' => 'Enchantment', 'castingTime' => '1 bonus action', 'range' => '90 feet', 'components' => 'V, S, M',
+            'duration' => 'Concentration, up to 1 hour', 'concentration' => true, 'ritual' => false, 'classes' => 'Warlock',
+            'description' => 'Kouzlo není v SRD 5.1, popis najdeš v Player\'s Handbook.',
+        ],
+    ];
+
+    /**
+     * @param array<string, mixed> $seed
+     * @return array{status: string, characterId: string, campaignId: string, campaignCreated: bool, homebrew: list<string>, warnings: list<string>}
+     */
+    public static function run(array $seed, string $ownerUsername, ?string $campaignId, bool $force = false): array
+    {
+        $plan = self::plan($seed, $ownerUsername, $campaignId);
+        $user = ['id' => $plan['owner']['id'], 'username' => $plan['owner']['username']];
+
+        $campaignCreated = false;
+        $campaign = $plan['campaignId'];
+        if ($campaign === null) {
+            $res = CampaignController::create(self::req(['name' => self::TEST_CAMPAIGN_NAME, 'description' => 'Založeno seed skriptem.']), [], $user);
+            $campaign = (string) ($res->body['campaign']['id'] ?? '');
+            $campaignCreated = true;
+        }
+
+        $existing = Db::one('SELECT id FROM characters WHERE campaign_id = ? AND owner_id = ? AND name = ?', [$campaign, $user['id'], $plan['name']]);
+        if ($existing !== null && !$force) {
+            return ['status' => 'exists', 'characterId' => (string) $existing['id'], 'campaignId' => $campaign, 'campaignCreated' => false, 'homebrew' => [], 'warnings' => $plan['warnings']];
+        }
+        if ($existing !== null) {
+            Db::exec('DELETE FROM characters WHERE id = ?', [$existing['id']]);
+        }
+
+        // 1) homebrew obsah kampaně (idempotentně podle druhu a názvu)
+        $homebrew = [];
+        $ruleIds = [];
+        foreach ($plan['homebrew'] as $key => $hb) {
+            $ruleIds[$key] = self::upsertHomebrew($user, $campaign, $hb);
+            $homebrew[] = $hb['body']['name'];
+        }
+
+        // 2) postava
+        $res = CharacterController::create(self::req($plan['create']), ['id' => $campaign], $user);
+        $id = (string) ($res->body['character']['id'] ?? '');
+        CharacterController::update(self::req($plan['update']), ['id' => $id], $user);
+
+        // 3) inventář a kouzla
+        $char = Db::one('SELECT * FROM characters WHERE id = ?', [$id]) ?? throw new \RuntimeException('Postava se nezaložila.');
+        foreach ($plan['items'] as $item) {
+            $input = ['quantity' => $item['qty']];
+            if ($item['ruleKey'] !== null) {
+                $input['ruleId'] = $ruleIds[$item['ruleKey']];
+            } else {
+                $input['ruleId'] = $item['ruleId'];
+            }
+            if ($item['notes'] !== '') {
+                $input['notes'] = $item['notes'];
+            }
+            $itemId = InventoryController::createItem($char, $user, $input);
+            if ($item['equipped']) {
+                Db::exec('UPDATE character_items SET equipped = 1 WHERE id = ?', [$itemId]);
+            }
+        }
+        foreach ($plan['spells'] as $spell) {
+            $ruleId = $spell['ruleId'] ?? $ruleIds[$spell['ruleKey']];
+            InventoryController::addSpell(self::req(['ruleId' => $ruleId, 'classIdx' => $spell['classIdx'], 'prepared' => true]), ['id' => $id], $user);
+        }
+
+        return ['status' => 'created', 'characterId' => $id, 'campaignId' => $campaign, 'campaignCreated' => $campaignCreated, 'homebrew' => $homebrew, 'warnings' => $plan['warnings']];
+    }
+
+    // ------------------------------------------------------------------ plán (nic nezapisuje)
+
+    /**
+     * Ověří seed proti databázi a připraví vše, co se bude zapisovat. Jakýkoli problém = SeedStop.
+     * @param array<string, mixed> $seed
+     * @return array<string, mixed>
+     */
+    public static function plan(array $seed, string $ownerUsername, ?string $campaignId): array
+    {
+        $problems = [];
+        $warnings = [];
+        $fail = static function (string $m) use (&$problems): void {
+            $problems[] = $m;
+        };
+
+        foreach (array_keys($seed) as $k) {
+            if (!in_array($k, self::TOP_KEYS, true)) {
+                $fail("Neznámá sekce \"$k\": datový model ji neumí uložit.");
+            }
+        }
+        $char = is_array($seed['character'] ?? null) ? $seed['character'] : [];
+        foreach (array_keys($char) as $k) {
+            if (!in_array($k, self::CHARACTER_KEYS, true)) {
+                $fail("Neznámé pole character.$k: datový model ho neumí uložit.");
+            }
+        }
+        $profs = is_array($seed['proficiencies'] ?? null) ? $seed['proficiencies'] : [];
+        foreach (array_keys($profs) as $k) {
+            if (!in_array($k, self::PROF_KEYS, true)) {
+                $fail("Neznámé pole proficiencies.$k: datový model ho neumí uložit.");
+            }
+        }
+        $name = is_string($char['name'] ?? null) ? trim($char['name']) : '';
+        if ($name === '') {
+            $fail('Chybí character.name.');
+        }
+
+        // majitel a kampaň
+        $owner = Db::one('SELECT id, username FROM users WHERE username = ?', [$ownerUsername]);
+        if ($owner === null) {
+            $fail("Uživatel \"$ownerUsername\" neexistuje. Nejdřív se v aplikaci zaregistruj a pak nastav SEED_OWNER_USERNAME na své přihlašovací jméno.");
+        }
+        $resolvedCampaign = null;
+        if ($campaignId !== null && $campaignId !== '') {
+            if (!Ids::isUuid($campaignId) || Db::value('SELECT 1 FROM campaigns WHERE id = ?', [$campaignId]) === null) {
+                $fail("Kampaň SEED_CAMPAIGN_ID=$campaignId neexistuje.");
+            } elseif ($owner !== null && !Access::isMember((string) $owner['id'], $campaignId)) {
+                $fail("Uživatel \"$ownerUsername\" není členem kampaně $campaignId.");
+            } else {
+                $resolvedCampaign = $campaignId;
+            }
+        } elseif ($owner !== null) {
+            $found = Db::value(
+                "SELECT c.id FROM campaigns c JOIN campaign_members m ON m.campaign_id = c.id AND m.user_id = ? AND m.role = 'dm'
+                 WHERE c.name = ? AND c.created_by = ? ORDER BY c.created_at LIMIT 1",
+                [$owner['id'], self::TEST_CAMPAIGN_NAME, $owner['id']],
+            );
+            $resolvedCampaign = $found === null ? null : (string) $found;
+        }
+
+        // třídy a subclassy
+        $levels = [];
+        $subclasses = [];
+        $classIdxs = [];
+        foreach (is_array($seed['classes'] ?? null) ? $seed['classes'] : [] as $c) {
+            $className = is_array($c) ? (string) ($c['class'] ?? '') : '';
+            $lvl = is_array($c) ? ($c['level'] ?? null) : null;
+            $idx = Db::value("SELECT idx FROM rules_entries WHERE kind = 'class' AND scope = '' AND LOWER(name) = LOWER(?)", [$className]);
+            if ($idx === null || !is_int($lvl) || $lvl < 1) {
+                $fail("Třída \"$className\" (level " . json_encode($lvl) . ') se nedá namapovat na SRD.');
+                continue;
+            }
+            $idx = (string) $idx;
+            $classIdxs[] = $idx;
+            for ($i = 0; $i < $lvl; $i++) {
+                $levels[] = ['classIndex' => $idx, 'hpRoll' => null];
+            }
+            $sub = is_array($c) && is_string($c['subclass'] ?? null) ? trim(preg_replace('/\s*\(.*$/', '', $c['subclass']) ?? '') : '';
+            if ($sub !== '') {
+                $subIdx = Db::value("SELECT idx FROM rules_entries WHERE kind = 'subclass' AND scope = '' AND ? LIKE CONCAT('%', name)", [$sub]);
+                if ($subIdx === null) {
+                    $fail("Subclass \"$sub\" se nedá namapovat na SRD.");
+                } else {
+                    $subclasses[$idx] = (string) $subIdx;
+                }
+            }
+        }
+        if ($levels === []) {
+            $fail('Postava nemá žádné třídy.');
+        }
+
+        // vlastnosti
+        $scores = [];
+        $abilities = is_array($seed['abilityScores'] ?? null) ? $seed['abilityScores'] : [];
+        foreach (Sheets::ABILITIES as $a) {
+            $v = $abilities[strtoupper($a)] ?? null;
+            if (!is_int($v)) {
+                $fail("Chybí hodnota vlastnosti " . strtoupper($a) . '.');
+            }
+            $scores[$a] = $v;
+        }
+
+        // proficiencies: skilly, savy a texty, které engine sám nezná
+        $skills = [];
+        foreach ([['skills', 1], ['expertise', 2]] as [$field, $level]) {
+            foreach (is_array($profs[$field] ?? null) ? $profs[$field] : [] as $s) {
+                $key = self::skillKey((string) $s);
+                if ($key === null) {
+                    $fail("Dovednost \"$s\" neznám.");
+                } else {
+                    $skills[$key] = $level;
+                }
+            }
+        }
+        $classSaves = [];
+        $classProfNames = [];
+        foreach ($classIdxs as $n => $idx) {
+            $data = json_decode((string) Db::value("SELECT data FROM rules_entries WHERE kind = 'class' AND scope = '' AND idx = ?", [$idx]), true);
+            foreach (is_array($data['proficiencies'] ?? null) ? $data['proficiencies'] : [] as $p) {
+                $classProfNames[] = self::norm((string) ($p['name'] ?? ''));
+            }
+            if ($n === 0) {
+                foreach (is_array($data['saving_throws'] ?? null) ? $data['saving_throws'] : [] as $s) {
+                    $classSaves[] = (string) ($s['index'] ?? '');
+                }
+            }
+        }
+        $extraSaves = [];
+        foreach (is_array($profs['savingThrows'] ?? null) ? $profs['savingThrows'] : [] as $s) {
+            $a = strtolower((string) $s);
+            if (!in_array($a, Sheets::ABILITIES, true)) {
+                $fail("Záchranný hod \"$s\" neznám.");
+            } elseif (!in_array($a, $classSaves, true)) {
+                $extraSaves[] = $a;
+            }
+        }
+        $extraProfs = [];
+        foreach (is_array($profs['languages'] ?? null) ? $profs['languages'] : [] as $l) {
+            $extraProfs[] = 'Language: ' . $l;
+        }
+        foreach ([['weapons', 'Weapon'], ['armor', 'Armor'], ['tools', 'Tool']] as [$field, $label]) {
+            $list = $profs[$field] ?? null;
+            if ($list !== null && !is_array($list)) {
+                $fail("proficiencies.$field musí být seznam nebo null.");
+                continue;
+            }
+            foreach ($list ?? [] as $p) {
+                // Co dá třída, engine ví sám. Uloží se jen to, co by jinak zmizelo (třeba pravidlo z 2024).
+                if (!in_array(self::norm((string) preg_replace('/\s*\(.*$/', '', (string) $p)), $classProfNames, true)) {
+                    $extraProfs[] = "$label: $p";
+                }
+            }
+        }
+
+        // HP, zdroje, inspirace
+        $hp = is_array($seed['hitPoints'] ?? null) ? $seed['hitPoints'] : [];
+        $hpCurrent = $hp['current'] ?? null;
+        $hpTemp = $hp['temp'] ?? 0;
+        if (!is_int($hpCurrent) || !is_int($hpTemp)) {
+            $fail('hitPoints.current a hitPoints.temp musí být celá čísla.');
+        }
+        $inspiration = false;
+        $notes = [];
+        foreach (is_array($seed['resources'] ?? null) ? $seed['resources'] : [] as $r) {
+            $rn = (string) ($r['name'] ?? '');
+            $cur = $r['current'] ?? null;
+            $max = $r['max'] ?? null;
+            if (preg_match('/inspiration/i', $rn) === 1) {
+                $inspiration = is_int($cur) && $cur > 0;
+                if (is_string($r['note'] ?? null) && $r['note'] !== '') {
+                    $notes[] = "TO_CONFIRM: $rn $cur/$max uloženo jako Inspirace postavy" . (str_starts_with($r['note'], 'TO_CONFIRM') ? '' : " ({$r['note']})");
+                }
+            } elseif (preg_match('/^(ki|pact magic)/i', $rn) === 1) {
+                // max počítá engine, uložený je jen rozdíl proti maximu, takže plné zdroje nic neukládají
+                if ($cur !== $max) {
+                    $fail("Zdroj \"$rn\" není plný ($cur/$max), a seed neumí uložit částečně vyčerpaný zdroj.");
+                }
+            } else {
+                $fail("Neznámý zdroj \"$rn\": nevím, na co ho namapovat.");
+            }
+        }
+
+        // poznámky postavy: původní poznámka, "ruleset" a vše, co je označené TO_CONFIRM
+        if (is_string($char['notes'] ?? null) && $char['notes'] !== '') {
+            $pending = !str_contains($char['notes'], 'TO_CONFIRM') && preg_match('/čeká na potvrzení/iu', $char['notes']) === 1;
+            $notes[] = ($pending ? 'TO_CONFIRM: ' : '') . $char['notes'];
+        }
+        if (is_string($seed['ruleset'] ?? null) && str_starts_with($seed['ruleset'], 'TO_CONFIRM')) {
+            $notes[] = $seed['ruleset'];
+        }
+        $currency = is_array($seed['currency'] ?? null) ? $seed['currency'] : [];
+
+        // kouzla
+        $spells = [];
+        $homebrew = [];
+        foreach (is_array($seed['spells'] ?? null) ? $seed['spells'] : [] as $classKey => $block) {
+            $classIdx = strtolower((string) $classKey);
+            if (!in_array($classIdx, $classIdxs, true)) {
+                $fail("Kouzla třídy \"$classKey\", kterou postava nemá.");
+                continue;
+            }
+            foreach (['cantrips', 'leveled'] as $group) {
+                foreach (is_array($block[$group] ?? null) ? $block[$group] : [] as $spellName) {
+                    $rule = Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND is_srd = 1 AND LOWER(name) = LOWER(?)", [$spellName]);
+                    if ($rule !== null) {
+                        $spells[] = ['classIdx' => $classIdx, 'ruleId' => (string) $rule['id'], 'ruleKey' => null];
+                    } elseif (isset(self::NON_SRD_SPELLS[strtolower((string) $spellName)])) {
+                        $def = self::NON_SRD_SPELLS[strtolower((string) $spellName)];
+                        $key = 'spell:' . strtolower((string) $spellName);
+                        $homebrew[$key] = ['kind' => 'spell', 'body' => ['kind' => 'spell'] + $def];
+                        $spells[] = ['classIdx' => $classIdx, 'ruleId' => null, 'ruleKey' => $key];
+                        $warnings[] = "Kouzlo $spellName není v SRD 5.1: založeno jako homebrew kampaně (jen fakta, bez popisu).";
+                    } else {
+                        $fail("Kouzlo \"$spellName\" není v SRD a nemám pro něj údaje na homebrew. Doplň je do CharacterSeeder::NON_SRD_SPELLS.");
+                    }
+                }
+            }
+        }
+
+        // útoky: které zbraně se mají nosit v ruce (mají řádek v sekci attacks)
+        $attacks = is_array($seed['attacks'] ?? null) ? $seed['attacks'] : [];
+
+        // inventář
+        $items = [];
+        foreach (is_array($seed['inventory'] ?? null) ? $seed['inventory'] : [] as $entry) {
+            if (!is_array($entry) || !is_string($entry['item'] ?? null)) {
+                $fail('Položka inventáře bez názvu.');
+                continue;
+            }
+            $itemName = $entry['item'];
+            foreach (array_keys($entry) as $k) {
+                if (!in_array($k, self::ITEM_KEYS, true)) {
+                    $fail("Položka \"$itemName\": pole \"$k\" datový model neumí uložit.");
+                }
+            }
+            $qty = $entry['qty'] ?? 1;
+            if (!is_int($qty) || $qty < 1) {
+                $fail("Položka \"$itemName\": neplatné množství.");
+                continue;
+            }
+            $itemNotes = [];
+            $nullFields = array_keys(array_filter($entry, static fn ($v, $k) => $v === null && in_array($k, ['attunement', 'description'], true), ARRAY_FILTER_USE_BOTH));
+            if ($nullFields !== []) {
+                $itemNotes[] = 'TO_CONFIRM: nedoplněno (v seedu null): ' . implode(', ', $nullFields) . '.';
+            }
+            if (is_string($entry['note'] ?? null) && $entry['note'] !== '') {
+                $itemNotes[] = $entry['note'];
+            }
+            $attackRow = null;
+            foreach ($attacks as $a) {
+                $an = strtolower((string) ($a['name'] ?? ''));
+                $in = strtolower($itemName);
+                if ($an !== '' && ($an === $in || str_contains($in, $an))) {
+                    $attackRow = $a;
+                }
+            }
+            if ($attackRow !== null && is_string($attackRow['note'] ?? null) && str_starts_with($attackRow['note'], 'TO_CONFIRM')) {
+                $itemNotes[] = $attackRow['note'];
+            }
+            $equipped = ($entry['equipped'] ?? false) === true || $attackRow !== null;
+
+            $ruleId = null;
+            $ruleKey = null;
+            if (($entry['homebrew'] ?? false) === true) {
+                $lower = strtolower($itemName);
+                $weapon = self::HOMEBREW_DEFAULTS[$lower]['weapon'] ?? null;
+                if (isset(self::HOMEBREW_DEFAULTS[$lower]['itemNote'])) {
+                    $itemNotes[] = self::HOMEBREW_DEFAULTS[$lower]['itemNote'];
+                }
+                if (is_string($entry['base'] ?? null)) {
+                    $base = Db::one("SELECT data FROM rules_entries WHERE kind = 'weapon' AND is_srd = 1 AND LOWER(name) = LOWER(?)", [$entry['base']]);
+                    if ($base === null) {
+                        $fail("Homebrew \"$itemName\": základní zbraň \"{$entry['base']}\" není v SRD.");
+                        continue;
+                    }
+                    $d = json_decode((string) $base['data'], true);
+                    $weapon = [
+                        'damageDice' => (string) ($d['damage']['dice'] ?? '1d6'), 'damageType' => (string) ($d['damage']['type'] ?? 'Bludgeoning'),
+                        'category' => strtolower((string) ($d['weapon_category'] ?? 'simple')), 'range' => strtolower((string) ($d['weapon_range'] ?? 'melee')),
+                        'properties' => array_values(array_map('strval', $d['properties'] ?? [])), 'weight' => $d['weight'] ?? 0,
+                        'versatileDice' => $d['two_handed_damage']['dice'] ?? null,
+                    ];
+                }
+                if ($weapon === null) {
+                    $fail("Homebrew \"$itemName\": nevím, jaké má staty (chybí základní zbraň ani výchozí hodnoty).");
+                    continue;
+                }
+                $body = ['kind' => 'weapon', 'name' => $itemName, 'description' => ''] + $weapon;
+                if (isset($entry['magicBonus'])) {
+                    if (!is_int($entry['magicBonus'])) {
+                        $fail("Homebrew \"$itemName\": magicBonus musí být celé číslo.");
+                        continue;
+                    }
+                    $body['magicBonus'] = $entry['magicBonus'];
+                }
+                if (isset($entry['extraDamage'])) {
+                    if (!is_string($entry['extraDamage']) || preg_match('/^\s*(\d{1,2}d\d{1,3})\s+(\S.*)$/', $entry['extraDamage'], $m) !== 1) {
+                        $fail("Homebrew \"$itemName\": extraDamage \"" . json_encode($entry['extraDamage']) . '" neumím přečíst (čekám např. "1d4 fire").');
+                        continue;
+                    }
+                    $body['extraDamage'] = [['dice' => strtolower($m[1]), 'type' => ucfirst(trim($m[2]))]];
+                }
+                $ruleKey = 'weapon:' . $lower;
+                $homebrew[$ruleKey] = ['kind' => 'weapon', 'body' => $body];
+                $warnings[] = "$itemName není v SRD: založeno jako homebrew zbraň kampaně.";
+            } else {
+                $lookup = self::ALIASES[strtolower($itemName)] ?? $itemName;
+                $rule = Db::one(
+                    "SELECT id FROM rules_entries WHERE is_srd = 1 AND kind IN ('weapon', 'armor', 'equipment', 'magic_item') AND LOWER(name) = LOWER(?)",
+                    [$lookup],
+                );
+                if ($rule === null) {
+                    $fail("Item \"$itemName\" není v SRD a seed ho neoznačuje jako homebrew.");
+                    continue;
+                }
+                $ruleId = (string) $rule['id'];
+            }
+            $items[] = ['qty' => $qty, 'equipped' => $equipped, 'ruleId' => $ruleId, 'ruleKey' => $ruleKey, 'notes' => implode("\n", $itemNotes)];
+        }
+
+        // peníze (poslední zbylé TO_CONFIRM z openQuestions se do poznámek nepřenáší, jen vypíše)
+        try {
+            $currencyClean = Sheets::currency(['currency' => $currency]);
+        } catch (HttpError $e) {
+            $fail('Peníze: ' . $e->getMessage());
+            $currencyClean = [];
+        }
+
+        if ($problems !== []) {
+            throw new SeedStop($problems);
+        }
+
+        $xp = $char['xp'] ?? null;
+        return [
+            'owner' => $owner,
+            'campaignId' => $resolvedCampaign,
+            'name' => $name,
+            'warnings' => $warnings,
+            'homebrew' => $homebrew,
+            'items' => $items,
+            'spells' => $spells,
+            'create' => [
+                'name' => $name,
+                'race' => (string) ($char['race'] ?? ''),
+                'background' => (string) ($char['background'] ?? ''),
+                'alignment' => (string) ($char['alignment'] ?? ''),
+                'xp' => is_int($xp) ? $xp : null,
+                'notes' => implode("\n", $notes),
+                'abilityScores' => $scores,
+                'levels' => $levels,
+                'subclasses' => $subclasses,
+                'skillProficiencies' => $skills,
+                'extraSaveProficiencies' => $extraSaves,
+                'extraProficiencies' => $extraProfs,
+                'state' => ['hpCurrent' => $hpCurrent],
+            ],
+            'update' => [
+                'currency' => $currencyClean,
+                'inspiration' => $inspiration,
+                'state' => ['hpCurrent' => $hpCurrent, 'hpTemp' => $hpTemp],
+            ],
+        ];
+    }
+
+    // ------------------------------------------------------------------ pomocné
+
+    /** @param array<string, mixed> $hb  @param array{id:string} $user */
+    private static function upsertHomebrew(array $user, string $campaignId, array $hb): string
+    {
+        $name = (string) $hb['body']['name'];
+        $kind = (string) $hb['kind'];
+        $existing = Db::value('SELECT id FROM rules_entries WHERE campaign_id = ? AND kind = ? AND name = ?', [$campaignId, $kind, $name]);
+        if ($existing !== null) {
+            $body = $hb['body'];
+            unset($body['kind']);
+            RulesController::update(self::req($body), ['id' => (string) $existing], $user);
+            return (string) $existing;
+        }
+        $res = RulesController::createHomebrew(self::req($hb['body']), ['id' => $campaignId], $user);
+        return (string) ($res->body['entry']['id'] ?? '');
+    }
+
+    /** @param array<string, mixed> $body */
+    private static function req(array $body): Request
+    {
+        return new Request('POST', '/', [], [], [], json_encode($body, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), '127.0.0.1', false);
+    }
+
+    private static function skillKey(string $name): ?string
+    {
+        $key = str_replace(' ', '-', strtolower(trim($name)));
+        return in_array($key, Sheets::SKILLS, true) ? $key : null;
+    }
+
+    private static function norm(string $s): string
+    {
+        return preg_replace('/[^a-z]/', '', strtolower($s)) ?? '';
+    }
+}

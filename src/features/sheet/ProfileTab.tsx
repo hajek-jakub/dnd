@@ -160,11 +160,11 @@ function DetailsForm() {
               <Input id="pf-subrace" maxLength={100} value={form.subrace} onChange={(e) => set('subrace', e.target.value)} />
             </Field>
             <Field id="pf-bg" label="Background">
-              <Input id="pf-bg" maxLength={100} value={form.background} onChange={(e) => set('background', e.target.value)} />
+              <Input id="pf-bg" maxLength={100} placeholder="nedoplněno" value={form.background} onChange={(e) => set('background', e.target.value)} />
             </Field>
             <Field id="pf-align" label="Alignment">
               <NativeSelect id="pf-align" value={form.alignment} onChange={(e) => set('alignment', e.target.value)}>
-                <option value="">Neurčeno</option>
+                <option value="">nedoplněno</option>
                 {ALIGNMENTS.map((a) => (
                   <option key={a}>{a}</option>
                 ))}

@@ -110,7 +110,7 @@ final class DmController
             $chars = self::targets($params['id'], $in);
             $each = $split ? intdiv($amount, max(1, count($chars))) : $amount;
             foreach ($chars as $char) {
-                Db::exec('UPDATE characters SET xp = LEAST(10000000, xp + ?), updated_at = UTC_TIMESTAMP() WHERE id = ?', [$each, $char['id']]);
+                Db::exec('UPDATE characters SET xp = LEAST(10000000, COALESCE(xp, 0) + ?), updated_at = UTC_TIMESTAMP() WHERE id = ?', [$each, $char['id']]);
                 Notifications::push((string) $char['owner_id'], $user['id'], $params['id'], (string) $char['id'], 'xp', "DM ti dal $each XP");
             }
             return $each;

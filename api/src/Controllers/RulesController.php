@@ -9,6 +9,7 @@ use Dnd\Db;
 use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
+use Dnd\Items;
 use Dnd\Request;
 use Dnd\Response;
 
@@ -28,7 +29,7 @@ final class RulesController
         'race', 'subrace', 'trait', 'condition', 'background', 'skill', 'language', 'weapon_property', 'ability',
     ];
     /** Druhy, které smí uživatel vytvořit jako homebrew. */
-    private const HOMEBREW_KINDS = ['spell', 'magic_item', 'feature', 'subclass'];
+    private const HOMEBREW_KINDS = ['spell', 'magic_item', 'feature', 'subclass', 'weapon'];
     private const RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact', 'varies'];
 
     private const SUMMARY_COLUMNS = 'e.id, e.ruleset, e.kind, e.name, e.name_cs, e.level, e.category, e.rarity, e.attunement, e.source,
@@ -472,6 +473,89 @@ final class RulesController
                     }
                     $out['price_gp'] = $p === null ? null : round((float) $p, 2);
                 }
+                break;
+
+            case 'weapon':
+                // Stejný tvar dat jako u SRD zbraní (damage, weapon_category, ...), aby z ní inventář uměl vyrobit zbraň.
+                if ($create || $has('damageDice') || $has('damageType')) {
+                    $dice = $in['damageDice'] ?? null;
+                    $type = $in['damageType'] ?? null;
+                    if (!is_string($dice) || preg_match('/^(\d{1,2}d\d{1,3}|\d{1,3})$/', $dice) !== 1 || !is_string($type) || $type === '' || mb_strlen($type) > 30) {
+                        throw HttpError::validation('Zadej kostku zranění (např. 1d6) a typ zranění (např. Piercing).', 'damageDice');
+                    }
+                    $extra['damage'] = ['dice' => $dice, 'type' => $type];
+                }
+                if ($create || $has('category')) {
+                    $c = $in['category'] ?? 'simple';
+                    if ($c !== 'simple' && $c !== 'martial') {
+                        throw HttpError::validation("Kategorie musí být 'simple' nebo 'martial'.", 'category');
+                    }
+                    $extra['weapon_category'] = ucfirst($c);
+                }
+                if ($create || $has('range')) {
+                    $r = $in['range'] ?? 'melee';
+                    if ($r !== 'melee' && $r !== 'ranged') {
+                        throw HttpError::validation("Dosah musí být 'melee' nebo 'ranged'.", 'range');
+                    }
+                    $extra['weapon_range'] = ucfirst($r);
+                }
+                if ($has('properties')) {
+                    $props = $in['properties'];
+                    if (!is_array($props) || count($props) > 12) {
+                        throw HttpError::validation('Vlastnosti zbraně mají neplatný tvar.', 'properties');
+                    }
+                    $extra['properties'] = array_map(static function (mixed $p): string {
+                        if (!is_string($p) || trim($p) === '' || mb_strlen($p) > 30) {
+                            throw HttpError::validation('Neplatná vlastnost zbraně.', 'properties');
+                        }
+                        return trim($p);
+                    }, $props);
+                }
+                if ($has('weight')) {
+                    $w = $in['weight'];
+                    if ((!is_int($w) && !is_float($w)) || $w < 0 || $w > 100000) {
+                        throw HttpError::validation('Váha musí být číslo od 0 do 100 000.', 'weight');
+                    }
+                    $extra['weight'] = $w;
+                }
+                if ($has('magicBonus')) {
+                    $m = $in['magicBonus'];
+                    if (!is_int($m) || $m < 0 || $m > 5) {
+                        throw HttpError::validation('Magický bonus musí být 0 až 5.', 'magicBonus');
+                    }
+                    $extra['magic_bonus'] = $m;
+                }
+                if ($has('extraDamage')) {
+                    $extra['extra_damage'] = Items::extraDamage($in['extraDamage']);
+                }
+                if ($has('versatileDice')) {
+                    $v = $in['versatileDice'];
+                    if ($v !== null && (!is_string($v) || preg_match('/^\d{1,2}d\d{1,3}$/', $v) !== 1)) {
+                        throw HttpError::validation('Kostka při držení oběma rukama musí mít tvar např. 1d8.', 'versatileDice');
+                    }
+                    $extra['two_handed_damage'] = $v === null ? null : ['dice' => $v, 'type' => ($extra['damage']['type'] ?? (string) ($in['damageType'] ?? 'Bludgeoning'))];
+                }
+                if ($has('rarity')) {
+                    $r = $in['rarity'];
+                    if ($r !== null && (!is_string($r) || !in_array($r, self::RARITIES, true))) {
+                        throw HttpError::validation('Neplatná vzácnost.', 'rarity');
+                    }
+                    $out['rarity'] = $r;
+                }
+                if ($has('attunement')) {
+                    if (!is_bool($in['attunement'])) {
+                        throw HttpError::validation('attunement musí být true/false.', 'attunement');
+                    }
+                    $out['attunement'] = $in['attunement'] ? 1 : 0;
+                }
+                if ($has('priceGp')) {
+                    $p = $in['priceGp'];
+                    if ($p !== null && ((!is_int($p) && !is_float($p)) || $p < 0 || $p > 100000000)) {
+                        throw HttpError::validation('Cena musí být číslo od 0 do 100 000 000 gp.', 'priceGp');
+                    }
+                    $out['price_gp'] = $p === null ? null : round((float) $p, 2);
+                }
+                $out['category'] = 'Weapon';
                 break;
 
             case 'feature':

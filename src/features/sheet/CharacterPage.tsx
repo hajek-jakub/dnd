@@ -14,6 +14,8 @@ import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
 import { EffectsCard } from './EffectsCard'
+import { MissingInfo } from './MissingInfo'
+import { NotFilled } from './NotesText'
 import { ResourcesCard } from './ResourcesCard'
 import { SheetProvider } from './SheetContext'
 import { useSheet } from './sheet-context'
@@ -65,7 +67,7 @@ function SheetView() {
           <h1 className="truncate text-2xl font-bold">{character.name}</h1>
           <p className="text-muted-foreground">{[character.race, sheet.classSummary].filter(Boolean).join(' · ')}</p>
           <p className="text-sm text-muted-foreground">
-            Level {sheet.totalLevel} · {character.xp} XP
+            Level {sheet.totalLevel} · {character.xp === null ? <NotFilled>XP nedoplněno</NotFilled> : `${character.xp} XP`}
           </p>
         </div>
         {canEdit && sheet.totalLevel < 20 && (
@@ -82,6 +84,8 @@ function SheetView() {
           <SparklesIcon aria-hidden /> Inspirace
         </Button>
       </header>
+
+      <MissingInfo />
 
       {character.state.conditions.length > 0 && (
         <ul aria-label="Stavy" className="flex flex-wrap gap-2">

@@ -39,7 +39,9 @@ final class Items
                     'category' => strtolower((string) ($data['weapon_category'] ?? 'simple')) === 'martial' ? 'martial' : 'simple',
                     'range' => strtolower((string) ($data['weapon_range'] ?? 'melee')) === 'ranged' ? 'ranged' : 'melee',
                     'properties' => array_values(array_map('strval', $data['properties'] ?? [])),
-                    'magicBonus' => 0,
+                    // Homebrew zbraně (a jen ony) nesou magický bonus a doplňková zranění v datech záznamu.
+                    'magicBonus' => max(0, min(5, (int) ($data['magic_bonus'] ?? 0))),
+                    'extraDamage' => self::extraDamageFromData($data['extra_damage'] ?? []),
                 ];
                 break;
             case 'armor':
@@ -74,6 +76,39 @@ final class Items
             'effects' => $effects,
             'ruleId' => (string) $rule['id'],
         ];
+    }
+
+    /** @return list<array{dice:string,type:string}> */
+    private static function extraDamageFromData(mixed $list): array
+    {
+        $out = [];
+        foreach (is_array($list) ? $list : [] as $e) {
+            if (is_array($e) && is_string($e['dice'] ?? null) && is_string($e['type'] ?? null)) {
+                $out[] = ['dice' => $e['dice'], 'type' => $e['type']];
+            }
+        }
+        return array_slice($out, 0, 3);
+    }
+
+    /**
+     * Doplňková zranění zbraně (např. 1d4 fire). Kostka NdM, nejvýš 3 položky.
+     * @return list<array{dice:string,type:string}>
+     */
+    public static function extraDamage(mixed $list): array
+    {
+        if (!is_array($list) || count($list) > 3) {
+            throw HttpError::validation('Doplňková zranění jsou nejvýš 3.', 'weapon');
+        }
+        $out = [];
+        foreach ($list as $e) {
+            $dice = is_array($e) ? ($e['dice'] ?? null) : null;
+            $type = is_array($e) ? ($e['type'] ?? null) : null;
+            if (!is_string($dice) || preg_match('/^\d{1,2}d\d{1,3}$/', $dice) !== 1 || !is_string($type) || $type === '' || mb_strlen($type) > 30) {
+                throw HttpError::validation('Doplňkové zranění musí mít kostku (např. 1d4) a typ (např. Fire).', 'weapon');
+            }
+            $out[] = ['dice' => $dice, 'type' => $type];
+        }
+        return $out;
     }
 
     /**
@@ -246,7 +281,10 @@ final class Items
         if (!is_string($type) || mb_strlen($type) > 30) {
             throw HttpError::validation('Neplatný typ zranění.', 'weapon');
         }
-        return ['damageDice' => $dice, 'damageType' => $type, 'category' => $category, 'range' => $range, 'properties' => $cleanProps, 'magicBonus' => $magic];
+        return [
+            'damageDice' => $dice, 'damageType' => $type, 'category' => $category, 'range' => $range, 'properties' => $cleanProps, 'magicBonus' => $magic,
+            'extraDamage' => self::extraDamage($w['extraDamage'] ?? []),
+        ];
     }
 
     // ------------------------------------------------------------------ výstup

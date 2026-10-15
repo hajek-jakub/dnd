@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { useMyCampaigns } from '@/features/campaigns/api'
 import type { RuleSummary } from '@/lib/types'
 import { useRuleFacets, useRules, type RuleFilters } from './api'
-import { GROUPS, HOMEBREW_KIND_LABELS, capitalize, groupById, metaLine } from './labels'
+import { GROUPS, HOMEBREW_KIND_LABELS, capitalize, groupById, metaLine, newWord } from './labels'
 
 const CAMPAIGN_KEY = 'dnd-rules-campaign'
 
@@ -252,7 +252,7 @@ export function RulesPage() {
               to={{ pathname: '/rules/new', search: `?kind=${homebrewKind}&campaign=${campaignId}&g=${group.id}` }}
               className={buttonVariants({ variant: 'secondary' })}
             >
-              <PlusIcon aria-hidden /> Nové {HOMEBREW_KIND_LABELS[homebrewKind]}
+              <PlusIcon aria-hidden /> {newWord(homebrewKind)} {HOMEBREW_KIND_LABELS[homebrewKind]}
             </Link>
           )}
         </div>

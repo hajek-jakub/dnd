@@ -57,8 +57,8 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 export function applyOps(
   state: CharacterState,
   ops: AdjustOp[],
-  extras: { xp: number; inspiration: boolean },
-): { state: CharacterState; xp: number; inspiration: boolean } {
+  extras: { xp: number | null; inspiration: boolean },
+): { state: CharacterState; xp: number | null; inspiration: boolean } {
   let s: CharacterState = {
     ...state,
     hitDiceUsed: { ...state.hitDiceUsed },
@@ -107,7 +107,7 @@ export function applyOps(
         inspiration = op.set
         break
       case 'xp':
-        xp = Math.max(0, xp + op.delta)
+        xp = Math.max(0, (xp ?? 0) + op.delta)
         break
       case 'condition':
         s = { ...s, conditions: s.conditions.filter((c) => c !== op.name) }

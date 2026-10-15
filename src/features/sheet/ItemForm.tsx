@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { RARITIES, capitalize } from '@/features/rules/labels'
 import type { ItemInput } from './api'
 import { EFFECT_TARGETS } from './effects'
+import { formatExtraDamage, parseExtraDamage } from './extra-damage'
 import type { CharacterItem, ItemEffect } from './types'
 
 interface FormState {
@@ -29,6 +30,7 @@ interface FormState {
   weaponRange: 'melee' | 'ranged'
   weaponProps: string
   weaponMagic: string
+  weaponExtra: string
   effects: ItemEffect[]
 }
 
@@ -52,6 +54,7 @@ function initial(item?: CharacterItem): FormState {
     weaponRange: item?.weapon?.range ?? 'melee',
     weaponProps: item?.weapon?.properties.join(', ') ?? '',
     weaponMagic: String(item?.weapon?.magicBonus ?? 0),
+    weaponExtra: formatExtraDamage(item?.weapon?.extraDamage ?? []),
     effects: item?.effects ?? [],
   }
 }
@@ -103,6 +106,7 @@ export function ItemForm({
           .map((p) => p.trim())
           .filter(Boolean),
         magicBonus: Number.parseInt(s.weaponMagic, 10) || 0,
+        extraDamage: parseExtraDamage(s.weaponExtra),
       }
       input.armor = null
     } else {
@@ -268,6 +272,10 @@ export function ItemForm({
           <div className="space-y-2">
             <Label htmlFor="it-wp">Vlastnosti (oddělené čárkou)</Label>
             <Input id="it-wp" value={s.weaponProps} onChange={(e) => set('weaponProps', e.target.value)} placeholder="Finesse, Light" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="it-wx">Doplňková zranění (např. 1d4 Fire)</Label>
+            <Input id="it-wx" value={s.weaponExtra} onChange={(e) => set('weaponExtra', e.target.value)} placeholder="1d4 Fire" />
           </div>
         </fieldset>
       )}

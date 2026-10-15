@@ -349,6 +349,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
       damageDice: dice,
       damageBonus: makeComputed(`attack.${id}.damage`, dmgBase, dmgSources, ov),
       damageType: stats?.damageType ?? 'Bludgeoning',
+      extraDamage: stats?.extraDamage ?? [],
       ability,
       proficient,
       notes,

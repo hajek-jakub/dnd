@@ -32,7 +32,8 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   subrace: string
   background: string
   alignment: string
-  xp: number
+  /** null = nedoplněno */
+  xp: number | null
   inspiration: boolean
   description: string
   personality: { traits: string; ideals: string; bonds: string; flaws: string }
@@ -98,6 +99,7 @@ export interface CharacterItem {
     range: 'melee' | 'ranged'
     properties: string[]
     magicBonus?: number
+    extraDamage?: { dice: string; type: string }[]
   } | null
   effects: ItemEffect[]
   notes: string

@@ -71,14 +71,16 @@ final class CharacterController
         $state = Sheets::state($data['state'] ?? []);
         $name = Input::string($data, 'name', 1, 100, 'Jméno postavy');
         $baseSpeed = Input::optionalInt($data, 'baseSpeed', 0, 200, 'Rychlost') ?? 30;
+        // XP: chybí = 0, výslovné null = "nedoplněno" (NULL v DB)
+        $xp = array_key_exists('xp', $data) ? Input::optionalInt($data, 'xp', 0, 10000000, 'XP') : 0;
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $params, $ownerId, $name, $data, $scores, $lv, $state, $visibility, $baseSpeed): void {
+        Db::transaction(static function () use ($id, $params, $ownerId, $name, $data, $scores, $lv, $state, $visibility, $baseSpeed, $xp): void {
             Db::exec(
                 'INSERT INTO characters (id, campaign_id, owner_id, name, race, subrace, background, alignment, class_summary, level, notes, visibility,
                     abil_str, abil_dex, abil_con, abil_int, abil_wis, abil_cha, base_speed, hp_current, hp_temp, skill_proficiencies,
                     extra_save_proficiencies, extra_proficiencies, subclasses, personality, description, xp, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'\', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'\', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
                 [
                     $id, $params['id'], $ownerId, $name,
                     Input::optionalString($data, 'race', 100, 'Rasa') ?? '',
@@ -95,6 +97,7 @@ final class CharacterController
                     Sheets::enc($lv['subclasses']),
                     Sheets::enc(Sheets::personality($data)),
                     Input::optionalString($data, 'description', 20000, 'Popis') ?? '',
+                    $xp,
                 ],
             );
             Sheets::saveLevels($id, $lv['levels']);
@@ -150,7 +153,7 @@ final class CharacterController
             $set('base_speed', Input::optionalInt($data, 'baseSpeed', 0, 200, 'Rychlost') ?? 30);
         }
         if (array_key_exists('xp', $data)) {
-            $set('xp', Input::optionalInt($data, 'xp', 0, 10000000, 'XP') ?? 0);
+            $set('xp', Input::optionalInt($data, 'xp', 0, 10000000, 'XP')); // null = nedoplněno
         }
         if (array_key_exists('inspiration', $data)) {
             if (!is_bool($data['inspiration'])) {
@@ -265,7 +268,7 @@ final class CharacterController
             $pact = (int) $r['pact_slots_used'];
             $ds = (int) $r['death_successes'];
             $df = (int) $r['death_failures'];
-            $xp = (int) $r['xp'];
+            $xp = $r['xp'] === null ? null : (int) $r['xp']; // NULL = nedoplněno; zůstane, dokud se XP výslovně nezmění
             $insp = (int) $r['inspiration'];
             $concentration = $r['concentration'] ?? null;
             $resources = [];
@@ -340,7 +343,7 @@ final class CharacterController
                         $concentration = $set === '' ? null : $set;
                         break;
                     case 'xp':
-                        $xp = max(0, min(10000000, $xp + $intField($op, 'delta', -10000000, 10000000)));
+                        $xp = max(0, min(10000000, ($xp ?? 0) + $intField($op, 'delta', -10000000, 10000000)));
                         break;
                     case 'condition':
                         $name = $op['name'] ?? null;

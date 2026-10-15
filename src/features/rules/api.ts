@@ -86,6 +86,14 @@ export interface HomebrewInput {
   itemType?: string
   priceGp?: number | null
   category?: string
+  // zbraň
+  damageDice?: string
+  damageType?: string
+  properties?: string[]
+  weight?: number
+  magicBonus?: number
+  extraDamage?: { dice: string; type: string }[]
+  versatileDice?: string | null
 }
 
 export function useCreateHomebrew(campaignId: string) {

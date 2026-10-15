@@ -40,6 +40,8 @@ export interface WeaponStats {
   range: 'melee' | 'ranged'
   properties: string[]
   magicBonus?: number
+  /** Doplňková zranění jiného typu (např. 1d4 Fire u magické zbraně); k útoku se přidají vedle hlavní kostky. */
+  extraDamage?: { dice: string; type: string }[]
 }
 
 export interface InventoryItem {
@@ -142,6 +144,8 @@ export interface AttackInfo {
   damageDice: string
   damageBonus: Computed
   damageType: string
+  /** Doplňková zranění (např. 1d4 Fire); bonus k útoku se k nim nepřidává. */
+  extraDamage: { dice: string; type: string }[]
   ability: AbilityKey
   proficient: boolean
   notes: string[]

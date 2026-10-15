@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { ApiError } from '@/lib/api'
 import type { HomebrewKind, RuleDetail } from '@/lib/types'
 import { useCreateHomebrew, useRule, useUpdateHomebrew, type HomebrewInput } from './api'
-import { RARITIES, capitalize } from './labels'
+import { formatExtraDamage, parseExtraDamage } from '@/features/sheet/extra-damage'
+import { RARITIES, capitalize, newWord } from './labels'
 
 const SCHOOLS = ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation']
 const CLASSES = [
@@ -35,6 +36,7 @@ const KIND_TITLES: Record<HomebrewKind, string> = {
   magic_item: 'item',
   feature: 'featuru',
   subclass: 'subclassu',
+  weapon: 'zbraň',
 }
 
 interface FormState {
@@ -60,6 +62,16 @@ interface FormState {
   priceGp: string
   // featura / subclass
   category: string
+  // zbraň
+  damageDice: string
+  damageType: string
+  weaponCategory: 'simple' | 'martial'
+  weaponRange: 'melee' | 'ranged'
+  properties: string
+  versatileDice: string
+  weight: string
+  magicBonus: string
+  extraDamage: string
 }
 
 const EMPTY: FormState = {
@@ -82,6 +94,15 @@ const EMPTY: FormState = {
   attunement: false,
   priceGp: '',
   category: '',
+  damageDice: '1d6',
+  damageType: 'Bludgeoning',
+  weaponCategory: 'simple',
+  weaponRange: 'melee',
+  properties: '',
+  versatileDice: '',
+  weight: '',
+  magicBonus: '0',
+  extraDamage: '',
 }
 
 function fromEntry(e: RuleDetail): FormState {
@@ -108,6 +129,24 @@ function fromEntry(e: RuleDetail): FormState {
     attunement: e.attunement === true,
     priceGp: e.priceGp === null ? '' : String(e.priceGp),
     category: e.kind === 'feature' || e.kind === 'subclass' ? (e.category ?? '') : '',
+    ...(e.kind === 'weapon' ? weaponFromData(d) : {}),
+  }
+}
+
+function weaponFromData(d: Record<string, unknown>): Partial<FormState> {
+  const damage = d.damage as { dice?: string; type?: string } | undefined
+  const two = d.two_handed_damage as { dice?: string } | null | undefined
+  const extra = Array.isArray(d.extra_damage) ? (d.extra_damage as { dice: string; type: string }[]) : []
+  return {
+    damageDice: damage?.dice ?? '1d6',
+    damageType: damage?.type ?? 'Bludgeoning',
+    weaponCategory: String(d.weapon_category).toLowerCase() === 'martial' ? 'martial' : 'simple',
+    weaponRange: String(d.weapon_range).toLowerCase() === 'ranged' ? 'ranged' : 'melee',
+    properties: Array.isArray(d.properties) ? d.properties.join(', ') : '',
+    versatileDice: two?.dice ?? '',
+    weight: typeof d.weight === 'number' ? String(d.weight) : '',
+    magicBonus: String(typeof d.magic_bonus === 'number' ? d.magic_bonus : 0),
+    extraDamage: formatExtraDamage(extra),
   }
 }
 
@@ -130,6 +169,23 @@ function toInput(kind: HomebrewKind, s: FormState, create: boolean): HomebrewInp
       break
     case 'magic_item':
       input.itemType = s.itemType
+      input.rarity = s.rarity === '' ? null : s.rarity
+      input.attunement = s.attunement
+      input.priceGp = s.priceGp.trim() === '' ? null : Number(s.priceGp.replace(',', '.'))
+      break
+    case 'weapon':
+      input.damageDice = s.damageDice.trim()
+      input.damageType = s.damageType.trim()
+      input.category = s.weaponCategory
+      input.range = s.weaponRange
+      input.properties = s.properties
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
+      input.versatileDice = s.versatileDice.trim() === '' ? null : s.versatileDice.trim()
+      if (s.weight.trim() !== '') input.weight = Number(s.weight.replace(',', '.'))
+      input.magicBonus = Number.parseInt(s.magicBonus, 10) || 0
+      input.extraDamage = parseExtraDamage(s.extraDamage)
       input.rarity = s.rarity === '' ? null : s.rarity
       input.attunement = s.attunement
       input.priceGp = s.priceGp.trim() === '' ? null : Number(s.priceGp.replace(',', '.'))
@@ -232,7 +288,7 @@ function FormBody({
           <ArrowLeftIcon aria-hidden className="size-4" /> Zpět
         </Link>
         <CardTitle className="text-xl">
-          {entryId ? 'Upravit' : 'Nové'} {KIND_TITLES[kind]} (homebrew)
+          {entryId ? 'Upravit' : newWord(kind)} {KIND_TITLES[kind]} (homebrew)
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -361,6 +417,60 @@ function FormBody({
                 />
               </Field>
               <div className="flex items-end">
+                <Check label="Vyžaduje attunement" checked={s.attunement} onChange={(v) => set('attunement', v)} />
+              </div>
+            </div>
+          )}
+
+          {kind === 'weapon' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="hb-dice" label="Kostka zranění" error={invalid('damageDice')}>
+                <Input id="hb-dice" required value={s.damageDice} placeholder="1d6" onChange={(e) => set('damageDice', e.target.value)} />
+              </Field>
+              <Field id="hb-dtype" label="Typ zranění">
+                <Input id="hb-dtype" required maxLength={30} value={s.damageType} placeholder="Piercing" onChange={(e) => set('damageType', e.target.value)} />
+              </Field>
+              <Field id="hb-wcat" label="Kategorie">
+                <NativeSelect id="hb-wcat" value={s.weaponCategory} onChange={(e) => set('weaponCategory', e.target.value as 'simple' | 'martial')}>
+                  <option value="simple">Simple</option>
+                  <option value="martial">Martial</option>
+                </NativeSelect>
+              </Field>
+              <Field id="hb-wrange" label="Dosah">
+                <NativeSelect id="hb-wrange" value={s.weaponRange} onChange={(e) => set('weaponRange', e.target.value as 'melee' | 'ranged')}>
+                  <option value="melee">Na blízko</option>
+                  <option value="ranged">Na dálku</option>
+                </NativeSelect>
+              </Field>
+              <Field id="hb-props" label="Vlastnosti (oddělené čárkou)" error={invalid('properties')}>
+                <Input id="hb-props" value={s.properties} placeholder="Light, Finesse, Versatile" onChange={(e) => set('properties', e.target.value)} />
+              </Field>
+              <Field id="hb-versatile" label="Kostka oběma rukama (Versatile)" error={invalid('versatileDice')}>
+                <Input id="hb-versatile" value={s.versatileDice} placeholder="1d8" onChange={(e) => set('versatileDice', e.target.value)} />
+              </Field>
+              <Field id="hb-weight" label="Váha (lb)" error={invalid('weight')}>
+                <Input id="hb-weight" type="number" inputMode="decimal" min={0} step="any" value={s.weight} onChange={(e) => set('weight', e.target.value)} />
+              </Field>
+              <Field id="hb-magic" label="Magický bonus (k útoku i zranění)" error={invalid('magicBonus')}>
+                <Input id="hb-magic" type="number" inputMode="numeric" min={0} max={5} value={s.magicBonus} onChange={(e) => set('magicBonus', e.target.value)} />
+              </Field>
+              <Field id="hb-extra" label="Doplňková zranění (např. 1d4 Fire)" error={invalid('extraDamage')}>
+                <Input id="hb-extra" value={s.extraDamage} placeholder="1d4 Fire" onChange={(e) => set('extraDamage', e.target.value)} />
+              </Field>
+              <Field id="hb-rarity" label="Vzácnost" error={invalid('rarity')}>
+                <NativeSelect id="hb-rarity" value={s.rarity} onChange={(e) => set('rarity', e.target.value)}>
+                  <option value="">Neurčeno</option>
+                  {RARITIES.map((r) => (
+                    <option key={r} value={r}>
+                      {capitalize(r)}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field id="hb-wprice" label="Cena (gp)" error={invalid('priceGp')}>
+                <Input id="hb-wprice" type="number" inputMode="decimal" min={0} step="any" value={s.priceGp} onChange={(e) => set('priceGp', e.target.value)} />
+              </Field>
+              <div className="flex items-end sm:col-span-2">
                 <Check label="Vyžaduje attunement" checked={s.attunement} onChange={(v) => set('attunement', v)} />
               </div>
             </div>

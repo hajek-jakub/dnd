@@ -137,7 +137,7 @@ export function useAdjust(id: string) {
   const key = ['character', id]
   return useMutation({
     mutationKey: ['adjust', id],
-    mutationFn: (ops: AdjustOp[]) => api.post<{ state: CharacterState; xp: number; inspiration: boolean }>(`/characters/${id}/adjust`, { ops }),
+    mutationFn: (ops: AdjustOp[]) => api.post<{ state: CharacterState; xp: number | null; inspiration: boolean }>(`/characters/${id}/adjust`, { ops }),
     onMutate: async (ops) => {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<CharacterFull>(key)

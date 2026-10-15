@@ -37,6 +37,11 @@ export function AttacksCard() {
                   overrideKey={`attack.${a.id}.damage`}
                   format={formatModifier}
                 />
+                {a.extraDamage.map((x) => (
+                  <span key={`${x.dice}${x.type}`} className="font-semibold" title="Doplňkové zranění">
+                    + {x.dice} {x.type.toLowerCase()}
+                  </span>
+                ))}
               </div>
             </li>
           ))}

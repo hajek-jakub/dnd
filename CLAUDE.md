@@ -56,6 +56,7 @@ docs/NASAZENI.md       postup nastavení Endory (PHP, DB, HTTPS, deploy)
 | `npm run db:migrate` | aplikuje nové migrace do vývojové DB (`dnd`) |
 | `npm run db:seed` | načte pravidla (SRD 5.1 + katalog itemů) do vývojové DB; přeskočí se, když se data nezměnila (`--force` vynutí) |
 | `npm run db:reset` | SMAŽE vývojovou DB a aplikuje vše znovu |
+| `npm run seed:hajos` (`-- --check`, `-- --force`) | idempotentní seed postavy Hajoš ze `seed/hajos.json`, viz „Seed postavy Hajoš“ níže |
 | `npm run db:stop` | zastaví MySQL |
 | `npm start` | PHP API (8080) + Vite dev server (5173) najednou |
 | `npm run api` / `npm run dev` | jen API / jen frontend |
@@ -177,6 +178,28 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - **Oznámení** (`notifications`, `NotificationController`): každá změna od DM pošle hráči (majiteli postavy) oznámení („DM ti dal: Bag of Holding“); neposílá se sám sobě. Klient se ptá každých 5 s (`useNotifications`, žádný websocket – Endora), nové ukáže jako toast,
   zvonek v hlavičce má odznak nepřečtených, `/notifications` je seznam a po otevření se označí jako přečtené. Při předávání itemů mezi hráči se oznámení posílá také.
 - Testy: 174 API testů (26 v `dm.test.ts`: autorizace všech akcí, cizí kampaň, atomicita, notifikace), E2E `dm.spec.ts` (DM počítač + hráč telefon: item, XP, bonus, stav, zranění, oznámení, long rest, soukromí poznámek; panel na telefonu bez horizontálního scrollu).
+
+### Seed postavy Hajoš (`seed/hajos.json`, `api/src/CharacterSeeder.php`, `api/bin/seed-hajos.php`)
+- Spuštění: `SEED_OWNER_USERNAME=<tvé přihlašovací jméno> npm run seed:hajos` (proměnné jdou i z `.env`, viz `.env.example`; aplikace nemá e-maily, účet se hledá podle jména).
+  `SEED_CAMPAIGN_ID` je volitelné; bez něj se založí (a příště znovu použije) „Testovací kampaň (seed)“, kde je majitel DM. Majitel musí být členem zadané kampaně.
+  Cílová DB je ta z `api/config.php` (nebo `DND_CONFIG`); skript na začátku vypíše, do které píše. `-- --check` jen ověří mapování, `-- --force` Hajoše smaže a založí znovu.
+- **Idempotence**: postava se hledá podle kampaně, majitele a jména, existující se nemění (nezdvojí se). Homebrew záznamy se hledají podle kampaně, druhu a názvu a při opakování se aktualizují.
+- **Ukládají se jen vstupy**: staty, třídy po levelech (HP z průměru), subclassy, skill proficiencies, extra savy (jen mimo třídní), texty (jazyky a proficiencies, které engine ze třídy nezná), aktuální a dočasné HP, inventář, peníze, kouzla, inspirace.
+  Žádné `overrides`, žádný ki, sloty ani AC. Plné zdroje (ki, pact sloty) se neukládají, částečně vyčerpaný zdroj seed odmítne.
+- **Mapování na SRD**: itemy podle názvu (alias `Light Crossbow` → `Crossbow, light`), kouzla podle názvu. Co v SRD není, vznikne jako homebrew kampaně: Nunchaku a Demonic Spear (zbraně; Spear je základ Demonic Spear) a kouzlo Hex (jen fakta, bez popisu; Hex není v SRD 5.1).
+  Zbraně s řádkem v sekci `attacks` se nosí v ruce (`equipped`), aby se jejich útoky ukázaly na sheetu.
+- **Zastavení před zápisem** (`SeedStop`, exit 3): neznámá sekce nebo pole, neznámý item, kouzlo, zdroj nebo dovednost, nečitelné `extraDamage`, neexistující majitel nebo kampaň. Seed nejdřív celé ověří (`plan()`), teprve pak zapisuje. Když model něco neumí uložit, nejdřív se zeptat, schéma neměnit bez dohody.
+- **null a TO_CONFIRM**: `null` zůstane prázdné (XP = NULL v DB, background a alignment prázdný text), UI to ukáže jako „nedoplněno“ (`MissingInfo` na sheetu, „XP nedoplněno“ v hlavičce). Texty začínající `TO_CONFIRM` se uloží do poznámek postavy a itemů tak, jak jsou,
+  a UI je ukáže ve výpisu „Ke ověření“ a se štítkem „ke ověření“ u poznámek itemů (`unconfirmed.ts`, `NotesText`). `openQuestions` se na konci seedu vypíšou do konzole (do DB se neukládají).
+- **Fixture pro engine**: `src/engine/hajos-sheet.test.ts` bere vstupy a `sheetValues` ze `seed/hajos.json`; engine vyjde stejně jako papír. Rozdíly jsou vědomě zdokumentované: martial arts d6 (engine 2014) proti d8 (papír 2024), spell save DC warlocka 14 proti papírovým 13
+  (papírových 13 je nejspíš DC záchranného hodu ki: 8 + 3 + WIS 2; není v `discrepancies`), versatile 1d8 spearu se v útoku nemodeluje. Opravené hodnoty ze `discrepancies` (Stealth +7, STR save +3) engine dává přímo.
+- API test `api-tests/seed-hajos.test.ts` (18 testů): spouští seed skript proti testovací DB, kontroluje uložená data, SRD vs. homebrew mapování, engine z uložených dat, idempotenci, `--force`, zastavení před zápisem a soukromí postavy. E2E `e2e/hajos.spec.ts` (počítač i telefon): sheet ze seedu a formulář homebrew zbraně.
+
+### Změny datového modelu při seedu Hajoše (domluvené)
+- **Migrace 006**: `characters.xp` je nepovinné, `NULL` = nedoplněno. Změna XP (DM, `adjust`, level up) bere NULL jako 0; běžné úpravy (HP apod.) NULL zachovají. `PATCH {xp: null}` XP zase „odnastaví“.
+- **Doplňková zranění zbraně**: ve `stats` zbraně (JSON, bez migrace) je volitelné `extraDamage: [{dice, type}]` (nejvýš 3, např. `1d4` + `Fire`). Engine ho vrací v `AttackInfo.extraDamage`, sheet ukazuje „+ 1d4 fire“ (bonus k útoku se k němu nepřidává). Formulář itemu má pole „Doplňková zranění“.
+- **Homebrew druh `weapon`** (`POST /campaigns/{id}/homebrew`, formulář „Nová zbraň“ ve skupině Vybavení): data mají tvar SRD zbraní (`damage`, `weapon_category`, `weapon_range`, `properties`, `weight`, `two_handed_damage`) plus `magic_bonus` a `extra_damage`;
+  inventář z ní vyrobí zbraň včetně magického bonusu a doplňkových zranění.
 
 ### Další fáze (dle zadání)
 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
