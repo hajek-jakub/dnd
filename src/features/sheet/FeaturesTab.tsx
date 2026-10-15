@@ -21,6 +21,7 @@ export function FeaturesTab() {
           className={bundle.classes[c.classIndex]?.name ?? c.classIndex}
         />
       ))}
+      <FeatsCard />
       {character.extraProficiencies.length > 0 && (
         <Card>
           <CardHeader>
@@ -70,6 +71,36 @@ function ClassFeatures({
               <Link to={`/rules/${f.id}`} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">
                 Otevřít v pravidlech
               </Link>
+            </div>
+          </details>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Featy vybrané při level upech. */
+function FeatsCard() {
+  const { character } = useSheet()
+  const feats = character.levels.flatMap((l, i) => {
+    const f = (l.choices as { feat?: { name: string; description?: string } }).feat
+    return f ? [{ ...f, level: i + 1 }] : []
+  })
+  if (feats.length === 0) return null
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Featy</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {feats.map((f) => (
+          <details key={`${f.name}-${f.level}`} className="rounded-lg border">
+            <summary className="flex min-h-11 cursor-pointer items-center justify-between px-3 py-2 font-medium">
+              <span>{f.name}</span>
+              <span className="text-xs font-normal text-muted-foreground">level {f.level}</span>
+            </summary>
+            <div className="border-t px-3 py-3 text-sm">
+              {f.description ? <DescriptionText text={f.description} /> : <p className="text-muted-foreground">Bez popisu.</p>}
             </div>
           </details>
         ))}

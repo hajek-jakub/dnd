@@ -4,12 +4,18 @@ import {
   MULTICLASS_SLOTS,
   abilityModifier,
   activeEffects,
+  averageRoll,
   canAttune,
   casterLevel,
   computeSheet,
   groupClasses,
+  hasAbilityScoreImprovement,
+  hpGainForLevel,
   initialState,
   longRest,
+  maxSpellLevel,
+  multiclassProblems,
+  newSpellAllowance,
   pactSlots,
   shortRest,
   spellSlots,
@@ -576,5 +582,49 @@ describe('nosnost a přetížení (volitelné pravidlo kampaně)', () => {
     const arrows = item({ id: 'a', name: 'Arrows', kind: 'item', weight: 0.05, quantity: 40, equipped: false })
     expect(computeSheet(makeInput({ items: [arrows] }), bundle).weightCarried).toBe(2)
     expect(computeSheet(makeInput({ scores: { str: 18 }, items: heavyPack(80), rules: { encumbrance: true } }), bundle).speed.value).toBe(30)
+  })
+})
+
+describe('pomocná pravidla level upu', () => {
+  const scores = (partial: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>) => ({ str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, ...partial })
+
+  it('prerekvizity multiclassu: nová třída i všechny současné', () => {
+    expect(multiclassProblems(scores({ dex: 13, wis: 13 }), ['monk'], 'monk')).toEqual([])
+    expect(multiclassProblems(scores({ dex: 13, wis: 13, cha: 13 }), ['monk'], 'warlock')).toEqual([])
+    // chybí CHA pro warlocka
+    expect(multiclassProblems(scores({ dex: 13, wis: 13 }), ['monk'], 'warlock')).toEqual(['warlock: CHA 13+ (máš 10)'])
+    // chybí WIS pro současného mnicha, i když nová třída (wizard) je v pořádku
+    expect(multiclassProblems(scores({ dex: 13, int: 13 }), ['monk'], 'wizard')).toEqual(['monk: WIS 13+ (máš 10)'])
+    // fighter: stačí STR nebo DEX
+    expect(multiclassProblems(scores({ dex: 13 }), ['wizard'], 'fighter')).toEqual(['wizard: INT 13+ (máš 10)'])
+    expect(multiclassProblems(scores({ str: 13, int: 13 }), ['wizard'], 'fighter')).toEqual([])
+    expect(multiclassProblems(scores({ int: 13 }), ['wizard'], 'fighter')).toEqual(['fighter: STR nebo DEX 13+'])
+    // neznámá (homebrew) třída nemá prerekvizity
+    expect(multiclassProblems(scores({}), [], 'homebrew')).toEqual([])
+  })
+
+  it('přírůstek HP: průměr, hod a modifikátor CON, aspoň 1', () => {
+    expect(averageRoll(8)).toBe(5)
+    expect(averageRoll(12)).toBe(7)
+    expect(hpGainForLevel(8, 14, null)).toBe(5 + 2)
+    expect(hpGainForLevel(8, 14, 3)).toBe(3 + 2)
+    expect(hpGainForLevel(6, 3, 1)).toBe(1) // 1 - 4 = -3, ale aspoň 1
+  })
+
+  it('ASI levely podle tříd ze SRD', () => {
+    const asiLevels = (cls: string) => Array.from({ length: 20 }, (_, i) => i + 1).filter((l) => hasAbilityScoreImprovement(bundle, cls, l))
+    expect(asiLevels('wizard')).toEqual([4, 8, 12, 16, 19])
+    expect(asiLevels('fighter')).toEqual([4, 6, 8, 12, 14, 16, 19])
+    expect(asiLevels('rogue')).toEqual([4, 8, 10, 12, 16, 19])
+    expect(asiLevels('monk')).toEqual([4, 8, 12, 16, 19])
+  })
+
+  it('nová kouzla při level upu', () => {
+    expect(newSpellAllowance(bundle, 'sorcerer', 2)).toMatchObject({ cantrips: 0, spells: 1, spellbook: 0, maxSpellLevel: 1 })
+    expect(newSpellAllowance(bundle, 'sorcerer', 4)).toMatchObject({ cantrips: 1, spells: 1 })
+    expect(newSpellAllowance(bundle, 'wizard', 5)).toMatchObject({ spellbook: 2, maxSpellLevel: 3 })
+    expect(newSpellAllowance(bundle, 'warlock', 3)).toMatchObject({ maxSpellLevel: 2 }) // pact sloty 2. úrovně
+    expect(newSpellAllowance(bundle, 'fighter', 5)).toMatchObject({ cantrips: 0, spells: 0, maxSpellLevel: 0 })
+    expect(maxSpellLevel(bundle, 'cleric', 9)).toBe(5)
   })
 })

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, SparklesIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ArrowLeftIcon, SparklesIcon, TrendingUpIcon } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { cn } from '@/lib/utils'
 import { AbilitiesCard, SavesCard, SkillsCard } from './AbilitiesCard'
@@ -67,6 +67,11 @@ function SheetView() {
             Level {sheet.totalLevel} · {character.xp} XP
           </p>
         </div>
+        {canEdit && sheet.totalLevel < 20 && (
+          <Link to={`/characters/${character.id}/levelup`} className={buttonVariants({ variant: 'secondary' })}>
+            <TrendingUpIcon aria-hidden /> Level up
+          </Link>
+        )}
         <Button
           variant={character.inspiration ? 'default' : 'outline'}
           aria-pressed={character.inspiration}

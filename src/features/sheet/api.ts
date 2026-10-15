@@ -356,3 +356,38 @@ export function useDeleteSpell(characterId: string) {
     },
   })
 }
+
+// ---------------------------------------------------------------- level up
+
+export interface LevelUpInput {
+  classIndex: string
+  hpRoll: number | null
+  hpGain: number
+  subclass?: string
+  asi?: { increases: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>> }
+  feat?: { name: string; description?: string; ruleId?: string | null }
+  spells?: { add: { ruleId: string; classIdx: string; prepared?: boolean }[]; remove: string[] }
+  note?: string
+}
+
+export function useLevelUp(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: LevelUpInput) => (await api.post<{ character: CharacterFull }>(`/characters/${characterId}/levelup`, input)).character,
+    onSuccess: (character) => {
+      queryClient.setQueryData(['character', characterId], character)
+      void queryClient.invalidateQueries({ queryKey: ['characters'] })
+    },
+  })
+}
+
+export function useRevertLevel(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => (await api.post<{ character: CharacterFull }>(`/characters/${characterId}/levelup/revert`, {})).character,
+    onSuccess: (character) => {
+      queryClient.setQueryData(['character', characterId], character)
+      void queryClient.invalidateQueries({ queryKey: ['characters'] })
+    },
+  })
+}

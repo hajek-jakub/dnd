@@ -158,8 +158,18 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - API: `POST/PATCH/DELETE /characters/{id}/items[/{itemId}]`, `POST /characters/{id}/transfer`, `POST/PATCH/DELETE /characters/{id}/spells[/{spellId}]`, `PATCH /campaigns/{id}` s `settings`.
 - Testy: 58 unit testů enginu, 129 API testů (inventář, attunement, souběhy, předávání, kouzla, oprávnění), 46 E2E (desktop + mobil) včetně warlocka z pact slotu a předání mezi DM na počítači a hráčem na telefonu.
 
+### Fáze 5 – Level up: HOTOVO
+- **Historie**: každý level je řádek v `character_levels` (`class_idx`, `hp_roll`, `choices` JSON: subclass, ASI, feat, počty kouzel, poznámka, `hpGain`, `classLevel` a `undo` údaje pro vrácení).
+- **API**: `POST /characters/{id}/levelup` (transakce se zámkem postavy; validuje třídu, level ≤ 20, hod do velikosti kostky, subclass od správného levelu a ke správné třídě, ASI jen na ASI levelech podle tabulek tříd
+  (fighter 6 a 14, rogue 10) s celkem +2 a max 20, feat místo ASI, přidání/odebrání kouzel; zvedne aktuální HP o `hpGain`), `POST /characters/{id}/levelup/revert` (vrací vždy jen poslední level včetně vlastností, subclassu, kouzel a HP; první level nejde).
+- **Engine** (`src/engine/levelup.ts`): prerekvizity multiclassu (nová i všechny současné třídy, 13+), přírůstek HP, ASI levely, nová kouzla a nejvyšší úroveň kouzla podle SRD.
+- **Průvodce** (`/characters/:id/levelup`, `LevelUpWizard.tsx`): Třída (včetně multiclassu s kontrolou prerekvizit; výjimku „povolil DM“ lze zaškrtnout, aplikace hráče neblokuje) → Životy (průměr / hod / ruční zadání) → Featury (nové featury z SRD, výběr subclassu, pole pro ruční doplnění toho, co engine nezná) →
+  Vlastnosti (ASI +2 nebo feat; krok se přeskočí, když level ASI nedává) → Kouzla (doporučené počty, přidání, výměna; přeskočí se u nesesilatelů) → Souhrn (před/po z enginu: HP, proficiency, sloty, pact, zdroje, útoky, martial arts).
+- Historie levelů s tlačítkem „Vrátit poslední level“ je na záložce Postava; featy jsou v záložce Featury.
+- Testy: 62 unit testů enginu, 148 API testů, 58 E2E.
+
 ### Další fáze (dle zadání)
-5. Level up. 6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
+6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

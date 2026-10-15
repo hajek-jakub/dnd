@@ -14,6 +14,7 @@ import { RuleDetailPage } from '@/features/rules/RuleDetailPage'
 import { RulesPage } from '@/features/rules/RulesPage'
 import { CharacterPage } from '@/features/sheet/CharacterPage'
 import { CreateCharacterPage } from '@/features/sheet/CreateCharacterPage'
+import { LevelUpPage } from '@/features/sheet/LevelUpWizard'
 
 function NotFound() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="campaigns/:campaignId/characters/new" element={<CreateCharacterPage />} />
             <Route path="characters/:id" element={<CharacterPage />} />
+            <Route path="characters/:id/levelup" element={<LevelUpPage />} />
             <Route path="join/:code" element={<JoinPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="rules" element={<RulesPage />}>

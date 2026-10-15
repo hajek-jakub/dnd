@@ -21,6 +21,7 @@ export interface RawLevel {
   category: string | null
   data: {
     prof_bonus?: number
+    ability_score_bonuses?: number
     class_specific?: Record<string, unknown>
     spellcasting?: Record<string, number>
     features?: { index: string; name: string }[]
@@ -34,6 +35,8 @@ export type CasterType = 'full' | 'half' | 'third' | 'pact' | 'none'
 export interface ClassLevelRules {
   level: number
   profBonus: number
+  /** Kolik zvýšení vlastností třída dala celkem do tohoto levelu (rozdíl proti předchozímu levelu = ASI na tomto levelu). */
+  abilityScoreBonuses: number
   classSpecific: Record<string, unknown>
   spellcasting: Record<string, number> | null
   features: { index: string; name: string }[]
@@ -118,6 +121,7 @@ export function buildRulesBundle(rawClasses: RawClass[], rawLevels: RawLevel[]):
       cls.levels[l.level] = {
         level: l.level,
         profBonus: l.data.prof_bonus ?? 2,
+        abilityScoreBonuses: l.data.ability_score_bonuses ?? 0,
         classSpecific: l.data.class_specific ?? {},
         spellcasting: l.data.spellcasting ?? null,
         features,

@@ -8,6 +8,7 @@ use Dnd\Controllers\AuthController;
 use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
 use Dnd\Controllers\InventoryController;
+use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
 use Dnd\Controllers\AdminController;
 use Throwable;
@@ -75,6 +76,8 @@ final class App
         $r->add('POST', '/characters/{id}/photo', [CharacterController::class, 'uploadPhoto']);
         $r->add('GET', '/characters/{id}/photo', [CharacterController::class, 'photo']);
         $r->add('DELETE', '/characters/{id}/photo', [CharacterController::class, 'deletePhoto']);
+        $r->add('POST', '/characters/{id}/levelup', [LevelUpController::class, 'levelUp']);
+        $r->add('POST', '/characters/{id}/levelup/revert', [LevelUpController::class, 'revert']);
         $r->add('POST', '/characters/{id}/items', [InventoryController::class, 'addItem']);
         $r->add('PATCH', '/characters/{id}/items/{itemId}', [InventoryController::class, 'updateItem']);
         $r->add('DELETE', '/characters/{id}/items/{itemId}', [InventoryController::class, 'deleteItem']);

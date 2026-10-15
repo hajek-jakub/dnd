@@ -11,7 +11,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar } from './Avatar'
 import { PhotoCropper } from './PhotoCropper'
-import { useDeleteCharacter, useDeletePhoto, useUploadPhoto } from './api'
+import { useDeleteCharacter, useDeletePhoto, useRevertLevel, useUploadPhoto } from './api'
 import { useSheet } from './sheet-context'
 import { ALIGNMENTS } from './labels'
 
@@ -43,6 +43,7 @@ export function ProfileTab() {
             </CardContent>
           </Card>
         )}
+        <LevelHistoryCard />
         {canEdit && <DangerCard />}
       </div>
     </div>
@@ -272,5 +273,75 @@ function Field({ id, label, children }: { id: string; label: string; children: R
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
+  )
+}
+
+function LevelHistoryCard() {
+  const { character, bundle, canEdit } = useSheet()
+  const revert = useRevertLevel(character.id)
+  const nameOf = (idx: string) => bundle.classes[idx]?.name ?? idx
+  const perClass: Record<string, number> = {}
+  const rows = character.levels.map((l, i) => {
+    perClass[l.classIndex] = (perClass[l.classIndex] ?? 0) + 1
+    const c = l.choices as {
+      hpGain?: number
+      subclass?: string
+      asi?: Record<string, number>
+      feat?: { name: string }
+      spellsAdded?: number
+      spellsRemoved?: number
+      note?: string
+    }
+    const parts: string[] = []
+    if (i === 0) parts.push('plné HP (první level)')
+    else parts.push(l.hpRoll === null ? 'HP: průměr' : `HP: hod ${l.hpRoll}`)
+    if (c.subclass) parts.push(`subclass: ${bundle.subclasses[c.subclass]?.name ?? c.subclass}`)
+    if (c.asi)
+      parts.push(
+        Object.entries(c.asi)
+          .map(([a, v]) => `${a.toUpperCase()} +${v}`)
+          .join(', '),
+      )
+    if (c.feat) parts.push(`feat: ${c.feat.name}`)
+    if (c.spellsAdded) parts.push(`+${c.spellsAdded} kouzel`)
+    if (c.spellsRemoved) parts.push(`−${c.spellsRemoved} kouzel`)
+    return { n: i + 1, title: `${nameOf(l.classIndex)} ${perClass[l.classIndex]}`, parts, note: c.note }
+  })
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Historie levelů</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ol className="space-y-2">
+          {[...rows].reverse().map((r) => (
+            <li key={r.n} className="rounded-lg border p-3 text-sm">
+              <p className="font-medium">
+                Level {r.n}: {r.title}
+              </p>
+              <p className="text-muted-foreground">{r.parts.join(' · ')}</p>
+              {r.note && <p className="mt-1 whitespace-pre-line text-muted-foreground">{r.note}</p>}
+            </li>
+          ))}
+        </ol>
+        {canEdit && character.levels.length > 1 && (
+          <Button
+            variant="destructive"
+            disabled={revert.isPending}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  `Vrátit poslední level (level ${character.levels.length})? Vrátí se i změny vlastností, subclassu, kouzel a HP z tohoto level upu.`,
+                )
+              )
+                return
+              revert.mutate(undefined, { onSuccess: () => toast.success('Level vrácen'), onError: () => toast.error('Level se nepodařilo vrátit') })
+            }}
+          >
+            Vrátit poslední level
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   )
 }
