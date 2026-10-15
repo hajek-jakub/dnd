@@ -243,8 +243,22 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   `Migrator::dropAll` odmítne cokoli jiného než lokální DB (`127.0.0.1`/`localhost`) a `api-tests/global-setup.ts` ignoruje `DND_CONFIG` z prostředí (vždy `api/config.test.php`, jiná jen přes `DND_TEST_CONFIG`). Hlídá to `api-tests/safety.test.ts`.
 - Ostrá DB nemá zálohy (Endora je nemá zapnuté). Než se na ostré DB spustí cokoli, co zapisuje, nejdřív `--check` / čtení. Postavu Hajoš do kampaně Mirabilis na ostré DB zakládá `seed-hajos.php` s `DND_CONFIG=<ostrá>` jen pro ten jeden příkaz.
 
-### Další fáze (dle zadání)
-10. Leštění.
+### Fáze 10 – Leštění: HOTOVO
+- **Výkon**: těžší stránky (sheet, level up, panel DM, mapy s Leafletem, pravidla, zprávy, oznámení) se načítají líně (`React.lazy` v `App.tsx`, `Suspense` v `AppLayout`); hlavní balíček má ~330 kB (99 kB gzip) místo 640 kB, varování o velikosti zmizelo. Assety mají hash a dlouhou cache (`public/.htaccess`).
+- **Přístupnost** (`e2e/a11y.spec.ts`, axe, WCAG 2.1 A a AA): všechny hlavní stránky, záložky sheetu a panel kostek ve světlém i tmavém režimu, na počítači i na telefonu, bez porušení. Opraveno: kontrast tlačítka „destructive“ a popisků v seznamu pravidel, chybějící `h1` na profilu.
+  Při měření se vypínají přechody barev (axe by je změřil v půli animace).
+- **Rozložení** (`e2e/layout-sweep.spec.ts`): všechny stránky na počítači i telefonu bez horizontálního scrollu a s dotykovými prvky aspoň 44 px (checkboxy se měří včetně popisku). Opraveno: seznam bodů na mapě, inventář s dlouhým názvem a tlačítka velikosti `sm`.
+  Zásada pro grid na telefonu: jednosloupcový grid má mít `grid-cols-[minmax(0,1fr)]`, jinak ho dlouhý obsah roztáhne.
+- **Bezpečnost** (závěrečná kontrola): všechny SQL dotazy jsou prepared statements (dynamické části jen z pevných seznamů nebo `?` placeholdery), tajemství nejsou v gitu, deploy odmítne ladicí a testovací příznaky v ostré konfiguraci.
+  `api-tests/route-audit.test.ts` prochází **celou tabulku tras z `App.php`**: bez přihlášení všude 401, cizinec dostane u cizích věcí 404 a žádná trasa nespadne na 500 ani na nesmyslném vstupu (nová trasa se do auditu dostane sama).
+  **Content Security Policy** v `public/.htaccess` (skripty jen vlastní + otisk jediného vloženého skriptu pro tmavý režim, žádné cizí domény, žádné rámce); `src/test/csp.test.ts` hlídá, že otisk sedí s `index.html`, a `npm run test:csp` ověří produkční build pod CSP bez jediného porušení.
+  API navíc posílá `Content-Security-Policy: default-src 'none'` a `Cross-Origin-Resource-Policy: same-origin`.
+- **Odolnost**: `ErrorBoundary` kolem celé aplikace (místo prázdné stránky srozumitelná hláška a tlačítko Obnovit).
+- **Správa**: `api/bin/set-password.php` (reset zapomenutého hesla, odhlásí i relace uživatele; test v `safety.test.ts`). Návod pro hráče a DM je v `docs/NAVOD.md`, README odkazuje na všechno.
+
+### Další možná práce (mimo původní zadání)
+- Data SRD 5.2 (2024) a filtrování pravidel podle sady kampaně (dnes engine zná rozdíly 2014/2024 a prohlížeč pravidel na to upozorňuje).
+- Reset hesla přímo v aplikaci (dnes přes `set-password.php`), zálohy ostré DB (Endora je nemá zapnuté, viz sekce o pojistkách).
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

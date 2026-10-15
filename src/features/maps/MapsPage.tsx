@@ -107,7 +107,6 @@ function MapCard({ campaignId, map, isDm }: { campaignId: string; map: MapInfo; 
           <div className="flex gap-1">
             <Button
               variant="outline"
-              size="sm"
               disabled={update.isPending}
               onClick={() =>
                 update.mutate({ id: map.id, visible: !map.visible }, { onError: () => toast.error('Změna se nepodařila') })

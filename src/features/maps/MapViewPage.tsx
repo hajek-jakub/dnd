@@ -109,7 +109,7 @@ export default function MapViewPage() {
               </div>
               {selected.canEdit && (
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setDraft({ kind: 'edit', pin: selected })}>
+                  <Button variant="outline" onClick={() => setDraft({ kind: 'edit', pin: selected })}>
                     <PencilIcon aria-hidden /> Upravit
                   </Button>
                   <Button
@@ -135,7 +135,7 @@ export default function MapViewPage() {
       <section aria-label="Seznam bodů" className="space-y-2">
         <h2 className="text-lg font-semibold">Body na mapě</h2>
         {pins?.length === 0 && <p className="text-sm text-muted-foreground">Na mapě zatím nic není.</p>}
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {pins?.map((p) => (
             <li key={p.id}>
               <button

@@ -9,21 +9,21 @@ import { RequireAuth } from '@/features/auth/RequireAuth'
 import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
 import { JoinPage } from '@/features/campaigns/JoinPage'
-import { DmPage } from '@/features/dm/DmPage'
-import { MapsPage } from '@/features/maps/MapsPage'
-import { MessagesPage } from '@/features/messages/MessagesPage'
-import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
-import { AboutPage } from '@/features/about/AboutPage'
-import { HomebrewFormPage } from '@/features/rules/HomebrewFormPage'
-import { RuleDetailPage } from '@/features/rules/RuleDetailPage'
-import { RulesPage } from '@/features/rules/RulesPage'
-import { CharacterPage } from '@/features/sheet/CharacterPage'
-import { CreateCharacterPage } from '@/features/sheet/CreateCharacterPage'
-import { LevelUpPage } from '@/features/sheet/LevelUpWizard'
 
-// Leaflet je velký, načte se až při otevření mapy.
+// Těžší části (pravidlový engine, Leaflet, průvodce level upem) se načítají až při otevření stránky, ať se úvodní načtení nezdržuje.
+const DmPage = lazy(() => import('@/features/dm/DmPage').then((m) => ({ default: m.DmPage })))
+const MapsPage = lazy(() => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })))
 const MapViewPage = lazy(() => import('@/features/maps/MapViewPage'))
+const MessagesPage = lazy(() => import('@/features/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })))
+const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
+const AboutPage = lazy(() => import('@/features/about/AboutPage').then((m) => ({ default: m.AboutPage })))
+const HomebrewFormPage = lazy(() => import('@/features/rules/HomebrewFormPage').then((m) => ({ default: m.HomebrewFormPage })))
+const RuleDetailPage = lazy(() => import('@/features/rules/RuleDetailPage').then((m) => ({ default: m.RuleDetailPage })))
+const RulesPage = lazy(() => import('@/features/rules/RulesPage').then((m) => ({ default: m.RulesPage })))
+const CharacterPage = lazy(() => import('@/features/sheet/CharacterPage').then((m) => ({ default: m.CharacterPage })))
+const CreateCharacterPage = lazy(() => import('@/features/sheet/CreateCharacterPage').then((m) => ({ default: m.CreateCharacterPage })))
+const LevelUpPage = lazy(() => import('@/features/sheet/LevelUpWizard').then((m) => ({ default: m.LevelUpPage })))
 
 function NotFound() {
   return (
@@ -45,7 +45,14 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/about" element={<AboutPage />} />
+        <Route
+          path="/about"
+          element={
+            <Suspense fallback={<FullPageSpinner />}>
+              <AboutPage />
+            </Suspense>
+          }
+        />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route index element={<CampaignsPage />} />
@@ -53,14 +60,7 @@ export default function App() {
             <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
             <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />
-            <Route
-              path="campaigns/:campaignId/maps/:mapId"
-              element={
-                <Suspense fallback={<FullPageSpinner />}>
-                  <MapViewPage />
-                </Suspense>
-              }
-            />
+            <Route path="campaigns/:campaignId/maps/:mapId" element={<MapViewPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="campaigns/:campaignId/characters/new" element={<CreateCharacterPage />} />
             <Route path="characters/:id" element={<CharacterPage />} />

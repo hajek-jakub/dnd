@@ -87,10 +87,10 @@ export function DmPage() {
               Vybráno: <strong>{targets.length}</strong> z {rows.length}
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setSelected(new Set(rows.map((r) => r.character.id)))} disabled={rows.length === 0}>
+              <Button variant="outline" onClick={() => setSelected(new Set(rows.map((r) => r.character.id)))} disabled={rows.length === 0}>
                 Vybrat všechny
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())} disabled={targets.length === 0}>
+              <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={targets.length === 0}>
                 Zrušit výběr
               </Button>
             </div>
@@ -262,7 +262,6 @@ function CharacterOverview({
               </span>
               <Button
                 variant="ghost"
-                size="sm"
                 aria-label={`Zrušit bonus ${e.source} u ${character.name}`}
                 disabled={removeEffect.isPending}
                 onClick={() =>

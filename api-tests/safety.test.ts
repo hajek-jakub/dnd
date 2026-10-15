@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { Client, PASSWORD, expectStatus, registerUser } from './client'
 
 const root = path.resolve(import.meta.dirname, '..')
 
@@ -30,5 +31,34 @@ describe('pojistky proti smazání ostré databáze', () => {
   it('ostrá konfigurace api/config.production.php (pokud existuje) nikdy neprojde --fresh', () => {
     const res = fresh(path.join(root, 'api/config.production.php'))
     expect(res.status).not.toBe(0)
+  })
+})
+
+describe('reset hesla přes příkazovou řádku', () => {
+  const run = (args: string[], password?: string) =>
+    spawnSync('php', ['api/bin/set-password.php', ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH ?? '', DND_CONFIG: path.join(root, 'api/config.test.php'), ...(password ? { NEW_PASSWORD: password } : {}) },
+    })
+
+  it('nastaví nové heslo, staré přestane platit a stará relace se odhlásí', async () => {
+    const user = await registerUser('reset')
+    expectStatus(await user.client.get('/campaigns'), 200)
+    const res = run([user.username], 'nove-heslo-12345')
+    expect(res.status, res.stderr).toBe(0)
+    expect(res.stdout).toContain('odhlášené')
+
+    expectStatus(await user.client.get('/campaigns'), 401) // původní relace je pryč
+    const fresh = new Client()
+    expectStatus(await fresh.post('/auth/login', { username: user.username, password: PASSWORD }), 401)
+    expectStatus(await fresh.post('/auth/login', { username: user.username, password: 'nove-heslo-12345' }), 200)
+  })
+
+  it('odmítne chybějící údaje, krátké heslo a neexistujícího uživatele', () => {
+    expect(run([]).status).toBe(2)
+    expect(run(['nekdo']).status).toBe(2)
+    expect(run(['nekdo'], 'kratke').status).toBe(2)
+    expect(run(['neexistuje-' + Date.now()], 'dlouhe-heslo-123').status).toBe(3)
   })
 })

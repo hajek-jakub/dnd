@@ -686,7 +686,7 @@ function SpellStep({
               <span>
                 {s.name} <span className="text-muted-foreground">({s.level === 0 ? 'cantrip' : `${s.level}. úroveň`})</span>
               </span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setAddSpells(addSpells.filter((x) => x.ruleId !== s.ruleId))}>
+              <Button type="button" variant="ghost" onClick={() => setAddSpells(addSpells.filter((x) => x.ruleId !== s.ruleId))}>
                 Zrušit
               </Button>
             </li>

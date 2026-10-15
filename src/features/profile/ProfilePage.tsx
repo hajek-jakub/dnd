@@ -14,6 +14,7 @@ export function ProfilePage() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <h1 className="sr-only lg:col-span-2">Profil a nastavení účtu</h1>
       <Card>
         <CardHeader>
           <CardTitle>Profil</CardTitle>

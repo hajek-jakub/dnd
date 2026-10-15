@@ -31,6 +31,10 @@ DirectoryIndex index.html
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  # Content Security Policy: skripty jen z vlastní domény plus jediný vložený skript (nastavení tmavého režimu před vykreslením),
+  # povolený podle otisku. Změníš-li ho v index.html, musíš přepsat sha256 tady (hlídá to src/test/csp.test.ts).
+  # Styly smí být vložené (Leaflet a toasty je potřebují), obrázky z API a data:/blob:, spojení jen na vlastní doménu.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-34vXusKkAuzjwCRWKileslx5VQ0stt1o38GiujHcAXg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 </IfModule>
 
 # Komprese

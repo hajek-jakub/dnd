@@ -273,7 +273,6 @@ export function RulesPage() {
           {hasFilters && (
             <Button
               variant="ghost"
-              size="sm"
               onClick={() =>
                 update({ level: null, category: null, rarity: null, attunement: null, source: null, tag: null, scope: null })
               }
@@ -338,7 +337,7 @@ function RuleListItem({ entry, search }: { entry: RuleSummary; search: string })
           {!entry.isSrd && !entry.isHomebrew && <span className="rounded-full border px-2 py-0.5 text-xs">{entry.source}</span>}
         </span>
         <span className="mt-0.5 block text-sm text-muted-foreground">{metaLine(entry)}</span>
-        {entry.summary && <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground/90">{entry.summary}</span>}
+        {entry.summary && <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">{entry.summary}</span>}
       </Link>
     </li>
   )

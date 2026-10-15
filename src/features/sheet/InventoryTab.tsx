@@ -31,7 +31,7 @@ export function InventoryTab() {
   const percent = Math.min(100, Math.round((enc.weight / enc.capacity) * 100))
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
       <div className="space-y-4">
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">

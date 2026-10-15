@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { BellIcon, LogOutIcon, MessageSquareIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -90,7 +91,9 @@ export function AppLayout() {
       </header>
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-8 lg:max-w-6xl">
         <RollSettingsProvider>
-          <Outlet />
+          <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
+            <Outlet />
+          </Suspense>
         </RollSettingsProvider>
       </main>
       <footer className="mx-auto w-full max-w-3xl px-4 pb-10 text-sm text-muted-foreground lg:max-w-6xl">
