@@ -105,6 +105,9 @@ if (!cfg.migrate_key || ['dev-migrate', 'test-migrate'].includes(cfg.migrate_key
 if (!cfg.db || !cfg.db.name || !cfg.db.user || !cfg.db.password || /^(dnd|dnd_test)$/.test(cfg.db.name)) {
   problems.push("'db' musí obsahovat údaje k databázi z Endory (ne k lokální dnd)")
 }
+if (JSON.stringify(cfg.db ?? {}).includes('DOPLN_')) {
+  problems.push("v 'db' zbývají neuhrazené řádky DOPLN_... (doplň údaje k databázi z administrace Endory)")
+}
 if (problems.length > 0) {
   fail(`api/config.production.php není připravený na ostrý server:\n  - ${problems.join('\n  - ')}`)
 }
