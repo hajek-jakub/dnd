@@ -11,7 +11,7 @@ export function CharactersSection({ campaignId }: { campaignId: string }) {
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle>Postavy</CardTitle>
+        <CardTitle className="font-display text-lg">Družina</CardTitle>
         <Link to={`/campaigns/${campaignId}/characters/new`} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
           <PlusIcon aria-hidden /> Nová postava
         </Link>

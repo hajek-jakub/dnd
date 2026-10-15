@@ -57,16 +57,17 @@ test('DM na počítači pozve hráče, hráč se z telefonu zaregistruje a nevid
     await expect(dm.getByRole('heading', { name: 'Ztracený důl' })).toBeVisible()
 
     // ---- Hráč se odhlásí a znovu přihlásí heslem
+    await player.getByRole('link', { name: 'Profil a nastavení' }).click()
     await player.getByRole('button', { name: 'Odhlásit se' }).click()
     await expect(player).toHaveURL(/\/login/)
     await loginViaUi(player, playerName, 'spatneheslo123')
     await expect(player.getByRole('alert')).toContainText('Špatné jméno nebo heslo')
     await player.getByLabel('Heslo').fill(PASSWORD)
     await player.getByRole('button', { name: 'Přihlásit se' }).click()
-    await expect(player.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible()
+    // po přihlášení rovnou do (jediné) kampaně, kampaň se nevybírá ručně
+    await expect(player.getByRole('heading', { name: 'Ztracený důl', level: 1 })).toBeVisible()
 
     // ---- Hráč odejde z kampaně (potvrzení v dialogu)
-    await player.getByText('Ztracený důl').click()
     player.once('dialog', (dialog) => void dialog.accept())
     await player.getByRole('button', { name: 'Odejít z kampaně' }).click()
     await expect(player).toHaveURL(/\/$/)

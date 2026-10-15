@@ -182,6 +182,33 @@ final class DmController
         return ['hp' => $result];
     }
 
+    /** Nastaví dočasná HP (0 je zruší); dočasná HP se nesčítají, platí nová hodnota. @param array{id:string} $user */
+    public static function tempHp(Request $req, array $params, array $user): array
+    {
+        Access::requireDm($user, $params['id']);
+        $in = $req->json();
+        $amount = $in['amount'] ?? null;
+        if (!is_int($amount) || $amount < 0 || $amount > 100000) {
+            throw HttpError::validation('Dočasná HP musí být celé číslo od 0.', 'amount');
+        }
+        $count = Db::transaction(static function () use ($params, $user, $in, $amount): int {
+            $chars = self::targets($params['id'], $in);
+            foreach ($chars as $char) {
+                Db::exec('UPDATE characters SET hp_temp = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$amount, $char['id']]);
+                Notifications::push(
+                    (string) $char['owner_id'],
+                    $user['id'],
+                    $params['id'],
+                    (string) $char['id'],
+                    'hp',
+                    $amount > 0 ? "DM ti nastavil dočasná HP: $amount" : 'DM ti zrušil dočasná HP',
+                );
+            }
+            return count($chars);
+        });
+        return ['changed' => $count];
+    }
+
     /** Nastaví nebo zruší stav (condition). @param array{id:string} $user */
     public static function condition(Request $req, array $params, array $user): array
     {

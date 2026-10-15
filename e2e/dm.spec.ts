@@ -172,6 +172,18 @@ test('panel DM jde používat i na telefonu (bez posouvání do stran)', async (
   await page.getByRole('button', { name: 'Tank: −5 HP' }).click()
   await expect(page.getByTestId('hp-Tank')).toHaveText('6')
 
+  // dočasná HP pro vybrané a zrušení stavu jedním klepnutím na štítek
+  await page.getByRole('button', { name: 'Dočasná HP', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Dočasná HP' }).getByLabel('Kolik dočasných HP').fill('5')
+  await page.getByRole('dialog', { name: 'Dočasná HP' }).getByRole('button', { name: 'Nastavit dočasná HP' }).click()
+  await expect(page.getByText('Dočasná HP nastavena')).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Tank' }).first()).toContainText('+5 dočasná')
+  await page.getByRole('button', { name: 'Stav', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Stav postavy' }).getByRole('button', { name: 'Nastavit stav' }).click()
+  await expect(page.getByRole('button', { name: 'Zrušit stav Poisoned u Tank' })).toBeVisible()
+  await page.getByRole('button', { name: 'Zrušit stav Poisoned u Tank' }).click()
+  await expect(page.getByRole('button', { name: 'Zrušit stav Poisoned u Tank' })).toHaveCount(0)
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(overflow, 'stránka nesmí jezdit do stran').toBeLessThanOrEqual(0)
 

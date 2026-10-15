@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, CopyIcon, MapIcon, MessageSquareIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
+import { lazy, Suspense, useState } from 'react'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { CopyIcon, UserMinusIcon } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,19 +24,21 @@ import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
 import { RULESETS, rulesetOf } from './ruleset'
 import { DiceDock } from '@/features/dice/DiceDock'
-import { useUnreadMessages } from '@/features/messages/api'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
+import { JournalPreview } from '@/features/journal/JournalPreview'
+
+// Karta s postavou počítá sheet enginem, proto se načítá až po úvodní stránce.
+const MyCharacterCard = lazy(() => import('./MyCharacterCard'))
 
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { data: campaign, isPending } = useCampaign(campaignId)
   const { data: members } = useCampaignMembers(campaignId)
   const myRole = members?.find((m) => m.userId === user?.id)?.role
   const isDm = myRole === 'dm'
-  const { data: unreadMessages } = useUnreadMessages()
-  const unreadHere = unreadMessages?.campaigns.find((c) => c.campaignId === campaignId)?.unread ?? 0
   const removeMember = useRemoveMember(campaignId ?? '')
   const deleteCampaign = useDeleteCampaign(campaignId ?? '')
 
@@ -46,7 +49,12 @@ export function CampaignPage() {
   function leave() {
     if (!user || !window.confirm('Opravdu chceš z kampaně odejít? Své postavy v ní už neuvidíš.')) return
     removeMember.mutate(user.id, {
-      onSuccess: () => void navigate('/'),
+      // Nejdřív se obnoví seznam kampaní, jinak by úvodní stránka poslala uživatele zpátky do kampaně, kterou právě opustil.
+      onSuccess: async () => {
+        queryClient.removeQueries({ queryKey: ['campaign', campaignId] })
+        await queryClient.refetchQueries({ queryKey: ['campaigns'] })
+        void navigate('/')
+      },
       onError: () => toast.error('Z kampaně se nepodařilo odejít'),
     })
   }
@@ -67,40 +75,24 @@ export function CampaignPage() {
   return (
     <>
       <div className="space-y-2">
-        <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeftIcon aria-hidden className="size-4" /> Všechny kampaně
-        </Link>
-        <h1 className="text-2xl font-bold">{campaign.name}</h1>
+        <h1 className="font-display text-3xl font-bold">{campaign.name}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {myRole && <RoleBadge role={myRole} />}
           <span data-testid="ruleset-badge" className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">
             Pravidla {rulesetOf(campaign.settings)}
           </span>
         </div>
-        {campaignId && (
-          <div className="flex flex-wrap gap-2">
-            {isDm && (
-              <Link to={`/campaigns/${campaignId}/dm`} className={buttonVariants({ variant: 'default' })}>
-                <ShieldIcon aria-hidden /> Panel DM
-              </Link>
-            )}
-            <Link to={`/campaigns/${campaignId}/maps`} className={buttonVariants({ variant: 'secondary' })}>
-              <MapIcon aria-hidden /> Mapy
-            </Link>
-            <Link to={`/campaigns/${campaignId}/messages`} className={buttonVariants({ variant: isDm ? 'secondary' : 'default' })}>
-              <MessageSquareIcon aria-hidden /> Zprávy
-              {unreadHere > 0 && (
-                <span data-testid="campaign-unread" aria-label={`${unreadHere} nepřečtených`} className="ml-1 rounded-full bg-primary-foreground px-1.5 text-xs font-semibold text-primary">
-                  {unreadHere}
-                </span>
-              )}
-            </Link>
-          </div>
-        )}
         {campaign.description && <p className="whitespace-pre-line text-muted-foreground">{campaign.description}</p>}
       </div>
 
+      {campaignId && (
+        <Suspense fallback={null}>
+          <MyCharacterCard campaignId={campaignId} />
+        </Suspense>
+      )}
+      {campaignId && <JournalPreview campaignId={campaignId} />}
       {campaignId && <CharactersSection campaignId={campaignId} />}
+      <h2 className="pt-2 font-display text-xl font-semibold">Správa kampaně</h2>
 
       {/* Telefon: jeden sloupec (členové, pozvánky, nebezpečná zóna).
           Počítač (DM): členové a nebezpečná zóna vlevo, pozvánky vpravo přes obě řady. */}

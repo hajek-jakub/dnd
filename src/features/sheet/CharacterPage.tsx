@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeftIcon, SparklesIcon, TrendingUpIcon } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { SpellsTab } from './SpellsTab'
 import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
+import { rememberCampaign, rememberCharacter } from '@/features/campaigns/active-campaign'
 import { DiceDock } from '@/features/dice/DiceDock'
 import { RollModeSwitch } from '@/features/dice/RollModeSwitch'
 import { EffectsCard } from './EffectsCard'
@@ -53,6 +54,11 @@ export function CharacterPage() {
 function SheetView() {
   const { character, sheet, canEdit, adjust } = useSheet()
   const [tab, setTab] = useState<TabId>('overview')
+  useEffect(() => {
+    // Spodní lišta pak míří na tuhle postavu a do její kampaně.
+    rememberCampaign(character.campaignId)
+    rememberCharacter(character.campaignId, character.id)
+  }, [character.campaignId, character.id])
 
   return (
     <div className="space-y-4">
@@ -65,7 +71,7 @@ function SheetView() {
 
       <header className="flex flex-wrap items-center gap-4">
         <Avatar id={character.id} name={character.name} version={character.photoVersion} className="size-20 text-3xl" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-44">
           <h1 className="truncate text-2xl font-bold">{character.name}</h1>
           <p className="text-muted-foreground">{[character.race, sheet.classSummary].filter(Boolean).join(' · ')}</p>
           <p className="text-sm text-muted-foreground">

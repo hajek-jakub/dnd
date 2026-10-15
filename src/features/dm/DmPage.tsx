@@ -5,6 +5,7 @@ import {
   CoinsIcon,
   HeartPulseIcon,
   PackagePlusIcon,
+  ShieldPlusIcon,
   SparklesIcon,
   StarIcon,
   SwordsIcon,
@@ -23,13 +24,14 @@ import type { CharacterFull } from '@/features/sheet/types'
 import { DURATION_LABELS, effectLabel, formatBonus } from '@/features/sheet/effects'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { useDmHp, useRemoveEffect } from './api'
+import { useDmHp, useRemoveEffect, useSetCondition } from './api'
 import { DmDialogs, type DmAction, type DmTarget } from './DmDialogs'
 import { NotesPanel } from './NotesPanel'
 import { DiceDock } from '@/features/dice/DiceDock'
 
 const ACTIONS: { id: DmAction; label: string; icon: typeof ZapIcon }[] = [
   { id: 'hp', label: 'Zranění / léčení', icon: HeartPulseIcon },
+  { id: 'temp', label: 'Dočasná HP', icon: ShieldPlusIcon },
   { id: 'xp', label: 'XP', icon: StarIcon },
   { id: 'currency', label: 'Peníze', icon: CoinsIcon },
   { id: 'item', label: 'Item', icon: PackagePlusIcon },
@@ -80,7 +82,7 @@ export function DmPage() {
         <h1 className="text-2xl font-bold">Panel DM</h1>
       </div>
 
-      <Card className="lg:sticky lg:top-[6.25rem] lg:z-[5]">
+      <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
         <CardContent className="space-y-3 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p aria-live="polite" className="text-sm">
@@ -152,6 +154,7 @@ function CharacterOverview({
 }) {
   const hp = useDmHp(campaignId)
   const removeEffect = useRemoveEffect(campaignId)
+  const setCondition = useSetCondition(campaignId)
   const max = sheet.hp.max.value
   const percent = max > 0 ? Math.max(0, Math.min(100, Math.round((hpCurrent / max) * 100))) : 0
   const resources = sheet.resources.filter((r) => r.max.value > 0)
@@ -221,8 +224,22 @@ function CharacterOverview({
       {character.state.conditions.length > 0 && (
         <ul aria-label="Stavy" className="mt-3 flex flex-wrap gap-2">
           {character.state.conditions.map((c) => (
-            <li key={c} className="rounded-full border border-amber-500 bg-amber-500/10 px-2 py-0.5 text-xs">
-              {c}
+            <li key={c}>
+              <button
+                type="button"
+                title="Zrušit stav"
+                aria-label={`Zrušit stav ${c} u ${character.name}`}
+                disabled={setCondition.isPending}
+                onClick={() =>
+                  setCondition.mutate(
+                    { characterIds: [character.id], name: c, set: false },
+                    { onSuccess: () => toast.success(`Stav zrušen: ${c}`), onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Stav se nepodařilo zrušit.') },
+                  )
+                }
+                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-amber-500 bg-amber-500/10 px-3 text-xs hover:bg-amber-500/20"
+              >
+                {c} <span aria-hidden>✕</span>
+              </button>
             </li>
           ))}
         </ul>

@@ -8,12 +8,14 @@ import { RegisterPage } from '@/features/auth/RegisterPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
+import { HomeRoute } from '@/features/campaigns/HomeRoute'
 import { JoinPage } from '@/features/campaigns/JoinPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 
 // Těžší části (pravidlový engine, Leaflet, průvodce level upem) se načítají až při otevření stránky, ať se úvodní načtení nezdržuje.
 const DmPage = lazy(() => import('@/features/dm/DmPage').then((m) => ({ default: m.DmPage })))
 const MapsPage = lazy(() => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })))
+const JournalPage = lazy(() => import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })))
 const MapViewPage = lazy(() => import('@/features/maps/MapViewPage'))
 const MessagesPage = lazy(() => import('@/features/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })))
 const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
@@ -55,10 +57,12 @@ export default function App() {
         />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
-            <Route index element={<CampaignsPage />} />
+            <Route index element={<HomeRoute />} />
+            <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
+            <Route path="campaigns/:campaignId/journal" element={<JournalPage />} />
             <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />
             <Route path="campaigns/:campaignId/maps/:mapId" element={<MapViewPage />} />
             <Route path="notifications" element={<NotificationsPage />} />

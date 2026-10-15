@@ -38,6 +38,7 @@ describe('DM panel a oznámení', () => {
       ['inspiration', { set: true }],
       ['hp', { delta: -1, targets: [] }],
       ['conditions', { name: 'Poisoned', set: true }],
+      ['temp-hp', { amount: 5 }],
       ['effects', { target: 'ac', value: 1, source: 'x' }],
     ]
     it.each(endpoints)('hráč nemůže volat dm/%s (403), cizinec 404', async (path, body) => {
@@ -138,6 +139,19 @@ describe('DM panel a oznámení', () => {
       expect((await dmPost('hp', { delta: -1, targets: [{ characterId: bobChar, max: 0 }] })).status).toBe(422)
       expect((await dmPost('hp', { delta: -1, targets: [{ characterId: foreignChar, max: 10 }] })).status).toBe(422)
       expect((await dmPost('hp', { delta: 'x', targets: [{ characterId: bobChar, max: 10 }] })).status).toBe(422)
+    })
+
+    it('dočasná HP se nastaví (platí nová hodnota, nesčítají se) a nulou zruší; hráč dostane oznámení', async () => {
+      expectStatus(await dmPost('temp-hp', { characterIds: [bobChar, carolChar], amount: 7 }), 200)
+      expect((await sheet(bob, bobChar)).state.hpTemp).toBe(7)
+      expect((await sheet(carol, carolChar)).state.hpTemp).toBe(7)
+      await dmPost('temp-hp', { characterIds: [bobChar], amount: 3 })
+      expect((await sheet(bob, bobChar)).state.hpTemp).toBe(3)
+      await dmPost('temp-hp', { characterIds: [bobChar, carolChar], amount: 0 })
+      expect((await sheet(bob, bobChar)).state.hpTemp).toBe(0)
+      expect((await notes(bob)).notifications.map((x) => x.text)).toEqual(expect.arrayContaining(['DM ti nastavil dočasná HP: 3', 'DM ti zrušil dočasná HP']))
+      for (const amount of [-1, 1.5, '5', null, 100001]) expect((await dmPost('temp-hp', { characterIds: [bobChar], amount })).status, JSON.stringify(amount)).toBe(422)
+      expect((await dmPost('temp-hp', { characterIds: [foreignChar], amount: 1 })).status).toBe(422) // postava z jiné kampaně
     })
 
     it('stav se nastaví a zruší, hráč dostane oznámení', async () => {

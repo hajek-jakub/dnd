@@ -168,7 +168,7 @@ test('fotka postavy: nahrání, ořez, zobrazení v seznamu kampaně a odstraně
 
   // v seznamu postav v kampani
   await page.goto(`/campaigns/${campaignId}`)
-  const listAvatar = page.getByRole('img', { name: 'Fotka postavy Fotogenická' })
+  const listAvatar = page.getByRole('region', { name: 'Moje postava' }).getByRole('img', { name: 'Fotka postavy Fotogenická' })
   await expect(listAvatar).toBeVisible()
   await expect.poll(() => listAvatar.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(512)
 

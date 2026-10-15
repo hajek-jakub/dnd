@@ -258,6 +258,19 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - **Odolnost**: `ErrorBoundary` kolem celé aplikace (místo prázdné stránky srozumitelná hláška a tlačítko Obnovit).
 - **Správa**: `api/bin/set-password.php` (reset zapomenutého hesla, odhlásí i relace uživatele; test v `safety.test.ts`). Návod pro hráče a DM je v `docs/NAVOD.md`, README odkazuje na všechno.
 
+### Navigace, deník a vzhled (po fázi 10)
+- **Aktivní kampaň** (`features/campaigns/active-campaign.ts`): hraje se hlavně jedna kampaň, takže se nevolí ručně. Pamatuje se v `localStorage` při otevření jakékoli stránky kampaně (a sheetu postavy), jinak se bere první; kdo má jednu kampaň, ji má vždy.
+  `/` (`HomeRoute`) rovnou přesměruje do aktivní kampaně (bez kampaně ukáže zakládání a připojení), seznam všech kampaní je na `/campaigns` a přepíná se v **Profilu → Moje kampaně**. Při odchodu z kampaně se nejdřív obnoví seznam kampaní (jinak by úvod poslal zpět).
+- **Dolní lišta** (`components/BottomNav.tsx`, stále viditelná, 5 položek): Domů, Postava (vlastní postava v aktivní kampani, jinak „Nová postava“; DM má místo ní Panel DM), Deník, Mapy, Zprávy; odznaky nepřečtených u Deníku (`unread-journal-badge`) a Zpráv (`unread-messages-badge`).
+  Horní lišta má jen logo s názvem kampaně, Pravidla, Oznámení a Profil (v Profilu je i motiv Podle systému / Světlý / Tmavý a odhlášení). Plovoucí kostky jsou nad lištou (`bottom-24`).
+- **Domů** (`CampaignPage`): moje postava (HP, AC, rychlost, stavy; líně načtená, protože počítá enginem), náhled deníku, družina a pod nadpisem „Správa kampaně“ členové, pozvánky, nastavení a nebezpečná zóna.
+- **Deník** (migrace 010, `JournalController`, `/campaigns/:id/journal`): zápisy podle témat s hledáním a filtrem témat, připnutí (jen DM), formátování bez HTML (`RichText`: `**tučně**`, `*kurzíva*`, `# nadpis`, odrážky, odkazy http(s)). Viditelnost jako u bodů na mapě: `all`, `selected`, `dm` (DM zakládá), `owner` (soukromý zápisek hráče, nevidí ho ani DM).
+  Nové zápisy se počítají od posledního otevření deníku (od vstupu do kampaně), po otevření se označí jako přečtené, ale ve stránce zůstanou označené „nové“. API testy `journal.test.ts` (21), E2E `journal.spec.ts`.
+- **DM navíc**: dočasná HP (`POST /dm/temp-hp`, platí nová hodnota, nula ruší) a zrušení stavu jedním klepnutím na štítek na kartě postavy. Debuffy: stavy (nastavit i zrušit), záporné bonusy (např. −2 AC) s trváním a zdrojem, zranění, dočasná HP.
+  **Nemodelováno**: automatický dopad stavů (např. Poisoned = nevýhoda), trvání po kolech a úrovně Exhaustion; stavy jsou štítky a DM je případně doplní záporným bonusem.
+- **Vzhled**: teplá „pergamenová“ paleta s indigovým akcentem a tmavý režim (`index.css`), nadpisy fontem Cinzel (`@fontsource-variable/cinzel`, bundlovaný kvůli CSP), jemná záře pozadí, zaoblené karty. Kontrast ověřují axe testy (WCAG AA ve světlém i tmavém režimu).
+  Odznaky nepřečtených mají pevně `bg-red-600`, ne `bg-destructive` (v tmavém režimu by bílý text neměl dost kontrastu).
+
 ### Další možná práce (mimo původní zadání)
 - Data SRD 5.2 (2024) a filtrování pravidel podle sady kampaně (dnes engine zná rozdíly 2014/2024 a prohlížeč pravidel na to upozorňuje).
 - Reset hesla přímo v aplikaci (dnes přes `set-password.php`), zálohy ostré DB (Endora je nemá zapnuté, viz sekce o pojistkách).

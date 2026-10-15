@@ -52,7 +52,7 @@ export function DiceDock({ campaignId, characterId }: { campaignId: string; char
         onClick={() => setOpen(true)}
         aria-label="Kostky"
         title="Kostky"
-        className="fixed bottom-4 right-4 z-20 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
+        className="fixed bottom-24 right-4 z-20 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
       >
         <DicesIcon aria-hidden className="size-7" />
       </button>

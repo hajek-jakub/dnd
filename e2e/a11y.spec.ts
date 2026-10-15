@@ -49,13 +49,15 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   const item = await page.request.post(`/api/characters/${character}/items`, { data: { name: 'Meč', kind: 'weapon', weapon: { damageDice: '1d8', damageType: 'Slashing', extraDamage: [{ dice: '1d4', type: 'Fire' }] } } })
   await page.request.patch(`/api/characters/${character}/items/${(await item.json()).item.id}`, { data: { equipped: true } })
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Ahoj' } })
+  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis', body: '# Nadpis\n- odrážka\n**tučně**', pinned: true } })
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(300, 200)) } } })).json()).map.id as string
   await page.request.post(`/api/maps/${map}/pins`, { data: { x: 50, y: 50, title: 'Bod', description: 'Popis' } })
 
   const pages: [string, string, (p: Page) => Promise<void>][] = [
-    ['kampaně', '/', async (p) => void (await expect(p.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible())],
+    ['kampaně', '/campaigns', async (p) => void (await expect(p.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible())],
     ['kampaň (DM)', `/campaigns/${campaignId}`, async (p) => void (await expect(p.getByRole('heading', { name: 'Přístupnost', level: 1 })).toBeVisible())],
     ['panel DM', `/campaigns/${campaignId}/dm`, async (p) => void (await expect(p.getByRole('heading', { name: 'Panel DM' })).toBeVisible())],
+    ['deník', `/campaigns/${campaignId}/journal`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
     ['zprávy', `/campaigns/${campaignId}/messages`, async (p) => void (await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible())],
     ['mapy', `/campaigns/${campaignId}/maps`, async (p) => void (await expect(p.getByRole('heading', { name: 'Mapy', level: 1 })).toBeVisible())],
     ['oznámení', '/notifications', async (p) => void (await expect(p.getByRole('heading', { name: 'Oznámení' })).toBeVisible())],

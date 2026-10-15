@@ -19,7 +19,7 @@ const fill = (pattern: string, ids: Record<string, string> = {}) => pattern.repl
 describe('audit tras API', () => {
   let owner: TestUser
   let outsider: TestUser
-  let ids: { campaign: string; character: string; map: string; pin: string; note: string }
+  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string }
 
   beforeAll(async () => {
     owner = await registerUser('auditdm')
@@ -30,12 +30,13 @@ describe('audit tras API', () => {
     await owner.client.patch(`/maps/${map}`, { visible: true })
     const pin = (await owner.client.post(`/maps/${map}/pins`, { x: 1, y: 1, title: 'Bod' })).body.pin.id
     const note = (await owner.client.post(`/campaigns/${campaign}/dm-notes`, { body: 'tajné' })).body.note.id
-    ids = { campaign, character, map, pin, note }
+    const entry = (await owner.client.post(`/campaigns/${campaign}/journal`, { title: 'Zápis' })).body.entry.id
+    ids = { campaign, character, map, pin, note, entry }
   })
 
   it('tabulka tras se načetla (a obsahuje všechny moduly)', () => {
     expect(routes.length).toBeGreaterThan(60)
-    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}']) {
+    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}']) {
       expect(routes.some((r) => r.pattern === p), p).toBe(true)
     }
     expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/health'])
@@ -60,12 +61,12 @@ describe('audit tras API', () => {
   })
 
   it('cizinec dostane u cizí kampaně a jejích věcí 404 (nikdy 2xx), na žádné trase 5xx', async () => {
-    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note }
+    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry }
     const failures: string[] = []
     for (const r of PROTECTED) {
       if (!r.pattern.includes('{')) continue
       // které id patří do které trasy
-      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : null
+      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : null
       if (kind === null) continue
       const url = fill(r.pattern, { id: real[kind]! })
       const res = await outsider.client.request(r.method, url, r.method === 'GET' || r.method === 'DELETE' ? undefined : {})

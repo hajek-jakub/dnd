@@ -57,6 +57,14 @@ export function useDmHp(campaignId: string) {
   })
 }
 
+export function useSetTempHp(campaignId: string) {
+  const refresh = useRefreshCharacters(campaignId)
+  return useMutation({
+    mutationFn: (input: { characterIds: string[]; amount: number }) => api.post(`/campaigns/${campaignId}/dm/temp-hp`, input),
+    onSuccess: refresh,
+  })
+}
+
 export function useSetCondition(campaignId: string) {
   const refresh = useRefreshCharacters(campaignId)
   return useMutation({

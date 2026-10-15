@@ -10,6 +10,7 @@ use Dnd\Controllers\CharacterController;
 use Dnd\Controllers\DiceController;
 use Dnd\Controllers\DmController;
 use Dnd\Controllers\InventoryController;
+use Dnd\Controllers\JournalController;
 use Dnd\Controllers\MapController;
 use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
@@ -102,6 +103,7 @@ final class App
         $r->add('POST', '/campaigns/{id}/dm/inspiration', [DmController::class, 'setInspiration']);
         $r->add('POST', '/campaigns/{id}/dm/hp', [DmController::class, 'hp']);
         $r->add('POST', '/campaigns/{id}/dm/conditions', [DmController::class, 'condition']);
+        $r->add('POST', '/campaigns/{id}/dm/temp-hp', [DmController::class, 'tempHp']);
         $r->add('POST', '/campaigns/{id}/dm/effects', [DmController::class, 'addEffect']);
         $r->add('DELETE', '/effects/{effectId}', [DmController::class, 'removeEffect']);
         $r->add('DELETE', '/characters/{id}/effects/long-rest', [DmController::class, 'expireLongRestEffects']);
@@ -128,6 +130,14 @@ final class App
         // Kostky: hody na serveru a sdílený log kampaně
         $r->add('POST', '/campaigns/{id}/rolls', [DiceController::class, 'roll']);
         $r->add('GET', '/campaigns/{id}/rolls', [DiceController::class, 'index']);
+
+        // Deník kampaně (zápisy podle témat)
+        $r->add('GET', '/campaigns/{id}/journal', [JournalController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/journal', [JournalController::class, 'create']);
+        $r->add('POST', '/campaigns/{id}/journal/read', [JournalController::class, 'markRead']);
+        $r->add('GET', '/journal/unread', [JournalController::class, 'unreadOverview']);
+        $r->add('PATCH', '/journal/{id}', [JournalController::class, 'update']);
+        $r->add('DELETE', '/journal/{id}', [JournalController::class, 'delete']);
 
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);

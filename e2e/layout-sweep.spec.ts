@@ -47,15 +47,18 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   const spell = (await (await page.request.get('/api/rules?kinds=spell&q=expeditious')).json()).entries[0]
   await page.request.post(`/api/characters/${character}/spells`, { data: { ruleId: spell.id, classIdx: 'warlock' } })
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'x'.repeat(300) } })
+  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis s dlouhým názvem '.repeat(4), body: 'Text '.repeat(200), pinned: true } })
   await page.request.post(`/api/campaigns/${campaignId}/dm-notes`, { data: { body: 'Poznámka\n'.repeat(5) } })
   await page.request.post(`/api/campaigns/${campaignId}/dm/xp`, { data: { characterIds: [character], amount: 10, split: false } })
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa s hodně dlouhým názvem, aby se zalomil', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(600, 400)) } } })).json()).map.id as string
   await page.request.post(`/api/maps/${map}/pins`, { data: { x: 50, y: 50, title: 'Bod s dlouhým názvem '.repeat(3), description: 'Popis '.repeat(60) } })
 
   const pages: [string, string][] = [
-    ['kampaně', '/'],
+    ['domů', '/'],
+    ['kampaně', '/campaigns'],
     ['kampaň', `/campaigns/${campaignId}`],
     ['panel DM', `/campaigns/${campaignId}/dm`],
+    ['deník', `/campaigns/${campaignId}/journal`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
     ['mapy', `/campaigns/${campaignId}/maps`],
     ['mapa', `/campaigns/${campaignId}/maps/${map}`],

@@ -26,9 +26,9 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
   const username = await registerDm(page, 'hajos')
   seedHajos(username)
 
-  await page.goto('/')
+  await page.goto('/campaigns')
   await page.getByRole('link', { name: /Testovací kampaň \(seed\)/ }).click()
-  await page.getByRole('link', { name: /Hajoš/ }).click()
+  await page.getByRole('region', { name: 'Moje postava' }).getByRole('link', { name: /Hajoš/ }).click()
   await expect(page.getByRole('heading', { name: 'Hajoš', level: 1 })).toBeVisible()
   await expect(page.getByText('Human · Monk 5 / Warlock 1')).toBeVisible()
   await expectNoHorizontalScroll(page)
@@ -111,13 +111,13 @@ test('DM přepne pravidla kampaně na 2024: sheet počítá martial arts d8 a Fo
   const username = await registerDm(page, 'ruleset')
   seedHajos(username)
 
-  await page.goto('/')
+  await page.goto('/campaigns')
   await page.getByRole('link', { name: /Testovací kampaň \(seed\)/ }).click()
   const campaignId = page.url().split('/campaigns/')[1]!
   await expect(page.getByTestId('ruleset-badge')).toHaveText('Pravidla 2014')
 
   // 2014: martial arts d6, ki
-  await page.getByRole('link', { name: /Hajoš/ }).click()
+  await page.getByRole('region', { name: 'Moje postava' }).getByRole('link', { name: /Hajoš/ }).click()
   await expect(page.getByText(/Martial Arts 1d6/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Ki: použít' })).toBeVisible()
   const nunchaku = page.getByRole('listitem').filter({ hasText: 'Nunchaku' }).filter({ hasText: 'k20' })
@@ -131,7 +131,7 @@ test('DM přepne pravidla kampaně na 2024: sheet počítá martial arts d8 a Fo
   await expect(page.getByTestId('ruleset-badge')).toHaveText('Pravidla 2024')
   await expectNoHorizontalScroll(page)
 
-  await page.getByRole('link', { name: /Hajoš/ }).click()
+  await page.getByRole('region', { name: 'Moje postava' }).getByRole('link', { name: /Hajoš/ }).click()
   await expect(page.getByText(/Martial Arts 1d8/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Focus Points: použít' })).toBeVisible()
   await expect(nunchaku).toContainText('1d8')

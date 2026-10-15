@@ -20,6 +20,7 @@ import {
   useGiveXp,
   useSetCondition,
   useSetInspiration,
+  useSetTempHp,
 } from './api'
 
 export interface DmTarget {
@@ -28,7 +29,7 @@ export interface DmTarget {
   hpMax: number
 }
 
-export type DmAction = 'hp' | 'xp' | 'currency' | 'item' | 'condition' | 'inspiration' | 'effect'
+export type DmAction = 'hp' | 'temp' | 'xp' | 'currency' | 'item' | 'condition' | 'inspiration' | 'effect'
 
 interface DialogProps {
   campaignId: string
@@ -66,6 +67,9 @@ export function DmDialogs({ action, campaignId, targets, onClose }: { action: Dm
     <>
       <Modal open={action === 'hp'} onClose={onClose} title="Zranění nebo léčení">
         {action === 'hp' && <HpForm {...common} />}
+      </Modal>
+      <Modal open={action === 'temp'} onClose={onClose} title="Dočasná HP">
+        {action === 'temp' && <TempHpForm {...common} />}
       </Modal>
       <Modal open={action === 'xp'} onClose={onClose} title="Dát XP">
         {action === 'xp' && <XpForm {...common} />}
@@ -128,6 +132,41 @@ function HpForm({ campaignId, targets, onClose }: DialogProps) {
       <p className="text-xs text-muted-foreground">Zranění nejdřív ubere dočasná HP. Léčení nepřekročí maximum.</p>
       <Button type="submit" size="lg" className="w-full" disabled={!valid || mutation.isPending}>
         {mode === 'damage' ? 'Způsobit zranění' : 'Vyléčit'}
+      </Button>
+    </Form>
+  )
+}
+
+function TempHpForm({ campaignId, targets, onClose }: DialogProps) {
+  const [amount, setAmount] = useState('')
+  const mutation = useSetTempHp(campaignId)
+  const value = Number.parseInt(amount, 10)
+  const valid = Number.isInteger(value) && value >= 0
+
+  function submit() {
+    if (!valid) return
+    mutation.mutate(
+      { characterIds: targets.map((t) => t.id), amount: value },
+      {
+        onSuccess: () => {
+          toast.success(value > 0 ? 'Dočasná HP nastavena' : 'Dočasná HP zrušena')
+          onClose()
+        },
+        onError: (e) => toast.error(errorText(e, 'Dočasná HP se nepodařilo nastavit.')),
+      },
+    )
+  }
+
+  return (
+    <Form onSubmit={submit}>
+      <Targets targets={targets} />
+      <div className="space-y-2">
+        <Label htmlFor="dm-temp-amount">Kolik dočasných HP</Label>
+        <Input id="dm-temp-amount" type="number" inputMode="numeric" min={0} autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </div>
+      <p className="text-xs text-muted-foreground">Dočasná HP se nesčítají, platí nová hodnota. Nula je zruší.</p>
+      <Button type="submit" size="lg" className="w-full" disabled={!valid || mutation.isPending}>
+        Nastavit dočasná HP
       </Button>
     </Form>
   )

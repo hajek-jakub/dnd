@@ -81,10 +81,13 @@ test('tmavý a světlý režim se přepíná', async ({ page }) => {
   await registerDm(page, 'theme')
   const html = page.locator('html')
   await page.emulateMedia({ colorScheme: 'light' })
-  // Cyklus: systém, světlý, tmavý
-  const toggle = page.getByRole('button', { name: /motiv/i })
-  await toggle.click() // světlý
+  // Motiv se volí v Profilu (Podle systému / Světlý / Tmavý)
+  await page.getByRole('link', { name: 'Profil a nastavení' }).click()
+  const motiv = page.getByRole('group', { name: 'Motiv' })
+  await motiv.getByRole('button', { name: 'Světlý' }).click()
   await expect(html).not.toHaveClass(/dark/)
-  await toggle.click() // tmavý
+  await motiv.getByRole('button', { name: 'Tmavý' }).click()
   await expect(html).toHaveClass(/dark/)
+  await motiv.getByRole('button', { name: 'Podle systému' }).click()
+  await expect(html).not.toHaveClass(/dark/) // systém je světlý
 })
