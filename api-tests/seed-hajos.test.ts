@@ -80,7 +80,7 @@ describe('seed postavy Hajoš', () => {
     expect(character.skillProficiencies).toEqual({ acrobatics: 1, medicine: 1, religion: 1, stealth: 1 })
     expect(character.extraSaveProficiencies).toEqual([]) // STR a DEX dává Monk sám
     // jazyky se uloží, zbraně a zbroje z papíru (Simple weapons, Shortswords, Light armor) zná engine ze tříd, takže se neukládají
-    expect(character.extraProficiencies).toEqual(['Language: Common', 'Language: Orc'])
+    expect(character.extraProficiencies).toEqual(['Language: Common', 'Language: Orc', 'Tool: Herbalism kit'])
     expect(character.state.hpCurrent).toBe(39)
     expect(character.state.hpTemp).toBe(4)
     expect(character.currency).toEqual({ cp: 6, sp: 9, ep: 0, gp: 620, pp: 0 })
@@ -204,7 +204,7 @@ describe('seed postavy Hajoš', () => {
     expect(burst.data.steps).toHaveLength(3)
     // kombo ví, co provede: 2× kopí a Flurry (ten má 2 údery se zásahem a zraněním)
     const byId = new Map(tactics.map((t) => [t.id, t]))
-    expect(burst.data.uses.map((u: any) => [byId.get(u.id).title, u.count])).toEqual([['Démonické kopí (hlavní)', 2], ['Flurry of Blows', 1]])
+    expect(burst.data.uses.map((u: any) => [byId.get(u.id).title, u.count])).toEqual([['Démonické kopí (hlavní)', 2], ['Flurry of Blows', 2]])
     expect(spear.data.count).toBe(2)
     expect(tactics.find((t) => t.title === 'Flurry of Blows').data).toMatchObject({ toHit: 'd20+7', roll: '1d6+4', count: 2, hex: true })
     // střelba z kuše a hod šipkou spotřebují munici podle id itemu

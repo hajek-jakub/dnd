@@ -45,15 +45,15 @@ export function AttacksCard() {
                   {!a.proficient && ' · bez proficiency'}
                 </p>
               </div>
-              {/* Útok a zranění se na úzkém displeji zalomí pod sebe, ať stránka nejezdí do stran. */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              {/* Dva řádky pod sebou ve stejném sloupci: popisek vlevo, hodnoty a kostky vedle sebe a při nedostatku místa se zalomí. */}
+              <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 text-sm">
+                <span className="text-muted-foreground">k20</span>
                 <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">k20</span>
                   <ComputedValue title={`${a.name}: bonus k útoku`} computed={a.toHit} overrideKey={`attack.${a.id}.toHit`} format={formatModifier} />
                   <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} />
                 </div>
-                <div className="flex flex-wrap items-center gap-1">
-                  <span className="text-muted-foreground">zranění</span>
+                <span className="text-muted-foreground">zranění</span>
+                <div className="flex flex-wrap items-center gap-x-2">
                   <span className="font-semibold">{a.damageDice}</span>
                   <ComputedValue
                     title={`${a.name}: bonus ke zranění`}
@@ -67,10 +67,10 @@ export function AttacksCard() {
                     </span>
                   ))}
                   {damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])]) && (
-                    <>
+                    <span className="flex items-center">
                       <RollButton label={`${a.name}: zranění${active ? ` + ${rider.name}` : ''}`} expression={damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])!} />
                       <RollButton label={`${a.name}: zranění${active ? ` + ${rider.name}` : ''}`} expression={damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])!} crit text="Krit" />
-                    </>
+                    </span>
                   )}
                 </div>
               </div>

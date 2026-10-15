@@ -72,11 +72,11 @@ describe('taktiky postavy', () => {
     it('všech šest druhů se uloží s výchozími hodnotami a normalizovanými poli', async () => {
       const c = (await bob.client.post(`/campaigns/${campaignId}/characters`, { ...base, name: 'Druhy' })).body.character.id
       const attack = (await add(bob, c, { kind: 'attack', title: 'Kopí', toHit: 'd20+8', damage: '1d8+5 + 1d4 fire', actionType: 'action', cost: 'free', range: '5 ft', ignored: 'zahodit' })).body.tactic
-      expect(attack.data).toEqual({ actionType: 'action', toHit: 'd20+8', damage: '1d8+5 + 1d4 fire', roll: '', range: '5 ft', usage: '', note: '', cost: 'free', hex: true })
+      expect(attack.data).toEqual({ actionType: 'action', toHit: 'd20+8', damage: '1d8+5 + 1d4 fire', roll: '', range: '5 ft', usage: '', note: '', cost: 'free', hex: true, count: 1, ammo: '' })
       const spell = (await add(bob, c, { kind: 'spell', title: 'Hex', level: 1, actionType: 'bonus', range: '90 ft', duration: '1 hodina', concentration: true, save: '', effect: '+1d6 necrotic', cost: 'slot:1' })).body.tactic
       expect(spell.data).toMatchObject({ level: 1, actionType: 'bonus', concentration: true, cost: 'slot:1' })
       const ki = (await add(bob, c, { kind: 'ki', title: 'Flurry', cost: 'ki:1', actionType: 'bonus', description: 'Dva údery' })).body.tactic
-      expect(ki.data).toEqual({ actionType: 'bonus', cost: 'ki:1', description: 'Dva údery' })
+      expect(ki.data).toEqual({ actionType: 'bonus', cost: 'ki:1', description: 'Dva údery', toHit: '', damage: '', roll: '', count: 1, hex: false })
       const passive = (await add(bob, c, { kind: 'passive', title: 'Deflect', type: 'reaction', description: 'Sniž damage' })).body.tactic
       expect(passive.data).toEqual({ type: 'reaction', description: 'Sniž damage', cost: 'free' })
       const combo = (await add(bob, c, { kind: 'combo', title: 'Burst', steps: ['Hex', 'Attack 2x', 'Flurry'], expectedDamage: '~53', cost: 'ki:1', highlight: true })).body.tactic

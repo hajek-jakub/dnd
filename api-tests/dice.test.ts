@@ -179,6 +179,6 @@ describe('kostky', () => {
         if (last === 429) break
       }
       expect(last).toBe(429)
-    })
+    }, 90_000) // 65 požadavků za sebou; při paralelním běhu ostatních souborů server odpovídá pomalu
   })
 })

@@ -137,7 +137,7 @@ test('kombo hodí všemi kostkami: Maximální burst = 4 zásahy a 4 zranění, 
   await page.getByRole('button', { name: 'Taktiky', exact: true }).click()
 
   const burst = card(page, 'Maximální burst')
-  await expect(burst).toContainText('Provede: 2× Démonické kopí (hlavní), Flurry of Blows')
+  await expect(burst).toContainText('Provede: 2× Démonické kopí (hlavní), 2× Flurry of Blows')
   await burst.getByRole('button', { name: /^Použít Maximální burst/ }).click()
   const results = page.getByRole('dialog', { name: 'Hody: Maximální burst' })
   await expect(results.getByTestId('batch-row')).toHaveCount(4)
@@ -178,7 +178,7 @@ test('střelba z kuše ubírá šípy, bez šípů je útok vypnutý; spotřebov
 
   // v inventáři má spotřebovatelný item tlačítko Použít
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  const torch = page.getByRole('listitem').filter({ hasText: 'Torch' }).first()
+  const torch = page.getByRole('listitem').filter({ hasText: /^Torch/ }).first()
   await torch.getByText('Podrobnosti').click()
   await torch.getByRole('button', { name: /^Použít Torch/ }).click()
   await expect(torch).toContainText('×7')

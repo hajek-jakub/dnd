@@ -164,7 +164,7 @@ final class Items
             $out['kind'] = $in['kind'];
         }
         if ($has('quantity')) {
-            $q = Input::optionalInt($in, 'quantity', 0, 9999, 'Množství'); // 0 = spotřebovaný item (došly šípy), zůstane v seznamu
+            $q = Input::optionalInt($in, 'quantity', $create ? 1 : 0, 9999, 'Množství'); // úprava smí zadat 0 = spotřebovaný item (došly šípy), zůstane v seznamu
             if ($q === null) {
                 throw HttpError::validation('Množství je povinné.', 'quantity');
             }

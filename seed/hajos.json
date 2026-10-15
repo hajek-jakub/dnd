@@ -146,11 +146,6 @@
       "qty": 1
     },
     {
-      "item": "Crossbow bolt",
-      "qty": 20,
-      "consumable": true
-    },
-    {
       "item": "Demonic Spear",
       "qty": 1,
       "equipped": true,
@@ -206,6 +201,11 @@
     {
       "item": "Component pouch",
       "qty": 1
+    },
+    {
+      "item": "Crossbow bolt",
+      "qty": 20,
+      "consumable": true
     }
   ],
   "currency": {
@@ -499,7 +499,8 @@
             "count": 2
           },
           {
-            "title": "Flurry of Blows"
+            "title": "Flurry of Blows",
+            "count": 2
           }
         ]
       },
