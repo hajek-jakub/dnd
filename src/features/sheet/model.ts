@@ -103,6 +103,8 @@ export function applyOps(
             ? { ...s, deathSuccesses: clamp(s.deathSuccesses + op.delta, 0, 3) }
             : { ...s, deathFailures: clamp(s.deathFailures + op.delta, 0, 3) }
         break
+      case 'item':
+        break // množství itemů se mění na serveru, klient po odpovědi načte postavu znovu
       case 'inspiration':
         inspiration = op.set
         break

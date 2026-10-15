@@ -98,17 +98,25 @@ test('Hajoš: seedované taktiky, klíčová čísla a štítky cen', async ({ p
   }
 })
 
-test('cena: Použít odečte ki a slot, bez zdrojů je štítek neaktivní', async ({ page }) => {
-  await openTactics(page, 'tactcost')
+test('cena: Použít odečte ki a slot a hodí všechny útoky, bez zdrojů je štítek neaktivní', async ({ page }) => {
+  const id = await openTactics(page, 'tactcost')
   const flurry = card(page, 'Flurry of Blows')
   const flurryUse = flurry.getByRole('button', { name: /^Použít Flurry of Blows/ })
+  const results = page.getByRole('dialog', { name: 'Hody: Flurry of Blows' })
 
+  // jedno použití = ki −1 a 2 údery, každý s hodem na zásah i zranění
   await flurryUse.click()
+  await expect(results.getByTestId('batch-row')).toHaveCount(2)
+  await expect(results.getByTestId('batch-hit')).toHaveCount(2)
+  await expect(results.getByTestId('batch-damage')).toHaveCount(2)
+  await page.keyboard.press('Escape')
   await expect(stat(page, 'Ki')).toHaveText('4/5')
-  for (let i = 0; i < 4; i++) await flurryUse.click({ trial: false }).catch(() => undefined)
-  await expect(stat(page, 'Ki')).toHaveText('0/5')
 
-  // ki došlo: štítky ki jsou neaktivní a tlačítka vypnutá, ostatní ceny to nemění
+  // zbylé ki se vyčerpá přes API; štítky ki jsou pak neaktivní a tlačítka vypnutá, ostatní ceny to nemění
+  await page.request.post(`/api/characters/${id}/adjust`, { data: { ops: [{ op: 'resource', key: 'monk.ki', delta: -4, max: 5 }] } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Taktiky', exact: true }).click()
+  await expect(stat(page, 'Ki')).toHaveText('0/5')
   await expect(flurry.locator('[data-cost="ki"]')).toHaveAttribute('data-available', 'false')
   await expect(flurryUse).toBeDisabled()
   await expect(card(page, 'Hex').locator('[data-cost="slot"]')).toHaveAttribute('data-available', 'true')
@@ -120,6 +128,60 @@ test('cena: Použít odečte ki a slot, bez zdrojů je štítek neaktivní', asy
   await expect(card(page, 'Armor of Agathys').locator('[data-cost="slot"]')).toHaveAttribute('data-available', 'false')
   await expect(card(page, 'Hex').getByRole('button', { name: /^Použít Hex/ })).toBeDisabled()
   expect(await problems(page)).toEqual([])
+})
+
+test('kombo hodí všemi kostkami: Maximální burst = 4 zásahy a 4 zranění, ki se odečte a hody jsou v logu', async ({ page }) => {
+  const id = await openTactics(page, 'tactburst')
+  await page.request.post(`/api/characters/${id}/adjust`, { data: { ops: [{ op: 'concentration', set: 'Hex' }] } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Taktiky', exact: true }).click()
+
+  const burst = card(page, 'Maximální burst')
+  await expect(burst).toContainText('Provede: 2× Démonické kopí (hlavní), Flurry of Blows')
+  await burst.getByRole('button', { name: /^Použít Maximální burst/ }).click()
+  const results = page.getByRole('dialog', { name: 'Hody: Maximální burst' })
+  await expect(results.getByTestId('batch-row')).toHaveCount(4)
+  await expect(results.getByTestId('batch-hit')).toHaveCount(4)
+  await expect(results.getByTestId('batch-damage')).toHaveCount(4)
+  await expect(results.getByTestId('batch-total')).not.toHaveText('0')
+  await page.keyboard.press('Escape')
+  await expect(stat(page, 'Ki')).toHaveText('4/5')
+
+  // všech 8 hodů je ve sdíleném logu (výraz zranění má Hex +1d6, protože se soustředí na Hex)
+  const rolls = (await (await page.request.get(`/api/campaigns/${(await (await page.request.get(`/api/characters/${id}`)).json()).character.campaignId}/rolls`)).json()).rolls as { label: string; expression: string }[]
+  expect(rolls.filter((r) => r.label.includes('Démonické kopí') || r.label.includes('Flurry')).length).toBe(8)
+  expect(rolls.some((r) => /1d8\+5\+1d4\+1d6/.test(r.expression))).toBe(true)
+})
+
+test('střelba z kuše ubírá šípy, bez šípů je útok vypnutý; spotřebovatelné itemy mají Použít', async ({ page }) => {
+  const id = await openTactics(page, 'tactammo')
+  const crossbow = card(page, 'Kuše')
+  await expect(crossbow.getByTestId('ammo-badge')).toContainText('Crossbow bolt: 20 ks')
+  await crossbow.getByRole('button', { name: /^Použít Kuše/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Hody: Kuše' }).getByTestId('batch-row')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(crossbow.getByTestId('ammo-badge')).toContainText('Crossbow bolt: 19 ks')
+
+  // šipky: Extra Attack = 2 hody a 2 šipky
+  await card(page, 'Šipka (dart)').getByRole('button', { name: /^Použít Šipka/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Hody: Šipka (dart)' }).getByTestId('batch-row')).toHaveCount(2)
+  await page.keyboard.press('Escape')
+  await expect(card(page, 'Šipka (dart)').getByTestId('ammo-badge')).toContainText('Dart: 7 ks')
+
+  // došly šípy
+  const bolts = (await (await page.request.get(`/api/characters/${id}`)).json()).character.items.find((i: { name: string }) => i.name === 'Crossbow bolt')
+  await page.request.post(`/api/characters/${id}/adjust`, { data: { ops: [{ op: 'item', itemId: bolts.id, delta: -19 }] } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Taktiky', exact: true }).click()
+  await expect(card(page, 'Kuše').getByTestId('ammo-badge')).toContainText('Crossbow bolt: 0 ks')
+  await expect(card(page, 'Kuše').getByRole('button', { name: /^Použít Kuše/ })).toBeDisabled()
+
+  // v inventáři má spotřebovatelný item tlačítko Použít
+  await page.getByRole('button', { name: 'Inventář', exact: true }).click()
+  const torch = page.getByRole('listitem').filter({ hasText: 'Torch' }).first()
+  await torch.getByText('Podrobnosti').click()
+  await torch.getByRole('button', { name: /^Použít Torch/ }).click()
+  await expect(torch).toContainText('×7')
 })
 
 test('hody z taktik ukážou kostky, s Hexem přibude 1d6', async ({ page }) => {

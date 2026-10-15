@@ -34,6 +34,7 @@ final class TacticsController
         $in = $req->json();
         $kind = is_string($in['kind'] ?? null) ? $in['kind'] : '';
         $n = Tactics::normalize($kind, $in);
+        Tactics::checkRefs((string) $char['id'], $n['data']);
         $id = Ids::uuid();
         Db::transaction(static function () use ($char, $id, $kind, $n): void {
             // Zámek postavy: souběžné přidání nesmí překročit limit ani vyrobit stejné pořadí.
@@ -58,6 +59,7 @@ final class TacticsController
         $existing = json_decode((string) $row['data'], true);
         $merged = array_merge(is_array($existing) ? $existing : [], ['title' => $row['title']], $req->json());
         $n = Tactics::normalize((string) $row['kind'], $merged);
+        Tactics::checkRefs((string) $row['character_id'], $n['data']);
         Db::exec(
             'UPDATE character_tactics SET title = ?, data = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
             [$n['title'], json_encode($n['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $row['id']],

@@ -72,6 +72,97 @@ final class DiceController
         return Response::json(['roll' => self::one($id)], 201);
     }
 
+    /**
+     * Série útoků najednou (taktiky: 2× kopí + Flurry = 4 útoky a 4 zranění). Každý útok má hod na zásah a hod zranění;
+     * přirozená 20 na zásah hodí zranění jako kritické. Výhoda a nevýhoda platí jen pro hod na zásah. Všechny hody jdou do
+     * sdíleného logu jako běžné hody (skryté vidí jen ten, kdo hodil, a DM). Max 24 útoků najednou.
+     * @param array{id:string} $user
+     */
+    public static function batch(Request $req, array $params, array $user): Response
+    {
+        $role = Access::requireMember($user, $params['id']);
+        RateLimiter::hit('roll:' . $user['id'], 60, 60);
+        $data = $req->json();
+        $mode = $data['mode'] ?? 'normal';
+        if (!is_string($mode) || !in_array($mode, self::MODES, true)) {
+            throw HttpError::validation("Režim musí být 'normal', 'advantage' nebo 'disadvantage'.", 'mode');
+        }
+        if (array_key_exists('hidden', $data) && !is_bool($data['hidden'])) {
+            throw HttpError::validation('hidden musí být true/false.', 'hidden');
+        }
+        $hidden = ($data['hidden'] ?? false) === true;
+        $attacks = $data['attacks'] ?? null;
+        if (!is_array($attacks) || $attacks === [] || count($attacks) > 24) {
+            throw HttpError::validation('Pošli 1 až 24 útoků v poli attacks.', 'attacks');
+        }
+
+        $characterId = null;
+        if (array_key_exists('characterId', $data) && $data['characterId'] !== null) {
+            $cid = is_string($data['characterId']) ? $data['characterId'] : '';
+            $char = Ids::isUuid($cid) ? Db::one('SELECT id, owner_id FROM characters WHERE id = ? AND campaign_id = ?', [$cid, $params['id']]) : null;
+            if ($char === null) {
+                throw HttpError::validation('Postava není z této kampaně.', 'characterId');
+            }
+            if ($char['owner_id'] !== $user['id'] && $role !== 'dm') {
+                throw HttpError::forbidden('Za cizí postavu nemůžeš hodit.');
+            }
+            $characterId = (string) $char['id'];
+        }
+
+        // Nejdřív se vše zvaliduje, teprve potom se hází, ať se při chybě nezapíše půlka série.
+        $plan = [];
+        foreach (array_values($attacks) as $a) {
+            if (!is_array($a)) {
+                throw HttpError::validation('Neplatný útok.', 'attacks');
+            }
+            $label = Input::optionalString($a, 'label', 80, 'Popisek') ?? '';
+            $hit = is_string($a['toHit'] ?? null) && $a['toHit'] !== '' ? Dice::parse($a['toHit']) : null;
+            $dmg = is_string($a['damage'] ?? null) && $a['damage'] !== '' ? Dice::parse($a['damage']) : null;
+            if ($hit === null && $dmg === null) {
+                throw HttpError::validation('Útok potřebuje hod na zásah nebo zranění.', 'attacks');
+            }
+            $plan[] = [$label, $hit, $dmg];
+        }
+
+        $results = Db::transaction(static function () use ($plan, $params, $user, $characterId, $mode, $hidden): array {
+            $out = [];
+            foreach ($plan as [$label, $hit, $dmg]) {
+                $hitRoll = null;
+                $crit = false;
+                if ($hit !== null) {
+                    $rolled = Dice::rollWithMode($hit, $mode, false);
+                    $crit = $rolled['natural'] === 20;
+                    $hitRoll = self::insertRoll($params['id'], $user['id'], $characterId, $label . ' (útok)', $hit, $mode, false, $hidden, $rolled);
+                }
+                $dmgRoll = null;
+                if ($dmg !== null) {
+                    $rolled = Dice::rollWithMode($dmg, 'normal', $crit);
+                    $dmgRoll = self::insertRoll($params['id'], $user['id'], $characterId, $label . ($crit ? ' (zranění, kritický zásah)' : ' (zranění)'), $dmg, 'normal', $crit, $hidden, $rolled);
+                }
+                $out[] = ['label' => $label, 'crit' => $crit, 'hit' => $hitRoll === null ? null : self::one($hitRoll), 'damage' => $dmgRoll === null ? null : self::one($dmgRoll)];
+            }
+            return $out;
+        });
+        return Response::json(['results' => $results], 201);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $terms
+     * @param array{attempts: list<array<string, mixed>>, chosen: int, total: int, natural: int|null} $rolled
+     */
+    private static function insertRoll(string $campaignId, string $userId, ?string $characterId, string $label, array $terms, string $mode, bool $crit, bool $hidden, array $rolled): int
+    {
+        Db::exec(
+            'INSERT INTO dice_rolls (campaign_id, user_id, character_id, label, expression, mode, crit, hidden, total, result, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())',
+            [
+                $campaignId, $userId, $characterId, $label, Dice::canonical($terms), $mode, $crit ? 1 : 0, $hidden ? 1 : 0, $rolled['total'],
+                json_encode(['attempts' => $rolled['attempts'], 'chosen' => $rolled['chosen'], 'natural' => $rolled['natural']], JSON_THROW_ON_ERROR),
+            ],
+        );
+        return (int) Db::pdo()->lastInsertId();
+    }
+
     /** Posledních 50 hodů, které uživatel smí vidět; s `after` jen novější. @param array{id:string} $user */
     public static function index(Request $req, array $params, array $user): array
     {

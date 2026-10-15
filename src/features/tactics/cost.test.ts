@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ComputedSheet } from '@/engine'
-import { availability, formatCost, parseCost, slotsLeft, spendOps } from './cost'
+import { availability, formatCost, parseCost, planSpend, slotsLeft, spendOps } from './cost'
 
 function sheet(over: { ki?: number; pact?: { count: number; level: number; used: number } | null; slots?: { level: number; max: number; used: number }[] }): ComputedSheet {
   return {
@@ -56,5 +56,24 @@ describe('spendOps', () => {
   })
   it('zdarma nic neodečítá', () => {
     expect(spendOps({ type: 'free' }, sheet({ ki: 5 }))).toBeNull()
+  })
+})
+
+describe('planSpend (víc cen najednou)', () => {
+  it('ki se sčítá a sloty se platí jeden po druhém', () => {
+    const s = sheet({ ki: 3, pact: { count: 1, level: 1, used: 0 }, slots: [{ level: 1, max: 1, used: 0 }] })
+    const plan = planSpend([{ type: 'ki', n: 1 }, { type: 'ki', n: 1 }, { type: 'slot', n: 1 }, { type: 'slot', n: 1 }], s)
+    expect(plan.ok).toBe(true)
+    expect(plan.ops).toEqual([
+      { op: 'resource', key: 'monk.ki', delta: -2, max: 5 },
+      { op: 'pact', delta: 1, max: 1 },
+      { op: 'slot', level: 1, delta: 1, max: 1 },
+    ])
+  })
+  it('nezaplatí nic, když cokoli nestačí', () => {
+    const s = sheet({ ki: 1, pact: { count: 1, level: 1, used: 0 } })
+    expect(planSpend([{ type: 'ki', n: 2 }], s)).toMatchObject({ ok: false, ops: [] })
+    expect(planSpend([{ type: 'slot', n: 1 }, { type: 'slot', n: 1 }], s)).toMatchObject({ ok: false, ops: [] })
+    expect(planSpend([], s)).toEqual({ ok: true, detail: 'bez ceny', ops: [] })
   })
 })

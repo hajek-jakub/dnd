@@ -9,7 +9,8 @@ import { riderFor } from '@/features/sheet/riders'
 import { useSheet } from '@/features/sheet/sheet-context'
 import { useDeleteTactic, useReorderTactics, useTactics } from './api'
 import { kiState } from './cost'
-import { AttackCard, ComboCard, KiCard, PassiveCard, RuleCard, SpellCard, type EditControls } from './TacticCards'
+import { BatchResultDialog, type BatchOutcome } from './BatchResultDialog'
+import { AttackCard, ComboCard, KiCard, PassiveCard, RuleCard, SpellCard, type EditControls, type RunContext } from './TacticCards'
 import { TacticForm } from './TacticForm'
 import { KIND_LABELS, type Tactic, type TacticKind } from './types'
 
@@ -31,6 +32,7 @@ export function TacticsTab() {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<{ kind: TacticKind; tactic?: Tactic } | null>(null)
   const [riderOn, setRiderOn] = useState(true)
+  const [outcome, setOutcome] = useState<BatchOutcome | null>(null)
   const rider = riderFor(character.state.concentration)
 
   const byKind = useMemo(() => {
@@ -58,19 +60,20 @@ export function TacticsTab() {
     },
   })
 
+  const ctx: RunContext = { all: data ?? [], rider: rider && riderOn ? rider : null, onResults: setOutcome }
   const render = (t: Tactic, list: Tactic[], i: number) => {
     const controls = controlsFor(t, list, i)
     switch (t.kind) {
       case 'attack':
-        return <AttackCard key={t.id} tactic={t} rider={rider && riderOn ? rider : null} controls={controls} />
+        return <AttackCard key={t.id} tactic={t} rider={ctx.rider} ctx={ctx} controls={controls} />
       case 'spell':
-        return <SpellCard key={t.id} tactic={t} controls={controls} />
+        return <SpellCard key={t.id} tactic={t} ctx={ctx} controls={controls} />
       case 'ki':
-        return <KiCard key={t.id} tactic={t} controls={controls} />
+        return <KiCard key={t.id} tactic={t} ctx={ctx} controls={controls} />
       case 'passive':
-        return <PassiveCard key={t.id} tactic={t} controls={controls} />
+        return <PassiveCard key={t.id} tactic={t} ctx={ctx} controls={controls} />
       case 'combo':
-        return <ComboCard key={t.id} tactic={t} controls={controls} />
+        return <ComboCard key={t.id} tactic={t} ctx={ctx} controls={controls} />
       case 'rule':
         return <RuleCard key={t.id} tactic={t} controls={controls} />
     }
@@ -124,7 +127,8 @@ export function TacticsTab() {
         )
       })}
 
-      {form && <TacticForm characterId={character.id} kind={form.kind} tactic={form.tactic} onClose={() => setForm(null)} />}
+      {form && <TacticForm characterId={character.id} kind={form.kind} tactic={form.tactic} all={data ?? []} items={character.items} onClose={() => setForm(null)} />}
+      <BatchResultDialog outcome={outcome} onClose={() => setOutcome(null)} />
     </div>
   )
 }

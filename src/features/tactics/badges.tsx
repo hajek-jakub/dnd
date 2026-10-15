@@ -43,6 +43,10 @@ export function CostBadge({ cost }: { cost: string }) {
   )
 }
 
-export function Badge({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn(BASE, 'border-border text-muted-foreground', className)}>{children}</span>
+export function Badge({ children, className, 'data-testid': testId }: { children: React.ReactNode; className?: string; 'data-testid'?: string }) {
+  return (
+    <span className={cn(BASE, 'border-border text-muted-foreground', className)} data-testid={testId}>
+      {children}
+    </span>
+  )
 }

@@ -4,10 +4,15 @@ import { Button } from '@/components/ui/button'
 import { RollButton } from '@/features/dice/RollButton'
 import { useSheet } from '@/features/sheet/sheet-context'
 import type { DamageRider } from '@/features/sheet/riders'
+import type { AdjustOp } from '@/features/sheet/types'
 import { cn } from '@/lib/utils'
+import { useBatchRoll, type BatchResult } from '@/features/dice/api'
+import { useRollSettings } from '@/features/dice/roll-settings-context'
 import { ActionBadge, Badge, CostBadge } from './badges'
-import { availability, formatCost, parseCost, spendOps } from './cost'
+import type { BatchOutcome } from './BatchResultDialog'
+import { formatCost, planSpend, stringifyCost } from './cost'
 import { rollFor, toHitRoll } from './damage'
+import { planRun } from './run'
 import type { Tactic } from './types'
 
 export interface EditControls {
@@ -58,26 +63,76 @@ function Shell({ tactic, badges, highlight, children, actions, controls }: { tac
   )
 }
 
-/** "Použít" odečte cenu (ki nebo slot) ze stavu postavy. Hod kostkou nic neodečítá, tlačítko je volitelné. */
-function UseButton({ title, cost }: { title: string; cost: string }) {
-  const { sheet, canEdit, adjust } = useSheet()
-  const parsed = parseCost(cost)
-  if (!canEdit || parsed.type === 'free') return null
-  const avail = availability(parsed, sheet)
+/** Co potřebuje tlačítko Použít vědět o okolí: všechny taktiky postavy (kombo odkazuje na jiné), Hex a kam poslat výsledky. */
+export interface RunContext {
+  all: Tactic[]
+  rider: DamageRider | null
+  onResults: (outcome: BatchOutcome) => void
+}
+
+/**
+ * „Použít“ zaplatí cenu (ki, spell slot, munice) a rovnou hodí všechny útoky položky: každý má hod na zásah a zranění,
+ * např. 2× kopí + Flurry = 4 zásahy a 4 zranění najednou. Bez hodů (Patient Defense, Command) jen odečte cenu.
+ */
+function RunButton({ tactic, ctx }: { tactic: Tactic; ctx: RunContext }) {
+  const { sheet, character, canEdit, adjust } = useSheet()
+  const settings = useRollSettings()
+  const batch = useBatchRoll(character.campaignId)
+  if (!canEdit) return null
+  const plan = planRun(tactic, ctx.all, character.items, ctx.rider)
+  if (plan.attacks.length === 0 && plan.costs.length === 0 && plan.blocked === null) return null
+  const spend = planSpend(plan.costs, sheet)
+  const rolling = plan.attacks.length > 0
+  const blocked = plan.blocked !== null && !rolling
+  const ok = spend.ok && !blocked
+  const reason = !spend.ok ? spend.detail : blocked ? (plan.blocked ?? '') : ''
+  const paid = [
+    ...plan.costs.map((c) => formatCost(stringifyCost(c))),
+    ...plan.ammo.map((a) => `${a.shots}× ${a.name}`),
+  ].join(', ')
+
+  function run() {
+    if (!ok) return
+    const ops: AdjustOp[] = [...spend.ops, ...plan.ammo.map((a) => ({ op: 'item' as const, itemId: a.itemId, delta: -a.shots }))]
+    if (plan.concentration !== null) ops.push({ op: 'concentration', set: plan.concentration })
+    if (ops.length > 0) adjust(ops)
+    for (const w of plan.warnings) toast.warning(w)
+    if (!rolling) {
+      toast.success(`${tactic.title}: odečteno ${paid}`)
+      return
+    }
+    batch.mutate(
+      { attacks: plan.attacks, mode: settings.mode, hidden: settings.hidden, characterId: character.id },
+      {
+        onSuccess: (results: BatchResult[]) => ctx.onResults({ title: tactic.title, results, hidden: settings.hidden, paid }),
+        onError: (e) => toast.error(e instanceof Error ? e.message : 'Hody se nepodařily.'),
+      },
+    )
+  }
+
   return (
     <Button
-      variant="outline"
-      disabled={!avail.ok}
-      aria-label={`Použít ${title}: zaplatit ${formatCost(cost)} (${avail.detail})`}
-      onClick={() => {
-        const ops = spendOps(parsed, sheet)
-        if (!ops) return
-        adjust(ops)
-        toast.success(`${title}: odečteno ${formatCost(cost)}`)
-      }}
+      variant={rolling ? 'default' : 'outline'}
+      disabled={!ok || batch.isPending}
+      title={reason || undefined}
+      aria-label={`Použít ${tactic.title}${rolling ? `: ${plan.attacks.length}× hod` : ''}${paid ? `, platí se ${paid}` : ''}${reason ? ` (${reason})` : ''}`}
+      onClick={run}
     >
-      <ZapIcon aria-hidden /> Použít
+      <ZapIcon aria-hidden /> {rolling ? `Použít a hodit${plan.attacks.length > 1 ? ` (${plan.attacks.length}×)` : ''}` : 'Použít'}
     </Button>
+  )
+}
+
+/** Zbývající munice u útoku: kolik kusů itemu ještě je (po vyčerpání přeškrtnuto). */
+function AmmoBadge({ itemId }: { itemId: string }) {
+  const { character } = useSheet()
+  if (!itemId) return null
+  const item = character.items.find((i) => i.id === itemId)
+  if (!item) return <Badge className="border-dashed line-through">munice chybí</Badge>
+  return (
+    <Badge className={item.quantity < 1 ? 'border-dashed bg-muted line-through' : 'text-foreground'} data-testid="ammo-badge">
+      {item.name}: {item.quantity} ks
+    </Badge>
   )
 }
 
@@ -89,7 +144,7 @@ const Field = ({ label, value }: { label: string; value: string }) =>
     </p>
   ) : null
 
-export function AttackCard({ tactic, rider, controls }: { tactic: Extract<Tactic, { kind: 'attack' }>; rider: DamageRider | null; controls: EditControls }) {
+export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<Tactic, { kind: 'attack' }>; rider: DamageRider | null; ctx: RunContext; controls: EditControls }) {
   const d = tactic.data
   const hit = toHitRoll(d.toHit)
   const base = rollFor(d)
@@ -104,6 +159,8 @@ export function AttackCard({ tactic, rider, controls }: { tactic: Extract<Tactic
         <>
           <ActionBadge type={d.actionType} />
           <CostBadge cost={d.cost} />
+          {(d.count ?? 1) > 1 && <Badge className="text-foreground">{d.count}× útok</Badge>}
+          <AmmoBadge itemId={d.ammo} />
         </>
       }
       actions={
@@ -111,7 +168,7 @@ export function AttackCard({ tactic, rider, controls }: { tactic: Extract<Tactic
           {hit && <RollButton label={`${tactic.title}: útok`} expression={hit} text="Útok" />}
           {dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} text="Zranění" />}
           {dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} crit text="Krit" />}
-          <UseButton title={tactic.title} cost={d.cost} />
+          <RunButton tactic={tactic} ctx={ctx} />
         </>
       }
     >
@@ -126,7 +183,7 @@ export function AttackCard({ tactic, rider, controls }: { tactic: Extract<Tactic
   )
 }
 
-export function SpellCard({ tactic, controls }: { tactic: Extract<Tactic, { kind: 'spell' }>; controls: EditControls }) {
+export function SpellCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, { kind: 'spell' }>; ctx: RunContext; controls: EditControls }) {
   const d = tactic.data
   const dmg = d.roll ? rollFor({ roll: d.roll }) : null
   return (
@@ -136,6 +193,7 @@ export function SpellCard({ tactic, controls }: { tactic: Extract<Tactic, { kind
       badges={
         <>
           <Badge>{d.level === 0 ? 'Cantrip' : `${d.level}. úroveň`}</Badge>
+          {(d.count ?? 1) > 1 && <Badge className="text-foreground">{d.count}× útok</Badge>}
           <ActionBadge type={d.actionType} />
           {d.concentration && <Badge>Soustředění</Badge>}
           <CostBadge cost={d.cost} />
@@ -145,11 +203,12 @@ export function SpellCard({ tactic, controls }: { tactic: Extract<Tactic, { kind
         <>
           {dmg && <RollButton label={`${tactic.title}: zranění`} expression={dmg} text="Zranění" />}
           {dmg && <RollButton label={`${tactic.title}: zranění`} expression={dmg} crit text="Krit" />}
-          <UseButton title={tactic.title} cost={d.cost} />
+          <RunButton tactic={tactic} ctx={ctx} />
         </>
       }
     >
       <div className="space-y-0.5">
+        <Field label="Útok" value={d.toHit ?? ''} />
         <Field label="Dosah" value={d.range} />
         <Field label="Trvání" value={d.duration} />
         <Field label="Záchranný hod" value={d.save} />
@@ -159,7 +218,7 @@ export function SpellCard({ tactic, controls }: { tactic: Extract<Tactic, { kind
   )
 }
 
-export function KiCard({ tactic, controls }: { tactic: Extract<Tactic, { kind: 'ki' }>; controls: EditControls }) {
+export function KiCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, { kind: 'ki' }>; ctx: RunContext; controls: EditControls }) {
   const d = tactic.data
   return (
     <Shell
@@ -169,16 +228,19 @@ export function KiCard({ tactic, controls }: { tactic: Extract<Tactic, { kind: '
         <>
           <ActionBadge type={d.actionType} />
           <CostBadge cost={d.cost} />
+          {(d.count ?? 1) > 1 && <Badge className="text-foreground">{d.count}× útok</Badge>}
         </>
       }
-      actions={<UseButton title={tactic.title} cost={d.cost} />}
+      actions={<RunButton tactic={tactic} ctx={ctx} />}
     >
+      <Field label="Útok" value={d.toHit ?? ''} />
+      <Field label="Zranění" value={d.damage ?? ''} />
       {d.description && <p className="text-sm text-muted-foreground">{d.description}</p>}
     </Shell>
   )
 }
 
-export function PassiveCard({ tactic, controls }: { tactic: Extract<Tactic, { kind: 'passive' }>; controls: EditControls }) {
+export function PassiveCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, { kind: 'passive' }>; ctx: RunContext; controls: EditControls }) {
   const d = tactic.data
   return (
     <Shell
@@ -190,14 +252,14 @@ export function PassiveCard({ tactic, controls }: { tactic: Extract<Tactic, { ki
           {d.cost !== 'free' && <CostBadge cost={d.cost} />}
         </>
       }
-      actions={<UseButton title={tactic.title} cost={d.cost} />}
+      actions={<RunButton tactic={tactic} ctx={ctx} />}
     >
       {d.description && <p className="text-sm text-muted-foreground">{d.description}</p>}
     </Shell>
   )
 }
 
-export function ComboCard({ tactic, controls }: { tactic: Extract<Tactic, { kind: 'combo' }>; controls: EditControls }) {
+export function ComboCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, { kind: 'combo' }>; ctx: RunContext; controls: EditControls }) {
   const d = tactic.data
   return (
     <Shell
@@ -211,8 +273,16 @@ export function ComboCard({ tactic, controls }: { tactic: Extract<Tactic, { kind
           <CostBadge cost={d.cost} />
         </>
       }
-      actions={<UseButton title={tactic.title} cost={d.cost} />}
+      actions={<RunButton tactic={tactic} ctx={ctx} />}
     >
+      {(d.uses ?? []).length > 0 && (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Provede: </span>
+          {d.uses
+            .map((u) => `${u.count > 1 ? `${u.count}× ` : ''}${ctx.all.find((x) => x.id === u.id)?.title ?? '(smazáno)'}`)
+            .join(', ')}
+        </p>
+      )}
       {d.steps.length > 0 && (
         <ol className="list-decimal space-y-0.5 pl-5 text-sm">
           {d.steps.map((s, i) => (

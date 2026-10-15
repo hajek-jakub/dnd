@@ -153,11 +153,13 @@ export function useAdjust(id: string) {
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous)
       void queryClient.invalidateQueries({ queryKey: key })
     },
-    onSuccess: (res) => {
+    onSuccess: (res, ops) => {
       // Při rychlém klikání platí jen odpověď poslední změny, ostatní by přepsaly novější lokální stav.
       if (queryClient.isMutating({ mutationKey: ['adjust', id] }) <= 1) {
         queryClient.setQueryData<CharacterFull>(key, (old) => (old ? { ...old, state: res.state, xp: res.xp, inspiration: res.inspiration } : old))
       }
+      // Změna množství itemů (munice) se v odpovědi nevrací, načte se znovu.
+      if (ops.some((o) => o.op === 'item')) void queryClient.invalidateQueries({ queryKey: key })
     },
   })
 }
@@ -239,6 +241,7 @@ export type ItemInput = Partial<
     | 'equipped'
     | 'attuned'
     | 'requiresAttunement'
+    | 'consumable'
     | 'rarity'
     | 'effects'
     | 'notes'

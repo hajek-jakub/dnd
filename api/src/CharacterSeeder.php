@@ -27,9 +27,9 @@ final class CharacterSeeder
     public const TEST_CAMPAIGN_NAME = 'Testovací kampaň (seed)';
 
     private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'tactics', 'openQuestions'];
-    private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'xp', 'notes'];
+    private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'xp', 'notes', 'description'];
     private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
-    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'description', 'note'];
+    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'consumable', 'description', 'note'];
     private const ALIASES = ['light crossbow' => 'Crossbow, light', 'heavy crossbow' => 'Crossbow, heavy', 'hand crossbow' => 'Crossbow, hand'];
     /** Základ homebrew zbraní, které nejsou v SRD a papír k nim neříká víc než název. Co je odhad, dostane TO_CONFIRM v poznámce. */
     private const HOMEBREW_DEFAULTS = [
@@ -92,6 +92,9 @@ final class CharacterSeeder
             $itemId = InventoryController::createItem($char, $user, $input);
             if ($item['equipped']) {
                 Db::exec('UPDATE character_items SET equipped = 1 WHERE id = ?', [$itemId]);
+            }
+            if ($item['consumable']) {
+                Db::exec('UPDATE character_items SET consumable = 1 WHERE id = ?', [$itemId]);
             }
             if ($item['attuned']) {
                 // attunement má smysl jen u itemu, který ho vyžaduje
@@ -412,7 +415,7 @@ final class CharacterSeeder
                         $weapon['versatileDice'] = null; // oběma rukama už není nic navíc
                     }
                 }
-                $body = ['kind' => 'weapon', 'name' => $itemName, 'description' => ''] + $weapon;
+                $body = ['kind' => 'weapon', 'name' => $itemName, 'description' => is_string($entry['description'] ?? null) ? $entry['description'] : ''] + $weapon;
                 if (($entry['attunement'] ?? null) === true) {
                     $body['attunement'] = true;
                 }
@@ -445,11 +448,12 @@ final class CharacterSeeder
                 }
                 $ruleId = (string) $rule['id'];
             }
-            $items[] = ['qty' => $qty, 'equipped' => $equipped, 'attuned' => ($entry['attunement'] ?? null) === true, 'ruleId' => $ruleId, 'ruleKey' => $ruleKey, 'notes' => implode("\n", $itemNotes)];
+            $items[] = ['qty' => $qty, 'equipped' => $equipped, 'attuned' => ($entry['attunement'] ?? null) === true, 'consumable' => ($entry['consumable'] ?? null) === true, 'ruleId' => $ruleId, 'ruleKey' => $ruleKey, 'notes' => implode("\n", $itemNotes)];
         }
 
         // taktiky (combat cheat sheet): validuje stejný kód jako API, takže seed nemůže uložit nic, co by UI neumělo upravit
-        $tactics = self::tacticsFrom($seed, $fail);
+        $inventoryNames = array_map(static fn (array $e): string => strtolower((string) ($e['item'] ?? '')), array_filter(is_array($seed['inventory'] ?? null) ? $seed['inventory'] : [], 'is_array'));
+        $tactics = self::tacticsFrom($seed, $fail, $inventoryNames);
 
         // peníze (poslední zbylé TO_CONFIRM z openQuestions se do poznámek nepřenáší, jen vypíše)
         try {
@@ -478,6 +482,7 @@ final class CharacterSeeder
                 'race' => (string) ($char['race'] ?? ''),
                 'background' => (string) ($char['background'] ?? ''),
                 'alignment' => (string) ($char['alignment'] ?? ''),
+                'description' => (string) ($char['description'] ?? ''),
                 'xp' => is_int($xp) ? $xp : null,
                 'notes' => implode("\n", $notes),
                 'abilityScores' => $scores,
@@ -539,7 +544,7 @@ final class CharacterSeeder
      * @param callable(string): void $fail
      * @return list<array{kind: string, title: string, data: array<string, mixed>}>
      */
-    private static function tacticsFrom(array $seed, callable $fail): array
+    private static function tacticsFrom(array $seed, callable $fail, ?array $inventoryNames = null): array
     {
         $out = [];
         $block = $seed['tactics'] ?? [];
@@ -555,10 +560,31 @@ final class CharacterSeeder
             }
             foreach ($list as $i => $entry) {
                 try {
-                    $n = Tactics::normalize($kind, is_array($entry) ? $entry : []);
-                    $out[] = ['kind' => $kind, 'title' => $n['title'], 'data' => $n['data']];
+                    $e = is_array($entry) ? $entry : [];
+                    // odkazy podle názvu (id vznikají až při vložení): munice a položky komba
+                    $refs = ['ammoItem' => is_string($e['ammoItem'] ?? null) ? $e['ammoItem'] : null, 'uses' => []];
+                    foreach (is_array($e['uses'] ?? null) ? $e['uses'] : [] as $u) {
+                        if (!is_array($u) || !is_string($u['title'] ?? null)) {
+                            throw HttpError::validation('Položka uses musí mít title.', 'uses');
+                        }
+                        $refs['uses'][] = ['title' => $u['title'], 'count' => is_int($u['count'] ?? null) ? $u['count'] : 1];
+                    }
+                    if ($refs['ammoItem'] !== null && $inventoryNames !== null && !in_array(strtolower($refs['ammoItem']), $inventoryNames, true)) {
+                        throw HttpError::validation("Munice \"{$refs['ammoItem']}\" není v inventáři ze seedu.", 'ammoItem');
+                    }
+                    unset($e['ammoItem'], $e['uses']);
+                    $n = Tactics::normalize($kind, $e);
+                    $out[] = ['kind' => $kind, 'title' => $n['title'], 'data' => $n['data'], 'refs' => $refs];
                 } catch (HttpError $e) {
                     $fail("Taktika $key #" . ($i + 1) . ': ' . $e->getMessage() . ($e->field !== null ? " (pole {$e->field})" : ''));
+                }
+            }
+        }
+        $titles = array_map(static fn (array $t): string => mb_strtolower($t['title']), array_filter($out, static fn (array $t): bool => $t['kind'] !== 'combo'));
+        foreach ($out as $t) {
+            foreach ($t['refs']['uses'] as $u) {
+                if (!in_array(mb_strtolower($u['title']), $titles, true)) {
+                    $fail("Kombo \"{$t['title']}\" odkazuje na neexistující taktiku \"{$u['title']}\".");
                 }
             }
         }

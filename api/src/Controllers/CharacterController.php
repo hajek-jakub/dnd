@@ -33,7 +33,7 @@ final class CharacterController
         $full = array_values(array_filter($rows, static fn (array $r): bool => self::hasFullAccess($r, $user['id'], $role)));
         $sheets = Sheets::loadMany($full);
         return ['characters' => array_map(
-            static fn (array $r): array => self::payload($r, $sheets[(string) $r['id']] ?? null),
+            static fn (array $r): array => self::hideDeathSaves(self::payload($r, $sheets[(string) $r['id']] ?? null), $r, $user['id'], $role),
             $rows,
         )];
     }
@@ -125,7 +125,23 @@ final class CharacterController
         if (!self::hasFullAccess($row, $user['id'], $role)) {
             throw HttpError::forbidden('Tuto postavu vidíš jen v omezeném náhledu.');
         }
-        return ['character' => self::loadFull($params['id'])];
+        return ['character' => self::hideDeathSaves(self::loadFull($params['id']), $row, $user['id'], $role)];
+    }
+
+    /**
+     * Death saves (úspěchy a neúspěchy) vidí jen majitel a DM. Ostatní hráči, kterým DM ukázal celý sheet, je nevidí.
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private static function hideDeathSaves(array $payload, array $row, string $userId, string $role): array
+    {
+        if ($role === 'dm' || $row['owner_id'] === $userId || !isset($payload['state']) || !is_array($payload['state'])) {
+            return $payload;
+        }
+        $payload['state']['deathSuccesses'] = 0;
+        $payload['state']['deathFailures'] = 0;
+        return $payload;
     }
 
     /** @param array{id:string} $user */
@@ -347,6 +363,18 @@ final class CharacterController
                         } else {
                             throw HttpError::validation("Death save musí být 'success' nebo 'failure'.", 'ops');
                         }
+                        break;
+                    case 'item':
+                        // Spotřeba nebo doplnění kusů (šípy, lektvary): množství se drží v mezích 0 až 9999.
+                        $itemId = is_string($op['itemId'] ?? null) ? $op['itemId'] : '';
+                        $qty = Ids::isUuid($itemId) ? Db::value('SELECT quantity FROM character_items WHERE id = ? AND character_id = ? FOR UPDATE', [$itemId, $params['id']]) : null;
+                        if ($qty === null) {
+                            throw HttpError::notFound('Item nenalezen.');
+                        }
+                        Db::exec(
+                            'UPDATE character_items SET quantity = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+                            [max(0, min(9999, (int) $qty + $intField($op, 'delta', -9999, 9999))), $itemId],
+                        );
                         break;
                     case 'inspiration':
                         $insp = ($op['set'] ?? null) === true ? 1 : 0;

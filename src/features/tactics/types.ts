@@ -18,6 +18,10 @@ export interface AttackData {
   note: string
   cost: string
   hex: boolean
+  /** kolik útoků provede jedno použití (Extra Attack = 2) */
+  count: number
+  /** id itemu postavy, kterým se střílí (každý útok ubere 1 kus); '' = nic */
+  ammo: string
 }
 export interface SpellData {
   level: number
@@ -29,11 +33,19 @@ export interface SpellData {
   effect: string
   roll: string
   cost: string
+  /** kouzelný útok, např. d20+6 (Eldritch Blast) */
+  toHit: string
+  count: number
 }
 export interface KiData {
   actionType: ActionType
   cost: string
   description: string
+  toHit: string
+  damage: string
+  roll: string
+  count: number
+  hex: boolean
 }
 export interface PassiveData {
   type: 'passive' | 'reaction'
@@ -46,6 +58,8 @@ export interface ComboData {
   cost: string
   highlight: boolean
   description: string
+  /** co kombo provede: taktiky téže postavy a kolikrát */
+  uses: { id: string; count: number }[]
 }
 export interface RuleData {
   text: string

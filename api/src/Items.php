@@ -71,6 +71,8 @@ final class Items
             'quantity' => 1,
             'weight' => isset($data['weight']) ? (float) $data['weight'] : 0.0,
             'requiresAttunement' => $requires,
+            // munice, lektvary a svitky se používáním spotřebují
+            'consumable' => preg_match('/^(arrow|crossbow bolt|blowgun needle|sling bullet|potion|scroll|oil|elixir|antitoxin|holy water|acid|rations|torch)/i', (string) $rule['name']) === 1,
             'rarity' => in_array($rule['rarity'], self::RARITIES, true) ? $rule['rarity'] : null,
             'stats' => $stats,
             'effects' => $effects,
@@ -162,7 +164,7 @@ final class Items
             $out['kind'] = $in['kind'];
         }
         if ($has('quantity')) {
-            $q = Input::optionalInt($in, 'quantity', 1, 9999, 'Množství');
+            $q = Input::optionalInt($in, 'quantity', 0, 9999, 'Množství'); // 0 = spotřebovaný item (došly šípy), zůstane v seznamu
             if ($q === null) {
                 throw HttpError::validation('Množství je povinné.', 'quantity');
             }
@@ -175,7 +177,7 @@ final class Items
             }
             $out['weight'] = round((float) $w, 2);
         }
-        foreach (['equipped' => 'equipped', 'attuned' => 'attuned', 'requiresAttunement' => 'requires_attunement'] as $key => $column) {
+        foreach (['equipped' => 'equipped', 'attuned' => 'attuned', 'requiresAttunement' => 'requires_attunement', 'consumable' => 'consumable'] as $key => $column) {
             if ($has($key)) {
                 if (!is_bool($in[$key])) {
                     throw HttpError::validation("$key musí být true/false.", $key);
@@ -310,6 +312,7 @@ final class Items
                 'equipped' => (bool) $r['equipped'],
                 'attuned' => (bool) $r['attuned'],
                 'requiresAttunement' => (bool) $r['requires_attunement'],
+                'consumable' => (bool) $r['consumable'],
                 'rarity' => $r['rarity'],
                 'armor' => $stats['armor'] ?? null,
                 'weapon' => $stats['weapon'] ?? null,

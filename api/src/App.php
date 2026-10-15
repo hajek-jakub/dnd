@@ -145,6 +145,7 @@ final class App
 
         // Kostky: hody na serveru a sdílený log kampaně
         $r->add('POST', '/campaigns/{id}/rolls', [DiceController::class, 'roll']);
+        $r->add('POST', '/campaigns/{id}/rolls/batch', [DiceController::class, 'batch']);
         $r->add('GET', '/campaigns/{id}/rolls', [DiceController::class, 'index']);
 
         // Deník kampaně (zápisy podle témat)

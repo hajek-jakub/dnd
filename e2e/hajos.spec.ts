@@ -39,12 +39,11 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
   await expect(page.getByRole('button', { name: /^Proficiency bonus: \+3/ })).toBeVisible()
   await expect(page.getByRole('status', { name: 'Životy: 39 z 39' })).toBeVisible()
 
-  // XP, background a alignment jsou prázdné, UI říká "nedoplněno"
+  // XP a alignment jsou prázdné, UI říká "nedoplněno" (background je Hermit a nic už nečeká na potvrzení)
   await expect(page.getByText('XP nedoplněno')).toBeVisible()
-  await expect(page.getByTestId('missing-info')).toContainText('background, alignment, XP')
-  // co čeká na potvrzení, je vypsané
-  await expect(page.getByText(/Ke ověření \(\d+\)/)).toBeVisible()
-  await expect(page.getByText(/na sheetu „Cross“, předpokládám Light Crossbow/).first()).toBeVisible()
+  await expect(page.getByTestId('missing-info')).toContainText('alignment, XP')
+  await expect(page.getByTestId('missing-info')).not.toContainText('background')
+  await expect(page.getByText(/Ke ověření/)).toHaveCount(0)
 
   // útok Demonic Spear: +8 k útoku, kostka 1d8 a doplňkové zranění 1d4 fire
   const spear = page.getByRole('listitem').filter({ hasText: 'Demonic Spear' }).filter({ hasText: 'k20' })
@@ -53,11 +52,11 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
   await expect(spear.getByRole('button', { name: /bonus k útoku: \+8/ })).toBeVisible()
   await expect(spear.getByRole('button', { name: /bonus ke zranění: \+5/ })).toBeVisible()
 
-  // v inventáři má item s TO_CONFIRM štítek "ke ověření"
+  // v inventáři jsou šípy do kuše (20 ks, spotřebují se) a component pouch
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  const crossbow = page.getByRole('listitem').filter({ hasText: 'Crossbow, light' }).filter({ has: page.getByText('Podrobnosti') }).first()
-  await crossbow.getByText('Podrobnosti').click()
-  await expect(crossbow.getByTestId('unconfirmed').first()).toContainText('ke ověření')
+  const bolts = page.getByRole('listitem').filter({ hasText: 'Crossbow bolt' }).filter({ has: page.getByText('Podrobnosti') }).first()
+  await expect(bolts).toContainText('×20')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Component pouch' }).first()).toBeVisible()
   await expectNoHorizontalScroll(page)
 
   // nedoplněné údaje jde doplnit a upozornění zmizí

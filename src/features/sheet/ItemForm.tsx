@@ -17,6 +17,7 @@ interface FormState {
   quantity: string
   weight: string
   requiresAttunement: boolean
+  consumable: boolean
   rarity: string
   description: string
   notes: string
@@ -41,6 +42,7 @@ function initial(item?: CharacterItem): FormState {
     quantity: String(item?.quantity ?? 1),
     weight: String(item?.weight ?? 0),
     requiresAttunement: item?.requiresAttunement ?? false,
+    consumable: item?.consumable ?? false,
     rarity: item?.rarity ?? '',
     description: item?.description ?? '',
     notes: item?.notes ?? '',
@@ -79,9 +81,10 @@ export function ItemForm({
     const input: ItemInput = {
       name: s.name.trim(),
       kind: s.kind,
-      quantity: Math.max(1, Number.parseInt(s.quantity, 10) || 1),
+      quantity: Number.isFinite(Number.parseInt(s.quantity, 10)) ? Math.max(0, Number.parseInt(s.quantity, 10)) : 1,
       weight: Math.max(0, Number(s.weight.replace(',', '.')) || 0),
       requiresAttunement: s.requiresAttunement,
+      consumable: s.consumable,
       rarity: s.rarity === '' ? null : s.rarity,
       description: s.description,
       notes: s.notes,
@@ -176,6 +179,10 @@ export function ItemForm({
           onChange={(e) => set('requiresAttunement', e.target.checked)}
         />
         <span>Vyžaduje attunement</span>
+      </label>
+      <label className="flex min-h-11 cursor-pointer items-center gap-3">
+        <input type="checkbox" className="size-5 accent-primary" checked={s.consumable} onChange={(e) => set('consumable', e.target.checked)} />
+        <span>Spotřebuje se používáním (šípy, šipky, lektvary, svitky)</span>
       </label>
 
       {(s.kind === 'armor' || s.kind === 'shield') && (

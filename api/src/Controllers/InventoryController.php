@@ -55,12 +55,12 @@ final class InventoryController
         $item = self::merge($base, $given);
         $id = Ids::uuid();
         Db::exec(
-            'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, weight, equipped, attuned, requires_attunement,
+            'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, weight, equipped, attuned, requires_attunement, consumable,
                 rarity, stats, effects, notes, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
             [
                 $id, $char['id'], $item['ruleId'] ?? null, $item['name'], $item['description'], $item['kind'], $item['quantity'], $item['weight'],
-                $item['requires_attunement'], $item['rarity'], Sheets::enc($item['stats']), Sheets::enc($item['effects']), $item['notes'],
+                $item['requires_attunement'], $item['consumable'], $item['rarity'], Sheets::enc($item['stats']), Sheets::enc($item['effects']), $item['notes'],
             ],
         );
         return $id;
@@ -95,7 +95,7 @@ final class InventoryController
 
             $sets = [];
             $values = [];
-            foreach (['name', 'description', 'kind', 'quantity', 'weight', 'equipped', 'attuned', 'requires_attunement', 'rarity', 'notes'] as $column) {
+            foreach (['name', 'description', 'kind', 'quantity', 'weight', 'equipped', 'attuned', 'requires_attunement', 'consumable', 'rarity', 'notes'] as $column) {
                 if (array_key_exists($column, $in)) {
                     $sets[] = "$column = ?";
                     $values[] = $in[$column];
@@ -198,10 +198,10 @@ final class InventoryController
                 } else {
                     Db::exec('UPDATE character_items SET quantity = quantity - ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$qty, $item['id']]);
                     Db::exec(
-                        'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, weight, equipped, attuned, requires_attunement,
+                        'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, weight, equipped, attuned, requires_attunement, consumable,
                             rarity, stats, effects, notes, created_at, updated_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-                        [Ids::uuid(), $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['weight'], $item['requires_attunement'],
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                        [Ids::uuid(), $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['weight'], $item['requires_attunement'], $item['consumable'],
                             $item['rarity'], $item['stats'], $item['effects'], $item['notes']],
                     );
                 }
@@ -416,6 +416,7 @@ final class InventoryController
             'quantity' => $given['quantity'] ?? 1,
             'weight' => $given['weight'] ?? ($base['weight'] ?? 0.0),
             'requires_attunement' => $given['requires_attunement'] ?? (int) ($base['requiresAttunement'] ?? false),
+            'consumable' => $given['consumable'] ?? (int) ($base['consumable'] ?? false),
             'rarity' => array_key_exists('rarity', $given) ? $given['rarity'] : ($base['rarity'] ?? null),
             'stats' => $given['stats'] ?? ($base['stats'] ?? []),
             'effects' => $given['effects'] ?? ($base['effects'] ?? []),

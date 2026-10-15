@@ -4,10 +4,11 @@
   "character": {
     "name": "Hajoš",
     "race": "Human",
-    "background": null,
+    "background": "Hermit",
     "alignment": null,
     "xp": null,
-    "notes": "Na sheetu je pod nadpisem připsáno „Heroic“, význam zatím neznámý."
+    "notes": "Na sheetu je pod nadpisem připsáno „Heroic“, význam zatím neznámý.",
+    "description": "Obalatomi je ze sirotčince v hlavním městě, ale brzy odešel do kláštera v Kupika Desert, ve městě Devreach."
   },
   "classes": [
     {
@@ -52,7 +53,9 @@
     "armor": [
       "Light armor (z multiclassu do warlocka)"
     ],
-    "tools": null
+    "tools": [
+      "Herbalism kit"
+    ]
   },
   "hitPoints": {
     "max": 39,
@@ -121,7 +124,7 @@
       "toHit": 7,
       "damage": "1d8+4",
       "damageType": "piercing",
-      "note": "TO_CONFIRM: na sheetu „Cross“, předpokládám Light Crossbow"
+      "note": "Light crossbow (potvrzeno)"
     },
     {
       "name": "Demonic Spear",
@@ -140,8 +143,12 @@
     },
     {
       "item": "Light Crossbow",
-      "qty": 1,
-      "note": "TO_CONFIRM"
+      "qty": 1
+    },
+    {
+      "item": "Crossbow bolt",
+      "qty": 20,
+      "consumable": true
     },
     {
       "item": "Demonic Spear",
@@ -153,11 +160,12 @@
       "damageDice": "1d8",
       "extraDamage": "1d4 fire",
       "attunement": true,
-      "description": null
+      "description": "Melee weapon (martial), Trident +1. Requires Attunement. Damage 1d6 (1d8 versatile) piercing damage + 1d4 fire damage. Properties: Versatile, Thrown. Range 20/60."
     },
     {
       "item": "Dart",
-      "qty": 9
+      "qty": 9,
+      "consumable": true
     },
     {
       "item": "Backpack",
@@ -194,13 +202,17 @@
     {
       "item": "Blanket",
       "qty": 1
+    },
+    {
+      "item": "Component pouch",
+      "qty": 1
     }
   ],
   "currency": {
     "cp": 6,
     "sp": 9,
     "ep": 0,
-    "gp": 628,
+    "gp": 620,
     "pp": 0
   },
   "sheetValues": {
@@ -260,12 +272,9 @@
     ]
   },
   "openQuestions": [
-    "Background: skilly Medicine + Religion odpovídají Hermitovi. Je to on?",
     "Co znamená „Heroic“ pod nadpisem sheetu?",
-    "Demonic Spear: popis, vzácnost a speciální schopnosti (attunement je vyplněný)",
-    "Crossbow: light, nebo jiná? A bolty?",
-    "Zlaťáky: 628 gp? (číslo je na papíře přepisované)",
-    "Alignment, XP, vzhled a příběh postavy"
+    "Alignment, XP (na levelu 6 minimum 14 000) a fotka",
+    "Demonic Spear: na kartě je „Melee weapon (martial), Trident +1“, v seedu je základ Spear (simple, proficiency +8). Přepnout na martial trident?"
   ],
   "tactics": {
     "attacks": [
@@ -277,7 +286,8 @@
         "roll": "1d8+5+1d4",
         "range": "5 ft (vrh 20/60 ft)",
         "usage": "Attack 2× (Extra Attack)",
-        "note": "Magické +1, ~12 dmg na zásah. Obouruč 1d8+5, jednoruč 1d6+5, vždy + 1d4 fire."
+        "note": "Magické +1, ~12 dmg na zásah. Obouruč 1d8+5, jednoruč 1d6+5, vždy + 1d4 fire.",
+        "count": 2
       },
       {
         "title": "Nunchaku",
@@ -286,7 +296,8 @@
         "damage": "1d8+4 bludgeoning",
         "roll": "1d8+4",
         "range": "5 ft",
-        "usage": "Attack 2×"
+        "usage": "Attack 2×",
+        "count": 2
       },
       {
         "title": "Úder beze zbraně",
@@ -299,13 +310,15 @@
         "note": "Jen po akci Attack."
       },
       {
-        "title": "Šipka (dart), 9 ks",
+        "title": "Šipka (dart)",
         "actionType": "action",
         "toHit": "d20+7",
         "damage": "1d4+4 piercing",
         "roll": "1d4+4",
         "range": "20/60 ft",
-        "usage": "Attack"
+        "usage": "Attack 2× (Extra Attack), každý hod spotřebuje jednu šipku",
+        "count": 2,
+        "ammoItem": "Dart"
       },
       {
         "title": "Kuše",
@@ -315,17 +328,20 @@
         "roll": "1d8+4",
         "range": "80/320 ft",
         "usage": "Attack",
-        "note": "Light crossbow (typ čeká na potvrzení)."
+        "note": "Light crossbow, Loading: jen jeden výstřel na akci. Každý výstřel spotřebuje jeden šíp (bolt).",
+        "ammoItem": "Crossbow bolt",
+        "count": 1
       },
       {
         "title": "Eldritch Blast (cantrip)",
         "actionType": "action",
         "toHit": "d20+6",
-        "damage": "2 paprsky × 1d10 force",
-        "roll": "2d10",
+        "damage": "1d10 force za paprsek",
+        "roll": "1d10",
         "range": "120 ft",
         "usage": "Cast a Spell: každý paprsek se hází zvlášť",
-        "note": "Ztrácíš Extra Attack i Flurry."
+        "note": "Ztrácíš Extra Attack i Flurry.",
+        "count": 2
       }
     ],
     "spells": [
@@ -402,7 +418,12 @@
         "title": "Flurry of Blows",
         "actionType": "bonus",
         "cost": "ki:1",
-        "description": "Po akci Attack: 2 údery d20+7, 1d6+4. Open Hand: při každém zásahu vyber: shodit (DEX save), odhodit 15 ft (STR save), nebo cíl nemá reakce do konce tvého dalšího tahu."
+        "description": "Po akci Attack: 2 údery d20+7, 1d6+4. Open Hand: při každém zásahu vyber: shodit (DEX save), odhodit 15 ft (STR save), nebo cíl nemá reakce do konce tvého dalšího tahu.",
+        "toHit": "d20+7",
+        "damage": "1d6+4 bludgeoning",
+        "roll": "1d6+4",
+        "count": 2,
+        "hex": true
       },
       {
         "title": "Stunning Strike",
@@ -450,7 +471,16 @@
         "expectedDamage": "~31 dmg",
         "cost": "slot:1",
         "highlight": false,
-        "description": "Hex se sesílá jako první, aby oba útoky dostaly +1d6. V tomhle kole už nemáš Flurry, bonusová akce je spotřebovaná."
+        "description": "Hex se sesílá jako první, aby oba útoky dostaly +1d6. V tomhle kole už nemáš Flurry, bonusová akce je spotřebovaná.",
+        "uses": [
+          {
+            "title": "Hex"
+          },
+          {
+            "title": "Démonické kopí (hlavní)",
+            "count": 2
+          }
+        ]
       },
       {
         "title": "Maximální burst",
@@ -462,7 +492,16 @@
         "expectedDamage": "~53 dmg (4 zásahy)",
         "cost": "ki:1",
         "highlight": true,
-        "description": "Všechno s aktivním Hexem."
+        "description": "Všechno s aktivním Hexem.",
+        "uses": [
+          {
+            "title": "Démonické kopí (hlavní)",
+            "count": 2
+          },
+          {
+            "title": "Flurry of Blows"
+          }
+        ]
       },
       {
         "title": "Vypni bosse",
@@ -473,7 +512,12 @@
         "expectedDamage": "",
         "cost": "ki:1",
         "highlight": false,
-        "description": "Stunned do konce tvého dalšího tahu."
+        "description": "Stunned do konce tvého dalšího tahu.",
+        "uses": [
+          {
+            "title": "Stunning Strike"
+          }
+        ]
       },
       {
         "title": "„Lehni!“",
@@ -484,7 +528,12 @@
         "expectedDamage": "",
         "cost": "slot:1",
         "highlight": false,
-        "description": "Nejde v jednom souboji s Hexem (jen 1 slot)."
+        "description": "Nejde v jednom souboji s Hexem (jen 1 slot).",
+        "uses": [
+          {
+            "title": "Command"
+          }
+        ]
       },
       {
         "title": "Obklíčení",
@@ -495,7 +544,12 @@
         "expectedDamage": "3d6 fire",
         "cost": "slot:1",
         "highlight": false,
-        "description": ""
+        "description": "",
+        "uses": [
+          {
+            "title": "Burning Hands"
+          }
+        ]
       },
       {
         "title": "Cíl daleko",
@@ -506,7 +560,12 @@
         "expectedDamage": "",
         "cost": "free",
         "highlight": false,
-        "description": ""
+        "description": "",
+        "uses": [
+          {
+            "title": "Eldritch Blast (cantrip)"
+          }
+        ]
       }
     ],
     "rules": [

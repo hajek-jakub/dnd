@@ -83,34 +83,38 @@ describe('seed postavy Hajoš', () => {
     expect(character.extraProficiencies).toEqual(['Language: Common', 'Language: Orc'])
     expect(character.state.hpCurrent).toBe(39)
     expect(character.state.hpTemp).toBe(4)
-    expect(character.currency).toEqual({ cp: 6, sp: 9, ep: 0, gp: 628, pp: 0 })
+    expect(character.currency).toEqual({ cp: 6, sp: 9, ep: 0, gp: 620, pp: 0 })
     expect(character.inspiration).toBe(false) // na papíře žádná inspirace není
     expect(character.state.resources).toEqual({}) // ki a pact sloty jsou plné, nic se neukládá
     expect(character.customResources).toEqual([])
     expect(character.race).toBe('Human')
   })
 
-  it('null zůstane null: XP nedoplněno, background a alignment prázdné', () => {
+  it('null zůstane null: XP a alignment nedoplněno; background a příběh jsou vyplněné', () => {
     expect(character.xp).toBeNull()
-    expect(character.background).toBe('')
     expect(character.alignment).toBe('')
+    expect(character.background).toBe('Hermit')
+    expect(character.description).toContain('sirotčince')
+    expect(character.description).toContain('Devreach')
+    expect(character.extraProficiencies).toContain('Tool: Herbalism kit')
   })
 
   it('TO_CONFIRM se uloží tak, jak je (poznámky postavy a itemů)', () => {
     // poznámka „Heroic“ je jen informace, nečeká na potvrzení; pravidla 2014 jsou rozhodnutá
     expect(character.notes).toBe('Na sheetu je pod nadpisem připsáno „Heroic“, význam zatím neznámý.')
+    // kuše je potvrzená jako light crossbow, popis kopí je podle karty od hráče: nic nečeká na potvrzení
     const crossbow = character.items.find((i: any) => i.name === 'Crossbow, light')
-    expect(crossbow.notes).toContain('TO_CONFIRM')
-    expect(crossbow.notes).toContain('Cross')
+    expect(crossbow.notes).not.toContain('TO_CONFIRM')
     const spear = character.items.find((i: any) => i.name === 'Demonic Spear')
-    expect(spear.notes).toContain('TO_CONFIRM: nedoplněno (v seedu null): description.')
+    expect(spear.notes).not.toContain('TO_CONFIRM')
+    expect(spear.description).toContain('Trident +1')
     // attunement je v seedu vyplněný: hráč je na kopí naladěný
     expect(spear).toMatchObject({ requiresAttunement: true, attuned: true })
   })
 
   it('itemy a kouzla míří na SRD záznamy, co v SRD není je homebrew kampaně', async () => {
     const byName = (n: string) => character.items.find((i: any) => i.name === n)
-    for (const name of ['Crossbow, light', 'Dart', 'Backpack', 'Bedroll', 'Mess Kit', 'Torch', 'Tinderbox', 'Rations (1 day)', 'Waterskin', 'Rope, hempen (50 feet)', 'Blanket']) {
+    for (const name of ['Crossbow, light', 'Crossbow bolt', 'Component pouch', 'Dart', 'Backpack', 'Bedroll', 'Mess Kit', 'Torch', 'Tinderbox', 'Rations (1 day)', 'Waterskin', 'Rope, hempen (50 feet)', 'Blanket']) {
       const item = byName(name)
       expect(item, name).toBeDefined()
       const rule = (await owner.client.get(`/rules/${item.ruleId}`)).body.entry
@@ -118,6 +122,9 @@ describe('seed postavy Hajoš', () => {
     }
     expect(byName('Torch').quantity).toBe(8)
     expect(byName('Dart').quantity).toBe(9)
+    expect(byName('Crossbow bolt')).toMatchObject({ quantity: 20, consumable: true })
+    expect(byName('Dart').consumable).toBe(true)
+    expect(byName('Torch').consumable).toBe(true) // munice, lektvary, pochodně a příděly se spotřebují
     expect(byName('Rations (1 day)').quantity).toBe(10)
 
     for (const name of ['Nunchaku', 'Demonic Spear']) {
@@ -195,6 +202,15 @@ describe('seed postavy Hajoš', () => {
     const burst = tactics.find((t) => t.title === 'Maximální burst')
     expect(burst.data).toMatchObject({ highlight: true, cost: 'ki:1' })
     expect(burst.data.steps).toHaveLength(3)
+    // kombo ví, co provede: 2× kopí a Flurry (ten má 2 údery se zásahem a zraněním)
+    const byId = new Map(tactics.map((t) => [t.id, t]))
+    expect(burst.data.uses.map((u: any) => [byId.get(u.id).title, u.count])).toEqual([['Démonické kopí (hlavní)', 2], ['Flurry of Blows', 1]])
+    expect(spear.data.count).toBe(2)
+    expect(tactics.find((t) => t.title === 'Flurry of Blows').data).toMatchObject({ toHit: 'd20+7', roll: '1d6+4', count: 2, hex: true })
+    // střelba z kuše a hod šipkou spotřebují munici podle id itemu
+    const item = (n: string) => character.items.find((i: any) => i.name === n)
+    expect(tactics.find((t) => t.title === 'Kuše').data.ammo).toBe(item('Crossbow bolt').id)
+    expect(tactics.find((t) => t.title === 'Šipka (dart)').data).toMatchObject({ ammo: item('Dart').id, count: 2 })
     expect(tactics.filter((t) => t.kind === 'combo' && t.data.highlight)).toHaveLength(1)
     expect(tactics.find((t) => t.title === 'Deflect Missiles').data.description).toContain('1d10+9') // 1d10 + DEX 4 + level mnicha 5
     // pořadí podle seedu

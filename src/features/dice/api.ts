@@ -70,3 +70,36 @@ export function useRollMutation(campaignId: string) {
       queryClient.setQueryData<DiceRoll[]>(['rolls', campaignId], (old) => (old && !old.some((r) => r.id === roll.id) ? [...old, roll].slice(-100) : old)),
   })
 }
+
+export interface BatchAttack {
+  label: string
+  /** výraz hodu na zásah (např. 1d20+8); chybí u kouzel se záchranným hodem */
+  toHit?: string
+  /** výraz zranění (např. 1d8+5+1d4) */
+  damage?: string
+}
+
+export interface BatchResult {
+  label: string
+  /** přirozená 20 na zásah: zranění je hozené jako kritické */
+  crit: boolean
+  hit: DiceRoll | null
+  damage: DiceRoll | null
+}
+
+/** Série útoků najednou: každý má hod na zásah a zranění (krit při přirozené 20). Hody jdou do logu kampaně. */
+export function useBatchRoll(campaignId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { attacks: BatchAttack[]; mode?: RollMode; hidden?: boolean; characterId?: string }) =>
+      (await api.post<{ results: BatchResult[] }>(`/campaigns/${campaignId}/rolls/batch`, input)).results,
+    onSuccess: (results) => {
+      const rolls = results.flatMap((r) => [r.hit, r.damage]).filter((r): r is DiceRoll => r !== null)
+      queryClient.setQueryData<DiceRoll[]>(['rolls', campaignId], (old) => {
+        if (!old) return old
+        const known = new Set(old.map((r) => r.id))
+        return [...old, ...rolls.filter((r) => !known.has(r.id))].slice(-100)
+      })
+    },
+  })
+}

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { PlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ApiError } from '@/lib/api'
 import { useCreateTactic, useUpdateTactic } from './api'
 import { parseCost } from './cost'
+import type { CharacterItem } from '@/features/sheet/types'
 import { ACTION_LABELS, KIND_LABELS, type ActionType, type Tactic, type TacticKind } from './types'
 
 
@@ -24,11 +26,11 @@ function initial(kind: TacticKind, tactic?: Tactic): Values {
   const title = tactic?.title ?? ''
   switch (kind) {
     case 'attack':
-      return { title, actionType: s('actionType', 'action'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), range: s('range'), usage: s('usage'), note: s('note'), cost: s('cost', 'free'), hex: b('hex', true) }
+      return { title, actionType: s('actionType', 'action'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), range: s('range'), usage: s('usage'), note: s('note'), cost: s('cost', 'free'), hex: b('hex', true), count: String(typeof d.count === 'number' ? d.count : 1), ammo: s('ammo') }
     case 'spell':
-      return { title, level: String(typeof d.level === 'number' ? d.level : 1), actionType: s('actionType', 'action'), range: s('range'), duration: s('duration'), concentration: b('concentration', false), save: s('save'), effect: s('effect'), roll: s('roll'), cost: s('cost', 'free') }
+      return { title, level: String(typeof d.level === 'number' ? d.level : 1), actionType: s('actionType', 'action'), range: s('range'), duration: s('duration'), concentration: b('concentration', false), save: s('save'), effect: s('effect'), roll: s('roll'), cost: s('cost', 'free'), toHit: s('toHit'), count: String(typeof d.count === 'number' ? d.count : 1) }
     case 'ki':
-      return { title, actionType: s('actionType', 'bonus'), cost: s('cost', 'ki:1'), description: s('description') }
+      return { title, actionType: s('actionType', 'bonus'), cost: s('cost', 'ki:1'), description: s('description'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), count: String(typeof d.count === 'number' ? d.count : 1), hex: b('hex', false) }
     case 'passive':
       return { title, type: s('type', 'passive'), description: s('description'), cost: s('cost', 'free') }
     case 'combo':
@@ -42,15 +44,34 @@ function initial(kind: TacticKind, tactic?: Tactic): Values {
 function payload(kind: TacticKind, v: Values): Record<string, unknown> {
   const out: Record<string, unknown> = { ...v, title: String(v.title).trim() }
   if (kind === 'spell') out.level = Number(v.level)
+  if (kind === 'attack' || kind === 'spell' || kind === 'ki') out.count = Math.min(10, Math.max(1, Number.parseInt(String(v.count), 10) || 1))
   if (kind === 'combo') out.steps = String(v.steps).split('\n').map((x) => x.trim()).filter(Boolean)
   return out
 }
 
 /** Přidání nebo úprava jedné položky taktik; druh se po vytvoření nemění. */
-export function TacticForm({ characterId, kind, tactic, onClose }: { characterId: string; kind: TacticKind; tactic?: Tactic; onClose: () => void }) {
+export function TacticForm({
+  characterId,
+  kind,
+  tactic,
+  all,
+  items,
+  onClose,
+}: {
+  characterId: string
+  kind: TacticKind
+  tactic?: Tactic
+  /** všechny taktiky postavy (kombo z nich skládá, co provede) */
+  all: Tactic[]
+  /** inventář postavy (z něj se vybírá munice) */
+  items: CharacterItem[]
+  onClose: () => void
+}) {
   const create = useCreateTactic(characterId)
   const update = useUpdateTactic(characterId)
   const [values, setValues] = useState<Values>(() => initial(kind, tactic))
+  const [uses, setUses] = useState<{ id: string; count: string }[]>(() => (tactic?.kind === 'combo' ? (tactic.data.uses ?? []).map((u) => ({ id: u.id, count: String(u.count) })) : []))
+  const usable = all.filter((t) => (t.kind === 'attack' || t.kind === 'spell' || t.kind === 'ki') && t.id !== tactic?.id)
   const set = (key: string, value: string | boolean) => setValues((v) => ({ ...v, [key]: value }))
   const pending = create.isPending || update.isPending
   const text = (key: string) => String(values[key] ?? '')
@@ -58,6 +79,7 @@ export function TacticForm({ characterId, kind, tactic, onClose }: { characterId
   function submit(e: FormEvent) {
     e.preventDefault()
     const body = payload(kind, values) as { title: string } & Record<string, unknown>
+    if (kind === 'combo') body.uses = uses.filter((u) => u.id !== '').map((u) => ({ id: u.id, count: Math.min(10, Math.max(1, Number.parseInt(u.count, 10) || 1)) }))
     const done = { onSuccess: onClose, onError: (err: Error) => toast.error(err instanceof ApiError ? err.message : 'Položku se nepodařilo uložit.') }
     if (tactic) update.mutate({ ...body, id: tactic.id }, done)
     else create.mutate({ ...body, kind }, done)
@@ -108,6 +130,20 @@ export function TacticForm({ characterId, kind, tactic, onClose }: { characterId
               {field('range', 'Dostřel', { placeholder: '5 ft' })}
             </div>
             {field('damage', 'Zranění (text)', { placeholder: '1d8+5 + 1d4 fire' })}
+            <div className="grid grid-cols-2 gap-3">
+              {field('count', 'Útoků na použití', { placeholder: '2 (Extra Attack)' })}
+              <div className="space-y-1">
+                <Label htmlFor="tactic-ammo">Munice (ubývá s každým útokem)</Label>
+                <NativeSelect id="tactic-ammo" value={text('ammo')} onChange={(e) => set('ammo', e.target.value)}>
+                  <option value="">Žádná</option>
+                  {items.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} ({i.quantity} ks)
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+            </div>
             {field('roll', 'Výraz pro hod zranění (prázdné = odvodí se ze zranění)', { placeholder: '1d8+5+1d4' })}
             {field('usage', 'Kdy použít', { area: true })}
             {field('note', 'Poznámka', { area: true })}
@@ -135,6 +171,10 @@ export function TacticForm({ characterId, kind, tactic, onClose }: { characterId
               {field('duration', 'Trvání', { placeholder: '1 hodina' })}
             </div>
             {field('save', 'Záchranný hod', { placeholder: 'WIS DC 14' })}
+            <div className="grid grid-cols-2 gap-3">
+              {field('toHit', 'Kouzelný útok', { placeholder: 'd20+6' })}
+              {field('count', 'Útoků na použití', { placeholder: '2 paprsky' })}
+            </div>
             {field('roll', 'Výraz pro hod zranění', { placeholder: '1d10' })}
             {field('effect', 'Efekt', { area: true })}
             {check('concentration', 'Soustředění')}
@@ -144,6 +184,13 @@ export function TacticForm({ characterId, kind, tactic, onClose }: { characterId
         {kind === 'ki' && (
           <>
             {action()}
+            <div className="grid grid-cols-2 gap-3">
+              {field('toHit', 'Útok (volitelné)', { placeholder: 'd20+7' })}
+              {field('count', 'Úderů na použití', { placeholder: '2 (Flurry)' })}
+            </div>
+            {field('damage', 'Zranění (text, volitelné)', { placeholder: '1d6+4' })}
+            {field('roll', 'Výraz pro hod zranění', { placeholder: '1d6+4' })}
+            {check('hex', 'Přidat Hex (+1d6), když je soustředění na Hex')}
             {field('description', 'Popis', { area: true })}
           </>
         )}
@@ -164,6 +211,31 @@ export function TacticForm({ characterId, kind, tactic, onClose }: { characterId
         {kind === 'combo' && (
           <>
             {field('steps', 'Kroky (každý na nový řádek)', { area: true })}
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Co kombo provede (hody a cena)</legend>
+              {uses.map((u, i) => (
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_4.5rem_auto] items-end gap-2">
+                  <NativeSelect aria-label={`Položka komba ${i + 1}`} value={u.id} onChange={(e) => setUses((l) => l.map((x, j) => (j === i ? { ...x, id: e.target.value } : x)))}>
+                    <option value="">Vyber útok, kouzlo nebo ki schopnost…</option>
+                    {usable.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <Input aria-label={`Počet: položka ${i + 1}`} type="number" inputMode="numeric" min={1} max={10} className="px-2" value={u.count} onChange={(e) => setUses((l) => l.map((x, j) => (j === i ? { ...x, count: e.target.value } : x)))} />
+                  <Button type="button" variant="ghost" size="icon" aria-label={`Odebrat položku komba ${i + 1}`} onClick={() => setUses((l) => l.filter((_, j) => j !== i))}>
+                    <Trash2Icon aria-hidden />
+                  </Button>
+                </div>
+              ))}
+              {uses.length < 12 && usable.length > 0 && (
+                <Button type="button" variant="outline" onClick={() => setUses((l) => [...l, { id: '', count: '1' }])}>
+                  <PlusIcon aria-hidden /> Přidat položku
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">Tlačítko Použít u komba zaplatí cenu každé položky jednou a hodí všechny její útoky (počet útoků se bere odsud).</p>
+            </fieldset>
             {field('expectedDamage', 'Očekávané zranění', { placeholder: '~31 dmg' })}
             {field('description', 'Popis', { area: true })}
             {check('highlight', 'Zvýraznit jako nejsilnější')}

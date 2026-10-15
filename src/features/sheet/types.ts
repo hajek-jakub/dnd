@@ -85,6 +85,8 @@ export interface CharacterItem {
   equipped: boolean
   attuned: boolean
   requiresAttunement: boolean
+  /** spotřebuje se používáním (šípy, lektvary): tlačítko Použít ubere kus */
+  consumable: boolean
   rarity: string | null
   armor: {
     base: number
@@ -137,6 +139,7 @@ export type AdjustOp =
   | { op: 'hitDie'; die: string; delta: number; max: number }
   | { op: 'resource'; key: string; delta: number; max: number }
   | { op: 'deathSave'; kind: 'success' | 'failure'; delta: number }
+  | { op: 'item'; itemId: string; delta: number }
   | { op: 'inspiration'; set: boolean }
   | { op: 'xp'; delta: number }
   | { op: 'condition'; name: string; set: boolean }

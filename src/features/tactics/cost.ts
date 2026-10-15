@@ -60,3 +60,52 @@ export function spendOps(cost: Cost, sheet: ComputedSheet): AdjustOp[] | null {
   const slot = slots.filter((s) => s.level >= cost.n && s.used < s.max).sort((a, b) => a.level - b.level)[0]
   return slot ? [{ op: 'slot', level: slot.level, delta: 1, max: slot.max }] : null
 }
+
+export interface SpendPlan {
+  ok: boolean
+  /** proč to nejde (nebo co zbude), pro tooltip a čtečky */
+  detail: string
+  ops: AdjustOp[]
+}
+
+/**
+ * Zaplatí víc cen najednou (kombo: Flurry za ki + Hex za slot). Ki se sčítá, sloty se platí jeden po druhém:
+ * největší nároky první, nejdřív z pact slotů (obnova na short rest), jinak z nejnižšího dost vysokého běžného slotu.
+ * Nezaplatí se nic, když nestačí cokoli z toho.
+ */
+export function planSpend(costs: Cost[], sheet: ComputedSheet): SpendPlan {
+  const ki = costs.reduce((n, c) => (c.type === 'ki' ? n + c.n : n), 0)
+  const kiHave = kiState(sheet)
+  if (ki > 0 && (kiHave?.current ?? 0) < ki) return { ok: false, detail: (kiHave?.current ?? 0) === 0 ? 'nemáš ki' : `málo ki (potřeba ${ki}, zbývá ${kiHave?.current ?? 0})`, ops: [] }
+
+  const { pact, slots } = sheet.spellcasting
+  let pactLeft = pact ? pact.count - pact.used : 0
+  const regularLeft = new Map(slots.map((s) => [s.level, s.max - s.used]))
+  let pactUsed = 0
+  const regularUsed = new Map<number, number>()
+  const slotCosts = costs.flatMap((c) => (c.type === 'slot' ? [c.n] : [])).sort((a, b) => b - a)
+  for (const n of slotCosts) {
+    if (pact && pact.level >= n && pactLeft > 0) {
+      pactLeft--
+      pactUsed++
+      continue
+    }
+    const level = [...regularLeft.keys()].filter((l) => l >= n && (regularLeft.get(l) ?? 0) > 0).sort((a, b) => a - b)[0]
+    if (level === undefined) return { ok: false, detail: `nemáš slot ${n}. úrovně`, ops: [] }
+    regularLeft.set(level, (regularLeft.get(level) ?? 0) - 1)
+    regularUsed.set(level, (regularUsed.get(level) ?? 0) + 1)
+  }
+
+  const ops: AdjustOp[] = []
+  if (ki > 0 && kiHave) ops.push({ op: 'resource', key: KI_KEY, delta: -ki, max: kiHave.max })
+  if (pactUsed > 0 && pact) ops.push({ op: 'pact', delta: pactUsed, max: pact.count })
+  for (const [level, n] of regularUsed) {
+    const slot = slots.find((x) => x.level === level)
+    if (slot) ops.push({ op: 'slot', level, delta: n, max: slot.max })
+  }
+  return { ok: true, detail: ops.length === 0 ? 'bez ceny' : 'cena je k dispozici', ops }
+}
+
+export function stringifyCost(c: Cost): string {
+  return c.type === 'free' ? 'free' : `${c.type}:${c.n}`
+}

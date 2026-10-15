@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { HeartIcon } from 'lucide-react'
+import { DicesIcon, EyeOffIcon, HeartIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { useRoller } from '@/features/dice/useRoller'
 import { cn } from '@/lib/utils'
 import { ComputedValue } from './ComputedValue'
 import { useSheet } from './sheet-context'
@@ -104,11 +106,16 @@ export function HpCard() {
           </>
         )}
 
-        {down && (
+        {down && canEdit && (
           <section aria-label="Death saves" className="space-y-2 rounded-lg border border-red-500/40 bg-red-500/5 p-3">
             <h3 className="text-sm font-semibold">Death saves</h3>
             <DeathRow label="Úspěchy" kind="success" count={character.state.deathSuccesses} canEdit={canEdit} />
             <DeathRow label="Neúspěchy" kind="failure" count={character.state.deathFailures} canEdit={canEdit} />
+            <DeathStatus successes={character.state.deathSuccesses} failures={character.state.deathFailures} />
+            {canEdit && <DeathRoll max={max} />}
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <EyeOffIcon aria-hidden className="size-3.5 shrink-0" /> Death saves a jejich hody vidíš jen ty a DM, ostatní hráči ne.
+            </p>
           </section>
         )}
       </CardContent>
@@ -142,5 +149,53 @@ function DeathRow({ label, kind, count, canEdit }: { label: string; kind: 'succe
         ))}
       </div>
     </div>
+  )
+}
+
+function DeathStatus({ successes, failures }: { successes: number; failures: number }) {
+  if (failures >= 3) return <p className="text-sm font-semibold text-red-700 dark:text-red-400" data-testid="death-status">Tři neúspěchy: postava umírá (mrtvá).</p>
+  if (successes >= 3) return <p className="text-sm font-semibold text-green-700 dark:text-green-400" data-testid="death-status">Tři úspěchy: postava je stabilizovaná.</p>
+  return null
+}
+
+/**
+ * Hod death save (k20, bez bonusu): 10 a víc je úspěch, méně neúspěch, přirozená 1 jsou dva neúspěchy a přirozená 20 vrátí 1 HP
+ * a smaže značky. Hod je vždy skrytý (vidí ho jen hráč a DM) a výsledek se rovnou zapíše.
+ */
+function DeathRoll({ max }: { max: number }) {
+  const { character, adjust } = useSheet()
+  const { roll, pending } = useRoller(character.campaignId, character.id)
+  const stopped = character.state.deathFailures >= 3 || character.state.deathSuccesses >= 3
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full"
+      disabled={pending || stopped}
+      onClick={() =>
+        roll('Death save', '1d20', {
+          hidden: true,
+          mode: 'normal',
+          onResult: (r) => {
+            const natural = r.natural ?? r.total
+            if (natural === 20) {
+              adjust([{ op: 'hp', delta: 1, max }, { op: 'deathSave', kind: 'success', delta: -3 }, { op: 'deathSave', kind: 'failure', delta: -3 }])
+              toast.success('Přirozená 20: postava se probere s 1 HP.')
+            } else if (natural === 1) {
+              adjust([{ op: 'deathSave', kind: 'failure', delta: 2 }])
+              toast.error('Přirozená 1: dva neúspěchy.')
+            } else if (r.total >= 10) {
+              adjust([{ op: 'deathSave', kind: 'success', delta: 1 }])
+              toast.success(`Death save ${r.total}: úspěch.`)
+            } else {
+              adjust([{ op: 'deathSave', kind: 'failure', delta: 1 }])
+              toast.error(`Death save ${r.total}: neúspěch.`)
+            }
+          },
+        })
+      }
+    >
+      <DicesIcon aria-hidden /> Hodit death save
+    </Button>
   )
 }

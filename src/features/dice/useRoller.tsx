@@ -23,7 +23,7 @@ export function useRoller(campaignId: string, characterId?: string) {
   const overlay = useRollOverlay()
   const mutation = useRollMutation(campaignId)
 
-  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; hidden?: boolean } = {}) {
+  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; hidden?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
     const mode = options.mode ?? settings.mode
     const hidden = options.hidden ?? settings.hidden
     const crit = options.crit === true
@@ -31,7 +31,10 @@ export function useRoller(campaignId: string, characterId?: string) {
     mutation.mutate(
       { expression, label, mode, crit: options.crit, hidden, ...(characterId ? { characterId } : {}) },
       {
-        onSuccess: (r) => overlay.finish(token, r),
+        onSuccess: (r) => {
+          overlay.finish(token, r)
+          options.onResult?.(r)
+        },
         onError: (e) => {
           overlay.fail(token)
           toast.error(e instanceof ApiError ? e.message : 'Hod se nepodařil.')

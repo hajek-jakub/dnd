@@ -122,7 +122,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">
             {item.name}
-            {item.quantity > 1 && <span className="ml-1 text-muted-foreground">×{item.quantity}</span>}
+            {(item.quantity > 1 || (item.consumable && item.quantity !== 1)) && <span className="ml-1 text-muted-foreground">×{item.quantity}</span>}
           </p>
           <p className="text-xs text-muted-foreground">
             {[
@@ -130,6 +130,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
               item.rarity,
               item.weight > 0 ? `${num(item.weight * item.quantity)} lb` : null,
               item.requiresAttunement ? 'attunement' : null,
+              item.consumable ? 'spotřebuje se' : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -206,6 +207,11 @@ function ItemRow({ item }: { item: CharacterItem }) {
           {item.notes && <NotesText text={item.notes} className="space-y-1 text-muted-foreground" />}
           {canEdit && (
             <div className="flex flex-wrap gap-2 pt-1">
+              {item.consumable && (
+                <Button variant="default" disabled={item.quantity < 1 || update.isPending} onClick={() => patch({ quantity: item.quantity - 1 })} aria-label={`Použít ${item.name} (−1 ks)`}>
+                  {item.quantity < 1 ? 'Došlo' : 'Použít'}
+                </Button>
+              )}
               {item.quantity > 1 && (
                 <>
                   <Button variant="outline" onClick={() => patch({ quantity: item.quantity - 1 })}>
@@ -216,8 +222,8 @@ function ItemRow({ item }: { item: CharacterItem }) {
                   </Button>
                 </>
               )}
-              {item.quantity === 1 && (
-                <Button variant="outline" onClick={() => patch({ quantity: 2 })}>
+              {item.quantity <= 1 && (
+                <Button variant="outline" onClick={() => patch({ quantity: item.quantity + 1 })}>
                   +1 ks
                 </Button>
               )}

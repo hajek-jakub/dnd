@@ -226,6 +226,11 @@ function CharacterOverview({
         <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
           <div className={cn('h-full', percent > 50 ? 'bg-green-500' : percent > 25 ? 'bg-amber-500' : 'bg-red-500')} style={{ width: `${percent}%` }} />
         </div>
+        {hpCurrent === 0 && (
+          <p className="text-sm font-medium text-red-700 dark:text-red-400" data-testid={`death-${character.name}`}>
+            Death saves: ✓ {character.state.deathSuccesses}/3 · ✗ {character.state.deathFailures}/3
+          </p>
+        )}
         <div className="grid grid-cols-4 gap-2">
           {[-5, -1, 1, 5].map((d) => (
             <Button key={d} variant="outline" disabled={hp.isPending} aria-label={`${character.name}: ${d > 0 ? '+' : '−'}${Math.abs(d)} HP`} onClick={() => change(d)}>
