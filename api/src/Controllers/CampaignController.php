@@ -8,6 +8,7 @@ use Dnd\Access;
 use Dnd\Db;
 use Dnd\HttpError;
 use Dnd\Ids;
+use Dnd\Images;
 use Dnd\Input;
 use Dnd\Invites;
 use Dnd\RateLimiter;
@@ -111,7 +112,15 @@ final class CampaignController
     public static function delete(Request $req, array $params, array $user): ?array
     {
         Access::requireDm($user, $params['id']);
+        // Soubory (mapy, fotky postav) leží mimo databázi, tak je smažeme se vším ostatním.
+        $files = array_merge(
+            array_column(Db::all('SELECT image_path FROM maps WHERE campaign_id = ?', [$params['id']]), 'image_path'),
+            array_column(Db::all('SELECT photo_path FROM characters WHERE campaign_id = ? AND photo_path IS NOT NULL', [$params['id']]), 'photo_path'),
+        );
         Db::exec('DELETE FROM campaigns WHERE id = ?', [$params['id']]);
+        foreach ($files as $file) {
+            Images::delete((string) $file);
+        }
         return null;
     }
 

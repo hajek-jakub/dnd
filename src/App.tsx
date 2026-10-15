@@ -1,5 +1,7 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/AppLayout'
+import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { buttonVariants } from '@/components/ui/button'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
@@ -8,6 +10,7 @@ import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
 import { JoinPage } from '@/features/campaigns/JoinPage'
 import { DmPage } from '@/features/dm/DmPage'
+import { MapsPage } from '@/features/maps/MapsPage'
 import { MessagesPage } from '@/features/messages/MessagesPage'
 import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
@@ -18,6 +21,9 @@ import { RulesPage } from '@/features/rules/RulesPage'
 import { CharacterPage } from '@/features/sheet/CharacterPage'
 import { CreateCharacterPage } from '@/features/sheet/CreateCharacterPage'
 import { LevelUpPage } from '@/features/sheet/LevelUpWizard'
+
+// Leaflet je velký, načte se až při otevření mapy.
+const MapViewPage = lazy(() => import('@/features/maps/MapViewPage'))
 
 function NotFound() {
   return (
@@ -46,6 +52,15 @@ export default function App() {
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
+            <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />
+            <Route
+              path="campaigns/:campaignId/maps/:mapId"
+              element={
+                <Suspense fallback={<FullPageSpinner />}>
+                  <MapViewPage />
+                </Suspense>
+              }
+            />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="campaigns/:campaignId/characters/new" element={<CreateCharacterPage />} />
             <Route path="characters/:id" element={<CharacterPage />} />

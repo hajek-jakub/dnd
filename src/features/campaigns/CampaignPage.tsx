@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, CopyIcon, MessageSquareIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
+import { ArrowLeftIcon, CopyIcon, MapIcon, MessageSquareIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -83,6 +83,9 @@ export function CampaignPage() {
                 <ShieldIcon aria-hidden /> Panel DM
               </Link>
             )}
+            <Link to={`/campaigns/${campaignId}/maps`} className={buttonVariants({ variant: 'secondary' })}>
+              <MapIcon aria-hidden /> Mapy
+            </Link>
             <Link to={`/campaigns/${campaignId}/messages`} className={buttonVariants({ variant: isDm ? 'secondary' : 'default' })}>
               <MessageSquareIcon aria-hidden /> Zprávy
               {unreadHere > 0 && (

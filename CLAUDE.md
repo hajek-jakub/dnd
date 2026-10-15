@@ -218,13 +218,23 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Na telefonu je nejdřív seznam vláken a pak vlákno, na počítači vedle sebe. Průběžné dotazování každé 4 s jen na novější zprávy, odznak nepřečtených u vláken, u kampaně i v hlavičce, toast při nové zprávě.
 - Testy: 17 API testů (`messages.test.ts`: autorizace, soukromí, tajné zprávy, validace, nepřečtené, rate limit) + E2E `messages.spec.ts` (DM počítač + dva hráči na telefonech; telefon i počítač bez horizontálního scrollu).
 
+### Fáze 8 – Mapy: HOTOVO
+- **Model** (migrace 008): `maps` (obrázek v `api/storage/maps`, `width`/`height`, `visible`), `map_pins` (souřadnice v pixelech obrázku, `icon`, `visibility`), `map_pin_viewers`.
+- **Mapy**: nahrává, přejmenovává, zveřejňuje a maže jen DM (hráč 403, cizinec 404). Obrázek se na serveru vždy přegeneruje na JPEG (nejvýš 4096 px na delší straně, poměr stran zůstane), velké soubory zmenší už prohlížeč (`shrink-image.ts`).
+  Hráč vidí a stahuje jen zveřejněné mapy, skrytá je pro něj 404 (seznam, obrázek i body). Obrázek vydává jen API (`GET /maps/{id}/image`, ETag), smazání mapy i kampaně smaže i soubory. Nová mapa je zprvu skrytá.
+- **Body** (`/maps/{id}/pins`, `/pins/{id}`): viditelnost `all` (všichni, kdo mapu vidí), `selected` (vybraní hráči a DM), `dm` (jen DM), `owner` (soukromá poznámka hráče, nevidí ji nikdo jiný, ani DM). DM zakládá `all`/`selected`/`dm`, hráč jen `owner` (jinak 403) a poznámku nejde zveřejnit.
+  Upravit a smazat smí autor, DM jen body, které sám vidí (cizí soukromé poznámky mu připadají jako 404). Seznam vybraných hráčů vidí jen autor a DM. Souřadnice musí být uvnitř mapy, ikony jsou z pevného seznamu, nejvýš 300 bodů na mapu a 30 map na kampaň.
+- **UI**: `/campaigns/:id/maps` (seznam, nahrání, zveřejnit/skrýt, smazat) a `/campaigns/:id/maps/:mapId` (Leaflet `CRS.Simple`, načítá se líně až při otevření mapy). Režim „Přidat bod“ (klepnutí do mapy), „Přesouvat body“ (tah značky), seznam bodů pod mapou,
+  popis vybraného bodu, formulář s ikonou a viditelností. Značky jsou `divIcon` s emoji (žádné obrázky značek Leafletu). Mapa je v `isolate`, aby její z-index nepřekryl sticky hlavičku.
+- Testy: 15 API testů (`maps.test.ts`, mutation check provedený) a E2E `maps.spec.ts` (DM počítač + hráč telefon: nahrání, zveřejnění, body, soukromá poznámka, skrytí; přesouvání, hlavička nad mapou, bez horizontálního scrollu).
+
 ### Bezpečnostní pojistky testů a databáze (po incidentu)
 - Jednou se omylem smazala ostrá databáze: v shellu zůstala `DND_CONFIG` na ostrou konfiguraci a API testy pustily `migrate --fresh`. Proto: **`DND_CONFIG` nikdy neexportovat do shellu** (nastavovat jen před jedním příkazem),
   `Migrator::dropAll` odmítne cokoli jiného než lokální DB (`127.0.0.1`/`localhost`) a `api-tests/global-setup.ts` ignoruje `DND_CONFIG` z prostředí (vždy `api/config.test.php`, jiná jen přes `DND_TEST_CONFIG`). Hlídá to `api-tests/safety.test.ts`.
 - Ostrá DB nemá zálohy (Endora je nemá zapnuté). Než se na ostré DB spustí cokoli, co zapisuje, nejdřív `--check` / čtení. Postavu Hajoš do kampaně Mirabilis na ostré DB zakládá `seed-hajos.php` s `DND_CONFIG=<ostrá>` jen pro ten jeden příkaz.
 
 ### Další fáze (dle zadání)
-8. Mapy. 9. Kostky. 10. Leštění.
+9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

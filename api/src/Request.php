@@ -84,6 +84,13 @@ final class Request
         return ['tmp_name' => (string) $f['tmp_name'], 'size' => (int) ($f['size'] ?? 0), 'error' => (int) ($f['error'] ?? UPLOAD_ERR_NO_FILE)];
     }
 
+    /** Textové pole z multipart formuláře (u nahrávání souboru spolu s dalšími údaji). */
+    public function field(string $name): ?string
+    {
+        $v = $_POST[$name] ?? null;
+        return is_string($v) ? $v : null;
+    }
+
     public function header(string $name): ?string
     {
         return $this->headers[strtolower($name)] ?? null;

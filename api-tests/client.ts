@@ -11,7 +11,9 @@ export interface ApiResult<T = any> {
   setCookie: string[]
 }
 
-let ipCounter = 0
+// Počítadlo začíná na náhodném čísle, protože testovací soubory běží paralelně v oddělených procesech
+// a jinak by se všechny tvářily jako stejné IP adresy (a trefovaly se do stejného limitu registrací).
+let ipCounter = Math.floor(Math.random() * 3_000_000)
 
 export class Client {
   private cookies = new Map<string, string>()
@@ -46,8 +48,9 @@ export class Client {
   }
 
   /** Nahrání souboru (multipart/form-data) jako prohlížeč. */
-  async upload<T = any>(path: string, field: string, bytes: Uint8Array, filename: string, type: string): Promise<ApiResult<T>> {
+  async upload<T = any>(path: string, field: string, bytes: Uint8Array, filename: string, type: string, fields: Record<string, string> = {}): Promise<ApiResult<T>> {
     const form = new FormData()
+    for (const [k, v] of Object.entries(fields)) form.append(k, v)
     form.append(field, new Blob([bytes], { type }), filename)
     const res = await fetch(BASE + path, { method: 'POST', headers: { 'X-Test-Ip': this.ip, ...this.cookieHeader() }, body: form })
     const text = await res.text()

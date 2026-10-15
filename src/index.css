@@ -128,3 +128,21 @@
     @apply font-sans;
     }
 }
+/* Body na mapě (Leaflet divIcon) */
+.map-pin {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #1e293b;
+  background: #fff;
+  font-size: 22px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+.map-pin--dm { border-style: dashed; border-color: #7c3aed; }
+.map-pin--selected { border-color: #2563eb; }
+.map-pin--owner { border-color: #d97706; background: #fef3c7; }
+.map-pin--selected.map-pin--selected { box-shadow: 0 0 0 3px rgb(37 99 235 / 0.5); }

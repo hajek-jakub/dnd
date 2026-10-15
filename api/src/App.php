@@ -9,6 +9,7 @@ use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
 use Dnd\Controllers\DmController;
 use Dnd\Controllers\InventoryController;
+use Dnd\Controllers\MapController;
 use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\LevelUpController;
@@ -111,6 +112,17 @@ final class App
         $r->add('POST', '/campaigns/{id}/messages', [MessageController::class, 'send']);
         $r->add('POST', '/campaigns/{id}/messages/read', [MessageController::class, 'markRead']);
         $r->add('GET', '/messages/unread', [MessageController::class, 'unreadOverview']);
+
+        // Mapy kampaně a body na nich
+        $r->add('GET', '/campaigns/{id}/maps', [MapController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/maps', [MapController::class, 'create']);
+        $r->add('PATCH', '/maps/{id}', [MapController::class, 'update']);
+        $r->add('DELETE', '/maps/{id}', [MapController::class, 'delete']);
+        $r->add('GET', '/maps/{id}/image', [MapController::class, 'image']);
+        $r->add('GET', '/maps/{id}/pins', [MapController::class, 'pins']);
+        $r->add('POST', '/maps/{id}/pins', [MapController::class, 'createPin']);
+        $r->add('PATCH', '/pins/{id}', [MapController::class, 'updatePin']);
+        $r->add('DELETE', '/pins/{id}', [MapController::class, 'deletePin']);
 
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);
