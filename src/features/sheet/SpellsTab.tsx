@@ -35,7 +35,7 @@ export function SpellsTab() {
       <SlotsSummary />
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle>Kouzla</CardTitle>
           {canEdit && (
             <Button onClick={() => setAdding(true)}>

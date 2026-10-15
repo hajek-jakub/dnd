@@ -9,6 +9,7 @@ use Dnd\Db;
 use Dnd\Dice;
 use Dnd\HttpError;
 use Dnd\Ids;
+use Dnd\Initiative;
 use Dnd\Input;
 use Dnd\RateLimiter;
 use Dnd\Request;
@@ -58,6 +59,14 @@ final class DiceController
             $characterId = (string) $char['id'];
         }
 
+        $initiative = $data['initiative'] ?? false;
+        if (!is_bool($initiative)) {
+            throw HttpError::validation('initiative musí být true/false.', 'initiative');
+        }
+        if ($initiative && $characterId === null) {
+            throw HttpError::validation('Hod na iniciativu musí patřit postavě (characterId).', 'characterId');
+        }
+
         $rolled = Dice::rollWithMode($terms, $mode, $crit);
         $expression = Dice::canonical($terms);
         Db::exec(
@@ -69,6 +78,12 @@ final class DiceController
             ],
         );
         $id = (int) Db::pdo()->lastInsertId();
+        // Hod na iniciativu se zapíše do pořadí iniciativy v kampani (vidí ho jen DM).
+        if ($initiative && $characterId !== null) {
+            Db::transaction(static function () use ($params, $characterId, $rolled): void {
+                Initiative::set($params['id'], 'character', $characterId, max(-20, min(60, $rolled['total'])));
+            });
+        }
         return Response::json(['roll' => self::one($id)], 201);
     }
 
@@ -150,7 +165,7 @@ final class DiceController
      * @param list<array<string, mixed>> $terms
      * @param array{attempts: list<array<string, mixed>>, chosen: int, total: int, natural: int|null} $rolled
      */
-    private static function insertRoll(string $campaignId, string $userId, ?string $characterId, string $label, array $terms, string $mode, bool $crit, bool $hidden, array $rolled): int
+    public static function insertRoll(string $campaignId, string $userId, ?string $characterId, string $label, array $terms, string $mode, bool $crit, bool $hidden, array $rolled): int
     {
         Db::exec(
             'INSERT INTO dice_rolls (campaign_id, user_id, character_id, label, expression, mode, crit, hidden, total, result, created_at)

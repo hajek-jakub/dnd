@@ -7,6 +7,7 @@ namespace Dnd\Controllers;
 use Dnd\Access;
 use Dnd\Db;
 use Dnd\Dice;
+use Dnd\Initiative;
 use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
@@ -55,8 +56,8 @@ final class EnemyController
         Access::requireDm($user, (string) $row['campaign_id']);
         $v = self::validate($req->json(), $row);
         Db::exec(
-            'UPDATE enemies SET name = ?, hp_max = ?, hp_current = ?, ac = ?, attacks = ?, notes = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
-            [$v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $row['id']],
+            'UPDATE enemies SET name = ?, hp_max = ?, hp_current = ?, ac = ?, initiative = ?, attacks = ?, notes = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+            [$v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], $v['initiative'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $row['id']],
         );
         return ['enemy' => self::payload(self::find($params['id']))];
     }
@@ -99,7 +100,7 @@ final class EnemyController
             $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM enemies WHERE campaign_id = ?', [$row['campaign_id']]);
             self::insert($newId, (string) $row['campaign_id'], [
                 'name' => mb_substr("$base $n", 0, 100), 'hpMax' => (int) $row['hp_max'], 'hpCurrent' => (int) $row['hp_max'],
-                'ac' => $row['ac'] === null ? null : (int) $row['ac'], 'attacks' => is_array($attacks) ? $attacks : [], 'notes' => (string) $row['notes'],
+                'ac' => $row['ac'] === null ? null : (int) $row['ac'], 'initiative' => (int) $row['initiative'], 'attacks' => is_array($attacks) ? $attacks : [], 'notes' => (string) $row['notes'],
             ], $pos);
         });
         return Response::json(['enemy' => self::payload(self::find($newId))], 201);
@@ -110,8 +111,49 @@ final class EnemyController
     {
         $row = self::find($params['id']);
         Access::requireDm($user, (string) $row['campaign_id']);
-        Db::exec('DELETE FROM enemies WHERE id = ?', [$row['id']]);
+        Db::transaction(static function () use ($row): void {
+            Db::one('SELECT id FROM campaigns WHERE id = ? FOR UPDATE', [$row['campaign_id']]);
+            Initiative::remove((string) $row['campaign_id'], 'enemy', (string) $row['id']);
+            Db::exec('DELETE FROM enemies WHERE id = ?', [$row['id']]);
+        });
         return null;
+    }
+
+    /** Hod na iniciativu jednoho nepřítele (k20 + bonus, skrytý, jen DM) a zařazení do pořadí. @param array{id:string} $user */
+    public static function rollInitiative(Request $req, array $params, array $user): array
+    {
+        $row = self::find($params['id']);
+        Access::requireDm($user, (string) $row['campaign_id']);
+        $result = Db::transaction(static fn (): array => self::rollFor($row, $user['id']));
+        return ['result' => $result];
+    }
+
+    /** Hod na iniciativu všem nepřátelům, kteří ještě stojí (HP nad 0). @param array{id:string} $user */
+    public static function rollAllInitiative(Request $req, array $params, array $user): array
+    {
+        Access::requireDm($user, $params['id']);
+        $results = Db::transaction(static function () use ($params, $user): array {
+            $out = [];
+            foreach (Db::all('SELECT * FROM enemies WHERE campaign_id = ? AND hp_current > 0 ORDER BY position, created_at, id', [$params['id']]) as $row) {
+                $out[] = self::rollFor($row, $user['id']);
+            }
+            return $out;
+        });
+        return ['results' => $results];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array{id: string, name: string, total: int}
+     */
+    private static function rollFor(array $row, string $userId): array
+    {
+        $bonus = (int) $row['initiative'];
+        $terms = Dice::parse('1d20' . ($bonus > 0 ? "+$bonus" : ($bonus < 0 ? (string) $bonus : '')));
+        $rolled = Dice::rollWithMode($terms, 'normal', false);
+        DiceController::insertRoll((string) $row['campaign_id'], $userId, null, $row['name'] . ': iniciativa', $terms, 'normal', false, true, $rolled);
+        Initiative::set((string) $row['campaign_id'], 'enemy', (string) $row['id'], max(-20, min(60, $rolled['total'])));
+        return ['id' => (string) $row['id'], 'name' => (string) $row['name'], 'total' => (int) $rolled['total']];
     }
 
     // ------------------------------------------------------------------ pomocné
@@ -139,6 +181,11 @@ final class EnemyController
             $ac = $in['ac'] === null ? null : Input::optionalInt($in, 'ac', 0, 50, 'AC');
         } else {
             $ac = $existing === null || $existing['ac'] === null ? null : (int) $existing['ac'];
+        }
+        if ($has('initiative')) {
+            $initiative = Input::optionalInt($in, 'initiative', -10, 30, 'Iniciativa') ?? 0;
+        } else {
+            $initiative = $existing === null ? 0 : (int) $existing['initiative'];
         }
         $notes = $has('notes') ? (Input::optionalString($in, 'notes', 4000, 'Poznámka') ?? '') : (string) ($existing['notes'] ?? '');
 
@@ -170,16 +217,16 @@ final class EnemyController
             $decoded = $existing === null ? [] : json_decode((string) $existing['attacks'], true);
             $attacks = is_array($decoded) ? $decoded : [];
         }
-        return ['name' => $name, 'hpMax' => $hpMax, 'hpCurrent' => $hpCurrent, 'ac' => $ac, 'attacks' => $attacks, 'notes' => $notes];
+        return ['name' => $name, 'hpMax' => $hpMax, 'hpCurrent' => $hpCurrent, 'ac' => $ac, 'initiative' => $initiative, 'attacks' => $attacks, 'notes' => $notes];
     }
 
     /** @param array<string, mixed> $v */
     private static function insert(string $id, string $campaignId, array $v, int $position): void
     {
         Db::exec(
-            'INSERT INTO enemies (id, campaign_id, name, hp_max, hp_current, ac, attacks, notes, position, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-            [$id, $campaignId, $v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $position],
+            'INSERT INTO enemies (id, campaign_id, name, hp_max, hp_current, ac, initiative, attacks, notes, position, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+            [$id, $campaignId, $v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], $v['initiative'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $position],
         );
     }
 
@@ -200,6 +247,7 @@ final class EnemyController
             'hpMax' => (int) $r['hp_max'],
             'hpCurrent' => (int) $r['hp_current'],
             'ac' => $r['ac'] === null ? null : (int) $r['ac'],
+            'initiative' => (int) $r['initiative'],
             'attacks' => is_array($attacks) ? $attacks : [],
             'notes' => $r['notes'],
             'position' => (int) $r['position'],

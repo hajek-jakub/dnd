@@ -17,6 +17,11 @@ import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
+import { SectionHeader } from '@/components/SectionHeader'
+import { EnemiesSection } from '@/features/enemies/EnemiesSection'
+import { EnemyForm } from '@/features/enemies/EnemyForm'
+import { useEnemies, type Enemy } from '@/features/enemies/api'
+import { InitiativeSection } from '@/features/initiative/InitiativeSection'
 import { useCampaign } from '@/features/campaigns/api'
 import { engineRulesOf } from '@/features/campaigns/ruleset'
 import { Avatar } from '@/features/sheet/Avatar'
@@ -49,6 +54,9 @@ export function DmPage() {
   const { data: list } = useCharacters(campaignId, { pollMs: 5000 })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [action, setAction] = useState<DmAction | null>(null)
+  const [enemyForm, setEnemyForm] = useState<{ enemy?: Enemy } | null>(null)
+  const isDm = campaign?.role === 'dm'
+  const { data: enemies } = useEnemies(campaignId, isDm)
   const rules = useMemo(() => engineRulesOf(campaign?.settings), [campaign?.settings])
 
   const rows = useMemo(() => {
@@ -82,17 +90,20 @@ export function DmPage() {
         <Link to={`/campaigns/${campaignId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon aria-hidden className="size-4" /> {campaign.name}
         </Link>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">Panel DM</h1>
-          <div className="flex flex-wrap gap-2">
-            <Link to={`/campaigns/${campaignId}/enemies`} className={buttonVariants({ variant: 'secondary' })}>
-              <SkullIcon aria-hidden /> Nepřátelé
-            </Link>
-            <Link to={`/campaigns/${campaignId}/characters/new?npc=1`} className={buttonVariants({ variant: 'secondary' })}>
-              <PlusIcon aria-hidden /> Nové NPC
-            </Link>
-          </div>
-        </div>
+        <SectionHeader
+          level={1}
+          title="Panel DM"
+          actions={
+            <>
+              <Button variant="secondary" onClick={() => setEnemyForm({})}>
+                <SkullIcon aria-hidden /> Nový nepřítel
+              </Button>
+              <Link to={`/campaigns/${campaignId}/characters/new?npc=1`} className={buttonVariants({ variant: 'secondary' })}>
+                <PlusIcon aria-hidden /> Nové NPC
+              </Link>
+            </>
+          }
+        />
       </div>
 
       <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
@@ -121,6 +132,13 @@ export function DmPage() {
         </CardContent>
       </Card>
 
+      <InitiativeSection
+        campaignId={campaignId}
+        characters={rows.map((r) => ({ id: r.character.id, name: r.character.name, photoVersion: r.character.photoVersion, npc: r.character.kind === 'npc', bonus: r.sheet.initiative.value }))}
+        enemies={enemies ?? []}
+      />
+
+      <SectionHeader title="Postavy a NPC" />
       {!list || !bundle ? (
         <p className="text-muted-foreground">Načítám postavy…</p>
       ) : rows.length === 0 ? (
@@ -141,9 +159,12 @@ export function DmPage() {
         </ul>
       )}
 
+      <EnemiesSection campaignId={campaignId} enemies={enemies ?? []} onEdit={(enemy) => setEnemyForm({ enemy })} />
+
       <NotesPanel campaignId={campaignId} characters={rows.map((r) => ({ id: r.character.id, name: r.character.name }))} />
 
       <DiceDock campaignId={campaignId} />
+      {enemyForm && <EnemyForm key={enemyForm.enemy?.id ?? 'new'} campaignId={campaignId} enemy={enemyForm.enemy} onClose={() => setEnemyForm(null)} />}
 
       <DmDialogs action={action} campaignId={campaignId} targets={targets} onClose={() => setAction(null)} />
     </>

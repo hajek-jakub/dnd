@@ -91,7 +91,6 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     ['kampaně', '/campaigns'],
     ['kampaň', `/campaigns/${campaignId}`],
     ['panel DM', `/campaigns/${campaignId}/dm`],
-    ['nepřátelé', `/campaigns/${campaignId}/enemies`],
     ['deník', `/campaigns/${campaignId}/journal`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
     ['mapy', `/campaigns/${campaignId}/maps`],

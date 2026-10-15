@@ -42,6 +42,8 @@ export interface RollRequest {
   crit?: boolean
   hidden?: boolean
   characterId?: string
+  /** hod na iniciativu postavy: server ho zapíše DM do pořadí iniciativy */
+  initiative?: boolean
 }
 
 /** Log hodů kampaně. Průběžně se ptá jen na novější hody a skládá je k těm, co už jsou v paměti. */

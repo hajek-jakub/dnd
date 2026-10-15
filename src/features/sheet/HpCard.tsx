@@ -22,7 +22,7 @@ export function HpCard() {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <HeartIcon aria-hidden className="size-5 text-red-500" /> Životy
         </CardTitle>

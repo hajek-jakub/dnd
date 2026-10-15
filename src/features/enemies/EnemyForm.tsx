@@ -25,6 +25,7 @@ export function EnemyForm({ campaignId, enemy, onClose }: { campaignId: string; 
   const [name, setName] = useState(enemy?.name ?? '')
   const [hpMax, setHpMax] = useState(String(enemy?.hpMax ?? ''))
   const [ac, setAc] = useState(enemy?.ac === null || enemy?.ac === undefined ? '' : String(enemy.ac))
+  const [initiative, setInitiative] = useState(String(enemy?.initiative ?? 0))
   const [count, setCount] = useState('1')
   const [notes, setNotes] = useState(enemy?.notes ?? '')
   const [attacks, setAttacks] = useState<AttackRow[]>(enemy ? enemy.attacks.map(toRow) : [])
@@ -40,6 +41,7 @@ export function EnemyForm({ campaignId, enemy, onClose }: { campaignId: string; 
       name: name.trim(),
       hpMax: max,
       ac: ac.trim() === '' ? null : Number.parseInt(ac, 10),
+      initiative: Number.parseInt(initiative, 10) || 0,
       notes,
       attacks: attacks
         .filter((a) => a.name.trim() !== '')
@@ -69,7 +71,7 @@ export function EnemyForm({ campaignId, enemy, onClose }: { campaignId: string; 
           <Label htmlFor="en-name">Jméno</Label>
           <Input id="en-name" required maxLength={100} autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Goblin" />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="en-hp">Max HP</Label>
             <Input id="en-hp" type="number" inputMode="numeric" min={1} max={100000} required value={hpMax} onChange={(e) => setHpMax(e.target.value)} />
@@ -77,6 +79,10 @@ export function EnemyForm({ campaignId, enemy, onClose }: { campaignId: string; 
           <div className="space-y-2">
             <Label htmlFor="en-ac">AC</Label>
             <Input id="en-ac" type="number" inputMode="numeric" min={0} max={50} value={ac} onChange={(e) => setAc(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="en-init">Iniciativa +</Label>
+            <Input id="en-init" type="number" inputMode="numeric" min={-10} max={30} value={initiative} onChange={(e) => setInitiative(e.target.value)} />
           </div>
           {!enemy && (
             <div className="space-y-2">

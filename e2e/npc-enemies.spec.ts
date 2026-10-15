@@ -76,9 +76,10 @@ test('NPC: DM ho založí v kampani, hráč ho vidí a může mu předat peníze
     const list = (await (await dm.request.get(`/api/campaigns/${campaignId}/characters`)).json()).characters as { name: string; currency: { gp: number } }[]
     expect(list.find((c) => c.name === 'Batan')!.currency.gp).toBe(5)
 
-    // stránka nepřátel je jen pro DM: hráče vrátí na kampaň a API mu nic neřekne
-    await player.goto(`/campaigns/${campaignId}/enemies`)
+    // nepřátelé jsou jen v Panelu DM: hráč se z něj vrátí na kampaň a API mu nic neřekne
+    await player.goto(`/campaigns/${campaignId}/dm`)
     await expect(player).toHaveURL(new RegExp(`/campaigns/${campaignId}$`))
+    await expect(player.getByText('Tajný Goblin')).toHaveCount(0)
     const res = await player.request.get(`/api/campaigns/${campaignId}/enemies`)
     expect(res.status()).toBe(403)
     expect(await res.text()).not.toContain('Goblin')
@@ -97,16 +98,18 @@ test('nepřátelé: DM přidá goblina, zapisuje HP, hází skrytě a hráč o h
   await page.getByRole('button', { name: /Vytvořit pozvánku/ }).click()
   const code = (await page.locator('code').first().textContent())?.trim() ?? ''
 
+  // nepřátelé jsou rovnou v Panelu DM, bez překlikávání
   await page.goto(`/campaigns/${campaignId}/dm`)
-  await page.getByRole('link', { name: 'Nepřátelé', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Nepřátelé', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Panel DM', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Nepřátelé', level: 2 })).toBeVisible()
 
-  // dva goblini najednou, s útokem
-  await page.getByRole('button', { name: 'Přidat nepřítele' }).click()
+  // dva goblini najednou, s útokem a bonusem iniciativy
+  await page.getByRole('button', { name: 'Nový nepřítel' }).click()
   const form = page.getByRole('dialog', { name: 'Přidat nepřítele' })
   await form.getByLabel('Jméno').fill('Goblin')
   await form.getByLabel('Max HP').fill('7')
   await form.getByLabel('AC').fill('15')
+  await form.getByLabel('Iniciativa +').fill('3')
   await form.getByLabel('Kusů').fill('2')
   await form.getByRole('button', { name: 'Přidat útok' }).click()
   await form.getByLabel('Název', { exact: true }).fill('Scimitar')
@@ -159,8 +162,81 @@ test('nepřátelé: DM přidá goblina, zapisuje HP, hází skrytě a hráč o h
     await phone.close()
   }
 
-  // přístupnost stránky nepřátel
+  // přístupnost Panelu DM s nepřáteli a iniciativou
   await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' })
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([])
+})
+
+test('iniciativa v Panelu DM: hod hráče se zapíše sám, NPC a nepřátelé se hodí tlačítkem, pořadí jde přetáhnout', async ({ page: dm, browser, baseURL, isMobile }) => {
+  test.skip(isMobile, 'Kontexty si ten test staví sám (DM počítač + hráč na telefonu).')
+  await registerDm(dm, 'initdm')
+  await dm.getByLabel('Název kampaně').fill('Souboj')
+  await dm.getByRole('button', { name: 'Založit kampaň' }).click()
+  await expect(dm).toHaveURL(/\/campaigns\//)
+  const campaignId = dm.url().split('/campaigns/')[1]!
+  await dm.getByRole('button', { name: /Vytvořit pozvánku/ }).click()
+  const code = (await dm.locator('code').first().textContent())?.trim() ?? ''
+  await dm.request.post(`/api/campaigns/${campaignId}/characters`, { data: { ...pc('Batan'), kind: 'npc' } })
+  await dm.request.post(`/api/campaigns/${campaignId}/enemies`, { data: { name: 'Goblin', hpMax: 7, initiative: 2 } })
+  await dm.request.post(`/api/campaigns/${campaignId}/enemies`, { data: { name: 'Vlk', hpMax: 11, initiative: 2 } })
+
+  const phone = await newContext(browser, { ...devices['Pixel 7'], baseURL, locale: 'cs-CZ' })
+  const player = await phone.newPage()
+  try {
+    await registerViaUi(player, { username: uniqueName('hrac'), startPath: `/join/${code}` })
+    const heroId = (await (await player.request.post(`/api/campaigns/${campaignId}/characters`, { data: pc('Hrdina') })).json()).character.id as string
+
+    await dm.goto(`/campaigns/${campaignId}/dm`)
+    await expect(dm.getByRole('heading', { name: 'Iniciativa' })).toBeVisible()
+    await expect(dm.getByText(/Zatím prázdno/)).toBeVisible()
+
+    // hráč si hodí iniciativu na svém sheetu, DM ji vidí v pořadí bez zásahu
+    await player.goto(`/characters/${heroId}`)
+    await player.getByRole('button', { name: /^Hodit: Iniciativa/ }).click()
+    await expect(player.getByRole('dialog', { name: 'Hod kostkou' }).getByTestId('roll-result-total')).toBeVisible()
+    await expect(dm.getByTestId('initiative-Hrdina')).toBeVisible({ timeout: 15_000 })
+    // hráč pořadí iniciativy nevidí
+    expect((await player.request.get(`/api/campaigns/${campaignId}/initiative`)).status()).toBe(403)
+
+    // NPC a nepřátele jedním tlačítkem
+    await dm.getByRole('button', { name: 'Hodit za NPC a nepřátele' }).click()
+    for (const name of ['Batan', 'Goblin', 'Vlk']) await expect(dm.getByTestId(`initiative-${name}`)).toBeVisible()
+    const values = await dm.getByRole('spinbutton', { name: /^Iniciativa:/ }).evaluateAll((els) => els.map((e) => Number((e as HTMLInputElement).value)))
+    expect(values).toHaveLength(4)
+    expect(values).toEqual([...values].sort((a, b) => b - a)) // seřazeno podle hodnoty
+
+    // ruční zásah: hodnota se přepíše a postava se přeřadí
+    await dm.getByRole('spinbutton', { name: 'Iniciativa: Vlk' }).fill('40')
+    await dm.getByRole('spinbutton', { name: 'Iniciativa: Vlk' }).blur()
+    await expect(dm.getByRole('list', { name: 'Pořadí iniciativy' }).getByRole('listitem').first()).toContainText('Vlk')
+
+    // přetažení: Hrdina na první místo (a šipkou zpět o jedno níž)
+    const rows = dm.getByRole('list', { name: 'Pořadí iniciativy' }).getByRole('listitem')
+    await dm.getByTestId('initiative-Hrdina').dragTo(rows.first())
+    await expect(rows.first()).toContainText('Hrdina')
+    await dm.getByRole('button', { name: 'Hrdina: posunout níž' }).click()
+    await expect(rows.nth(1)).toContainText('Hrdina')
+
+    // další tah označí první, po posledním začne druhé kolo; padlý nepřítel se přeskočí
+    await expect(dm.getByTestId('initiative-round')).toHaveText('Kolo 1')
+    await dm.getByRole('button', { name: 'Další tah' }).click()
+    await expect(rows.first()).toHaveAttribute('data-active', 'true')
+    await dm.getByRole('button', { name: 'Goblin: −5 HP' }).click()
+    await dm.getByRole('button', { name: 'Goblin: −5 HP' }).click()
+    await expect(dm.getByTestId('enemy-hp-Goblin')).toHaveText('0')
+    for (let i = 0; i < 3; i++) await dm.getByRole('button', { name: 'Další tah' }).click()
+    await expect(dm.getByTestId('initiative-round')).toHaveText('Kolo 2')
+    await expect(dm.getByTestId('initiative-Goblin')).toHaveAttribute('data-active', 'false')
+
+    // odebrání a konec souboje
+    await dm.getByRole('button', { name: 'Odebrat z iniciativy: Vlk' }).click()
+    await expect(dm.getByTestId('initiative-Vlk')).toHaveCount(0)
+    dm.once('dialog', (d) => void d.accept())
+    await dm.getByRole('button', { name: 'Nový souboj' }).click()
+    await expect(dm.getByText(/Zatím prázdno/)).toBeVisible()
+    await expectNoHorizontalScroll(dm)
+  } finally {
+    await phone.close()
+  }
 })

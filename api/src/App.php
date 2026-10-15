@@ -10,6 +10,7 @@ use Dnd\Controllers\CharacterController;
 use Dnd\Controllers\DiceController;
 use Dnd\Controllers\DmController;
 use Dnd\Controllers\EnemyController;
+use Dnd\Controllers\InitiativeController;
 use Dnd\Controllers\InventoryController;
 use Dnd\Controllers\JournalController;
 use Dnd\Controllers\MapController;
@@ -100,6 +101,14 @@ final class App
         $r->add('DELETE', '/dm-notes/{id}', [CharacterController::class, 'deleteNote']);
 
         // DM panel: rozdávání, zranění, stavy, efekty; oznámení hráčům
+        $r->add('GET', '/campaigns/{id}/initiative', [InitiativeController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/initiative', [InitiativeController::class, 'set']);
+        $r->add('POST', '/campaigns/{id}/initiative/order', [InitiativeController::class, 'reorder']);
+        $r->add('POST', '/campaigns/{id}/initiative/next', [InitiativeController::class, 'next']);
+        $r->add('DELETE', '/campaigns/{id}/initiative/{kind}/{sid}', [InitiativeController::class, 'remove']);
+        $r->add('DELETE', '/campaigns/{id}/initiative', [InitiativeController::class, 'clear']);
+        $r->add('POST', '/campaigns/{id}/enemies/initiative', [EnemyController::class, 'rollAllInitiative']);
+        $r->add('POST', '/enemies/{id}/initiative', [EnemyController::class, 'rollInitiative']);
         $r->add('GET', '/campaigns/{id}/enemies', [EnemyController::class, 'index']);
         $r->add('POST', '/campaigns/{id}/enemies', [EnemyController::class, 'create']);
         $r->add('PATCH', '/enemies/{id}', [EnemyController::class, 'update']);

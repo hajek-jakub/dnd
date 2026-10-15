@@ -1,66 +1,42 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, CopyIcon, EyeOffIcon, PencilIcon, PlusIcon, ShieldIcon, SkullIcon, Trash2Icon } from 'lucide-react'
+import { CopyIcon, DicesIcon, EyeOffIcon, PencilIcon, ShieldIcon, SkullIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
+import { SectionHeader } from '@/components/SectionHeader'
 import { Button } from '@/components/ui/button'
-import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { Input } from '@/components/ui/input'
-import { useCampaign } from '@/features/campaigns/api'
-import { DiceDock } from '@/features/dice/DiceDock'
 import { d20 } from '@/features/dice/format'
 import { useRoller } from '@/features/dice/useRoller'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { useDeleteEnemy, useDuplicateEnemy, useEnemies, useEnemyHp, type Enemy } from './api'
-import { EnemyForm } from './EnemyForm'
+import { useDeleteEnemy, useDuplicateEnemy, useEnemyHp, useRollEnemyInitiative, type Enemy } from './api'
 
-/** Nepřátelé: jednoduchý přehled jen pro DM (HP, AC, útoky s hody). Hráči o nich nic nevidí. */
-export function EnemiesPage() {
-  const { campaignId = '' } = useParams<{ campaignId: string }>()
-  const { data: campaign, isPending } = useCampaign(campaignId)
-  const isDm = campaign?.role === 'dm'
-  const { data: enemies, isPending: loading, error } = useEnemies(campaignId, isDm)
-  const [form, setForm] = useState<{ enemy?: Enemy } | null>(null)
+/**
+ * Nepřátelé přímo v Panelu DM (vidí je jen DM): karty s červeným akcentem, HP, hody útoku, zranění a iniciativy.
+ * Přidání a úpravu řeší rodič (tlačítka v hlavičce stránky, „Upravit“ na kartě).
+ */
+export function EnemiesSection({ campaignId, enemies, onEdit }: { campaignId: string; enemies: Enemy[]; onEdit: (enemy: Enemy) => void }) {
   const [hideRolls, setHideRolls] = useState(true)
-
-  if (isPending) return <FullPageSpinner />
-  if (!campaign) return <Navigate to="/" replace />
-  if (!isDm) return <Navigate to={`/campaigns/${campaignId}`} replace />
-
   return (
-    <>
-      <div className="space-y-2">
-        <Link to={`/campaigns/${campaignId}/dm`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeftIcon aria-hidden className="size-4" /> Panel DM
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">Nepřátelé</h1>
-          <Button onClick={() => setForm({})}>
-            <PlusIcon aria-hidden /> Přidat nepřítele
+    <section aria-label="Nepřátelé" className="space-y-3">
+      <SectionHeader
+        title={
+          <span className="underline decoration-red-500 decoration-4 underline-offset-8">
+            Nepřátelé
+          </span>
+        }
+        actions={
+          <Button type="button" variant={hideRolls ? 'default' : 'outline'} aria-pressed={hideRolls} onClick={() => setHideRolls((v) => !v)}>
+            <EyeOffIcon aria-hidden /> {hideRolls ? 'Hody skryté před hráči' : 'Hody vidí všichni'}
           </Button>
-        </div>
-        <p className="flex items-center gap-1 text-sm text-muted-foreground">
-          <EyeOffIcon aria-hidden className="size-4 shrink-0" /> Nepřátele vidíš jen ty, hráči o nich nevědí. Slouží ti k zapisování životů a hodů.
-        </p>
-      </div>
-
-      <Button type="button" variant={hideRolls ? 'default' : 'outline'} aria-pressed={hideRolls} onClick={() => setHideRolls((v) => !v)} className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left sm:w-auto">
-        <EyeOffIcon aria-hidden />
-        {hideRolls ? 'Hody nepřátel jsou skryté před hráči (vidíš je jen ty)' : 'Hody nepřátel uvidí všichni hráči v logu'}
-      </Button>
-
-      {loading && <p className="text-muted-foreground">Načítám…</p>}
-      {error && <p role="alert">Nepřátele se nepodařilo načíst.</p>}
-      {enemies?.length === 0 && <p className="text-muted-foreground">Zatím tu nikdo není. Přidej třeba goblina, nastav mu životy a útoky.</p>}
-      <ul aria-label="Nepřátelé" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {enemies?.map((e) => (
-          <EnemyCard key={e.id} campaignId={campaignId} enemy={e} hideRolls={hideRolls} onEdit={() => setForm({ enemy: e })} />
+        }
+      />
+      {enemies.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nikdo není. „Nový nepřítel“ nahoře přidá třeba goblina s životy, útoky a iniciativou. Vidíš je jen ty.</p>}
+      <ul aria-label="Seznam nepřátel" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {enemies.map((e) => (
+          <EnemyCard key={e.id} campaignId={campaignId} enemy={e} hideRolls={hideRolls} onEdit={() => onEdit(e)} />
         ))}
       </ul>
-
-      <DiceDock campaignId={campaignId} />
-      {form && <EnemyForm key={form.enemy?.id ?? 'new'} campaignId={campaignId} enemy={form.enemy} onClose={() => setForm(null)} />}
-    </>
+    </section>
   )
 }
 
@@ -68,6 +44,7 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
   const hp = useEnemyHp(campaignId)
   const duplicate = useDuplicateEnemy(campaignId)
   const remove = useDeleteEnemy(campaignId)
+  const initiative = useRollEnemyInitiative(campaignId)
   const { roll, pending } = useRoller(campaignId)
   const [amount, setAmount] = useState('')
   const down = enemy.hpCurrent === 0
@@ -84,21 +61,36 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
   }
 
   return (
-    <li className={cn('space-y-3 rounded-xl border bg-card p-4', down && 'border-dashed bg-muted')} data-testid={`enemy-${enemy.name}`}>
+    <li
+      className={cn('space-y-3 rounded-xl border border-l-4 border-red-500/40 border-l-red-600 bg-red-500/5 p-4', down && 'border-dashed bg-muted')}
+      data-testid={`enemy-${enemy.name}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className={cn('break-words text-lg font-semibold', down && 'line-through')}>{enemy.name}</h2>
+          <h3 className={cn('break-words text-lg font-semibold underline decoration-red-500 decoration-2 underline-offset-4', down && 'line-through')}>{enemy.name}</h3>
           {down && (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
               <SkullIcon aria-hidden className="size-3.5" /> Padl
             </span>
           )}
         </div>
-        {enemy.ac !== null && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm font-medium" title="Armor Class">
-            <ShieldIcon aria-hidden className="size-4" /> AC {enemy.ac}
-          </span>
-        )}
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          {enemy.ac !== null && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm font-medium" title="Armor Class">
+              <ShieldIcon aria-hidden className="size-4" /> AC {enemy.ac}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            className="min-h-11 text-sm"
+            disabled={initiative.isPending}
+            aria-label={`${enemy.name}: hodit iniciativu (${enemy.initiative >= 0 ? '+' : '−'}${Math.abs(enemy.initiative)})`}
+            onClick={() => initiative.mutate(enemy.id, { onSuccess: (r) => toast(`${r.name}: iniciativa ${r.total}`), onError: fail('Hod na iniciativu se nepodařil.') })}
+          >
+            <DicesIcon aria-hidden /> Iniciativa {enemy.initiative >= 0 ? '+' : '−'}
+            {Math.abs(enemy.initiative)}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -127,7 +119,7 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
       </div>
 
       {enemy.attacks.length > 0 && (
-        <ul aria-label={`Útoky: ${enemy.name}`} className="divide-y rounded-lg border">
+        <ul aria-label={`Útoky: ${enemy.name}`} className="divide-y rounded-lg border bg-background/60">
           {enemy.attacks.map((a, i) => (
             <li key={`${a.name}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1">
               <span className="min-w-0 flex-1 font-medium">{a.name}</span>
@@ -148,8 +140,8 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
 
       {enemy.notes && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{enemy.notes}</p>}
 
-      <div className="flex flex-wrap gap-1 border-t pt-2">
-        <Button variant="outline" onClick={onEdit} aria-label={`Upravit ${enemy.name}`}>
+      <div className="flex flex-wrap gap-1 border-t border-red-500/20 pt-2">
+        <Button variant="outline" onClick={onEdit} aria-label={`Upravit ${enemy.name} (útoky, kostky, iniciativa)`}>
           <PencilIcon aria-hidden /> Upravit
         </Button>
         <Button
@@ -189,4 +181,3 @@ function RollBtn({ label, text, disabled, onClick }: { label: string; text: stri
     </button>
   )
 }
-

@@ -23,13 +23,13 @@ export function useRoller(campaignId: string, characterId?: string) {
   const overlay = useRollOverlay()
   const mutation = useRollMutation(campaignId)
 
-  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; hidden?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
+  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; hidden?: boolean; initiative?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
     const mode = options.mode ?? settings.mode
     const hidden = options.hidden ?? settings.hidden
     const crit = options.crit === true
     const token = overlay.begin({ label, expression, mode, crit, hidden, again: () => roll(label, expression, options) })
     mutation.mutate(
-      { expression, label, mode, crit: options.crit, hidden, ...(characterId ? { characterId } : {}) },
+      { expression, label, mode, crit: options.crit, hidden, ...(options.initiative ? { initiative: true } : {}), ...(characterId ? { characterId } : {}) },
       {
         onSuccess: (r) => {
           overlay.finish(token, r)

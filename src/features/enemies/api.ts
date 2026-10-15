@@ -14,6 +14,8 @@ export interface Enemy {
   hpMax: number
   hpCurrent: number
   ac: number | null
+  /** bonus k hodu na iniciativu */
+  initiative: number
   attacks: EnemyAttack[]
   notes: string
   position: number
@@ -24,6 +26,7 @@ export interface EnemyInput {
   hpMax: number
   hpCurrent?: number
   ac: number | null
+  initiative: number
   attacks: EnemyAttack[]
   notes: string
 }
@@ -77,5 +80,23 @@ export function useDeleteEnemy(campaignId: string) {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/enemies/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key(campaignId) }),
+  })
+}
+
+export interface InitiativeRollResult {
+  id: string
+  name: string
+  total: number
+}
+
+/** Hod na iniciativu jednoho nepřítele (skrytý, server ho zapíše do pořadí iniciativy). */
+export function useRollEnemyInitiative(campaignId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => (await api.post<{ result: InitiativeRollResult }>(`/enemies/${id}/initiative`, {})).result,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['initiative', campaignId] })
+      void queryClient.invalidateQueries({ queryKey: ['rolls', campaignId] })
+    },
   })
 }

@@ -38,7 +38,7 @@ describe('audit tras API', () => {
 
   it('tabulka tras se načetla (a obsahuje všechny moduly)', () => {
     expect(routes.length).toBeGreaterThan(60)
-    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}']) {
+    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative']) {
       expect(routes.some((r) => r.pattern === p), p).toBe(true)
     }
     expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/health'])

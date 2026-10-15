@@ -17,7 +17,7 @@ export function CharactersSection({ campaignId }: { campaignId: string }) {
   return (
     <>
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="font-display text-lg">Družina</CardTitle>
           {!isDm && (
             <Link to={`/campaigns/${campaignId}/characters/new`} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
@@ -35,7 +35,7 @@ export function CharactersSection({ campaignId }: { campaignId: string }) {
 
       {(isDm || npcs.length > 0) && (
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
             <CardTitle className="font-display text-lg">NPC</CardTitle>
             {isDm && (
               <Link to={`/campaigns/${campaignId}/characters/new?npc=1`} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
