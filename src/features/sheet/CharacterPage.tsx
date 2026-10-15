@@ -75,6 +75,11 @@ function SheetView() {
         <Avatar id={character.id} name={character.name} version={character.photoVersion} className="size-20 text-3xl" />
         <div className="min-w-0 flex-1 basis-44">
           <h1 className="truncate text-2xl font-bold">{character.name}</h1>
+          {character.kind === 'npc' && (
+            <p data-testid="npc-badge" className="mb-1 inline-flex rounded-full border border-primary px-2 text-xs font-medium text-primary">
+              NPC · hraje za něj DM
+            </p>
+          )}
           <p className="text-muted-foreground">{[character.race, sheet.classSummary].filter(Boolean).join(' · ')}</p>
           <p className="text-sm text-muted-foreground">
             Level {sheet.totalLevel} · {character.xp === null ? <NotFilled>XP nedoplněno</NotFilled> : `${character.xp} XP`}

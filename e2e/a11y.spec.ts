@@ -61,10 +61,14 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(300, 200)) } } })).json()).map.id as string
   await page.request.post(`/api/maps/${map}/pins`, { data: { x: 50, y: 50, title: 'Bod', description: 'Popis' } })
 
+  await page.request.post(`/api/campaigns/${campaignId}/enemies`, { data: { name: 'Goblin', hpMax: 7, ac: 15, attacks: [{ name: 'Scimitar', toHit: 4, damage: '1d6+2' }] } })
+  await page.request.post(`/api/campaigns/${campaignId}/characters`, { data: { name: 'Batan', kind: 'npc', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }] } })
+
   const pages: [string, string, (p: Page) => Promise<void>][] = [
     ['kampaně', '/campaigns', async (p) => void (await expect(p.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible())],
     ['kampaň (DM)', `/campaigns/${campaignId}`, async (p) => void (await expect(p.getByRole('heading', { name: 'Přístupnost', level: 1 })).toBeVisible())],
     ['panel DM', `/campaigns/${campaignId}/dm`, async (p) => void (await expect(p.getByRole('heading', { name: 'Panel DM' })).toBeVisible())],
+    ['nepřátelé', `/campaigns/${campaignId}/enemies`, async (p) => void (await expect(p.getByRole('heading', { name: 'Nepřátelé', level: 1 })).toBeVisible())],
     ['deník', `/campaigns/${campaignId}/journal`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
     ['zprávy', `/campaigns/${campaignId}/messages`, async (p) => void (await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible())],
     ['mapy', `/campaigns/${campaignId}/maps`, async (p) => void (await expect(p.getByRole('heading', { name: 'Mapy', level: 1 })).toBeVisible())],

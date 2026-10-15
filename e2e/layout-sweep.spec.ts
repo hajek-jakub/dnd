@@ -79,11 +79,19 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa s hodně dlouhým názvem, aby se zalomil', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(600, 400)) } } })).json()).map.id as string
   await page.request.post(`/api/maps/${map}/pins`, { data: { x: 50, y: 50, title: 'Bod s dlouhým názvem '.repeat(3), description: 'Popis '.repeat(60) } })
 
+  await page.request.post(`/api/campaigns/${campaignId}/characters`, {
+    data: { name: 'NPC s hodně dlouhým jménem, aby se zalomilo', kind: 'npc', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }] },
+  })
+  await page.request.post(`/api/campaigns/${campaignId}/enemies`, {
+    data: { name: 'Goblin s hodně dlouhým jménem, aby se zalomilo', hpMax: 7, ac: 15, notes: 'Poznámka '.repeat(40), attacks: [{ name: 'Scimitar s dlouhým názvem', toHit: 4, damage: '1d6+2' }, { name: 'Luk', toHit: 4, damage: '1d6+2' }] },
+  })
+
   const pages: [string, string][] = [
     ['domů', '/'],
     ['kampaně', '/campaigns'],
     ['kampaň', `/campaigns/${campaignId}`],
     ['panel DM', `/campaigns/${campaignId}/dm`],
+    ['nepřátelé', `/campaigns/${campaignId}/enemies`],
     ['deník', `/campaigns/${campaignId}/journal`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
     ['mapy', `/campaigns/${campaignId}/maps`],

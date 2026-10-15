@@ -21,6 +21,8 @@ export default function MyCharacterCard({ campaignId }: { campaignId: string }) 
   const mine = characters?.filter((c): c is CharacterFull => c.ownerId === user?.id && c.access === 'full') ?? []
 
   if (!characters) return null
+  // DM nemá vlastní postavu (hraje za NPC a nepřátele), takže mu se nic nenabízí.
+  if (mine.length === 0 && campaign?.role === 'dm') return null
   if (mine.length === 0) {
     return (
       <section aria-label="Moje postava" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed bg-card p-4">

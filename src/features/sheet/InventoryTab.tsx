@@ -383,6 +383,7 @@ function TransferDialog({ open, onClose, item }: { open: boolean; onClose: () =>
             {recipients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
+                {c.kind === 'npc' ? ' (NPC)' : ''}
               </option>
             ))}
           </NativeSelect>
@@ -629,6 +630,7 @@ function PayDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
             {recipients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
+                {c.kind === 'npc' ? ' (NPC)' : ''}
               </option>
             ))}
           </NativeSelect>

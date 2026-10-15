@@ -44,8 +44,21 @@ final class CharacterController
         $role = Access::requireMember($user, $params['id']);
         $data = $req->json();
 
+        $kind = $data['kind'] ?? 'pc';
+        if ($kind !== 'pc' && $kind !== 'npc') {
+            throw HttpError::validation("Druh postavy musí být 'pc' nebo 'npc'.", 'kind');
+        }
         $ownerId = $user['id'];
-        if (array_key_exists('ownerId', $data)) {
+        if ($kind === 'npc') {
+            // NPC: postava, za kterou hraje DM. Nepatří nikomu (ani DM), takže jich může být víc.
+            if ($role !== 'dm') {
+                throw HttpError::forbidden('NPC může vytvořit jen DM.');
+            }
+            if (array_key_exists('ownerId', $data) && $data['ownerId'] !== null) {
+                throw HttpError::validation('NPC nemá majitele.', 'ownerId');
+            }
+            $ownerId = null;
+        } elseif (array_key_exists('ownerId', $data)) {
             $requested = is_string($data['ownerId']) ? $data['ownerId'] : '';
             if ($requested !== $user['id']) {
                 if ($role !== 'dm') {
@@ -75,14 +88,14 @@ final class CharacterController
         $xp = array_key_exists('xp', $data) ? Input::optionalInt($data, 'xp', 0, 10000000, 'XP') : 0;
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $params, $ownerId, $name, $data, $scores, $lv, $state, $visibility, $baseSpeed, $xp): void {
+        Db::transaction(static function () use ($id, $params, $ownerId, $kind, $name, $data, $scores, $lv, $state, $visibility, $baseSpeed, $xp): void {
             Db::exec(
-                'INSERT INTO characters (id, campaign_id, owner_id, name, race, subrace, background, alignment, class_summary, level, notes, visibility,
+                'INSERT INTO characters (id, campaign_id, owner_id, kind, name, race, subrace, background, alignment, class_summary, level, notes, visibility,
                     abil_str, abil_dex, abil_con, abil_int, abil_wis, abil_cha, base_speed, hp_current, hp_temp, skill_proficiencies,
                     extra_save_proficiencies, extra_proficiencies, subclasses, personality, description, xp, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'\', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'\', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
                 [
-                    $id, $params['id'], $ownerId, $name,
+                    $id, $params['id'], $ownerId, $kind, $name,
                     Input::optionalString($data, 'race', 100, 'Rasa') ?? '',
                     Input::optionalString($data, 'subrace', 100, 'Subrasa') ?? '',
                     Input::optionalString($data, 'background', 100, 'Background') ?? '',
@@ -195,6 +208,9 @@ final class CharacterController
             $set('visibility', self::visibility($data));
         }
         if (array_key_exists('ownerId', $data) && $data['ownerId'] !== $row['owner_id']) {
+            if ($row['kind'] === 'npc') {
+                throw HttpError::validation('NPC nemá majitele.', 'ownerId');
+            }
             if ($role !== 'dm') {
                 throw HttpError::forbidden('Majitele postavy může změnit jen DM.');
             }
@@ -560,6 +576,7 @@ final class CharacterController
             'id' => $r['id'],
             'campaignId' => $r['campaign_id'],
             'ownerId' => $r['owner_id'],
+            'kind' => $r['kind'],
             'name' => $r['name'],
             'race' => $r['race'],
             'classSummary' => $r['class_summary'],

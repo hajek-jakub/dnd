@@ -19,8 +19,9 @@ async function newCampaign(page: Page): Promise<string> {
 
 test('vytvoření postavy, klikání HP, přepis hodnoty, odpočinek a featury', async ({ page }) => {
   await registerDm(page, 'sheet')
-  await newCampaign(page)
-  await page.getByRole('link', { name: 'Nová postava' }).click()
+  const campaignId = await newCampaign(page)
+  // DM nemá vlastní postavu (v kampani nabízí NPC), proto jde na formulář přímo; hráč by použil odkaz „Nová postava“
+  await page.goto(`/campaigns/${campaignId}/characters/new`)
 
   await page.getByLabel('Jméno postavy').fill('Hajoš')
   await page.getByLabel('Rasa').fill('Human')

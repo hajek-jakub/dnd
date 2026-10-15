@@ -8,9 +8,10 @@ namespace Dnd;
 final class Notifications
 {
     /** Zapíše oznámení, pokud příjemce není ten, kdo změnu udělal. */
-    public static function push(string $userId, string $actorId, string $campaignId, ?string $characterId, string $kind, string $text): void
+    public static function push(?string $userId, string $actorId, string $campaignId, ?string $characterId, string $kind, string $text): void
     {
-        if ($userId === $actorId) {
+        // NPC nemá majitele, takže není komu oznámení poslat.
+        if ($userId === null || $userId === '' || $userId === $actorId) {
             return;
         }
         Db::exec(

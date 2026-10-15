@@ -89,6 +89,7 @@ final class Sheets
                 'id' => $id,
                 'campaignId' => $r['campaign_id'],
                 'ownerId' => $r['owner_id'],
+                'kind' => $r['kind'],
                 'name' => $r['name'],
                 'race' => $r['race'],
                 'subrace' => $r['subrace'],

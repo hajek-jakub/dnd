@@ -33,7 +33,7 @@ export function ProfileTab() {
               <CardTitle>Viditelnost pro hráče</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Label htmlFor="visibility">Co vidí ostatní hráči</Label>
+              <Label htmlFor="visibility">{character.kind === 'npc' ? 'Co vidí hráči u tohoto NPC' : 'Co vidí ostatní hráči'}</Label>
               <NativeSelect
                 id="visibility"
                 value={character.visibility}

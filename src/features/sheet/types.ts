@@ -18,7 +18,9 @@ export interface CharacterState {
 export interface CharacterPreview {
   id: string
   campaignId: string
-  ownerId: string
+  /** null = NPC (postava DM bez majitele) */
+  ownerId: string | null
+  kind: 'pc' | 'npc'
   name: string
   race: string
   classSummary: string

@@ -23,9 +23,9 @@ export function useRoller(campaignId: string, characterId?: string) {
   const overlay = useRollOverlay()
   const mutation = useRollMutation(campaignId)
 
-  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode } = {}) {
+  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; hidden?: boolean } = {}) {
     const mode = options.mode ?? settings.mode
-    const hidden = settings.hidden
+    const hidden = options.hidden ?? settings.hidden
     const crit = options.crit === true
     const token = overlay.begin({ label, expression, mode, crit, hidden, again: () => roll(label, expression, options) })
     mutation.mutate(

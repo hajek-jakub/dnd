@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon, DicesIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { ABILITIES, SKILLS, abilityModifier, computeSheet, formatModifier, initialState, type AbilityKey, type SkillKey } from '@/engine'
@@ -36,6 +36,8 @@ function roll4d6DropLowest(): number {
 export function CreateCharacterPage() {
   const { campaignId = '' } = useParams<{ campaignId: string }>()
   const navigate = useNavigate()
+  // /characters/new?npc=1: DM zakládá NPC (postavu bez majitele, za kterou hraje on)
+  const npc = useSearchParams()[0].get('npc') === '1'
   const { data: campaign, isPending } = useCampaign(campaignId)
   const { data: bundle, isPending: bundlePending } = useEngineBundle()
   const { data: races } = useRules({ kinds: ['race'] })
@@ -87,6 +89,7 @@ export function CreateCharacterPage() {
     )
     create.mutate(
       {
+        ...(npc ? { kind: 'npc' as const } : {}),
         name: name.trim(),
         race: race.trim(),
         background: background.trim(),
@@ -100,7 +103,7 @@ export function CreateCharacterPage() {
       },
       {
         onSuccess: (c) => {
-          toast.success('Postava vytvořena. Fotku můžeš nahrát na záložce Postava.')
+          toast.success(npc ? 'NPC vytvořeno. Fotku můžeš nahrát na záložce Postava.' : 'Postava vytvořena. Fotku můžeš nahrát na záložce Postava.')
           void navigate(`/characters/${c.id}`)
         },
         onError: (e) => setError(e instanceof ApiError ? e.message : 'Postavu se nepodařilo vytvořit.'),
@@ -113,7 +116,8 @@ export function CreateCharacterPage() {
       <Link to={`/campaigns/${campaignId}`} className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeftIcon aria-hidden className="size-4" /> {campaign.name}
       </Link>
-      <h1 className="text-2xl font-bold">Nová postava</h1>
+      <h1 className="text-2xl font-bold">{npc ? 'Nové NPC' : 'Nová postava'}</h1>
+      {npc && <p className="text-sm text-muted-foreground">NPC nepatří žádnému hráči ani tobě, hraješ za něj ty. Hráči ho vidí v kampani a můžou mu předat peníze.</p>}
 
       <form onSubmit={onSubmit} className="space-y-4">
         <Card>
@@ -297,7 +301,7 @@ export function CreateCharacterPage() {
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="lg" disabled={create.isPending || !name.trim()}>
-            {create.isPending ? 'Vytvářím…' : 'Vytvořit postavu'}
+            {create.isPending ? 'Vytvářím…' : npc ? 'Vytvořit NPC' : 'Vytvořit postavu'}
           </Button>
           <Link to={`/campaigns/${campaignId}`} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
             Zrušit

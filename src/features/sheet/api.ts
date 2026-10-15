@@ -42,6 +42,8 @@ export function useCharacter(id: string | undefined) {
 }
 
 export interface CreateCharacterInput {
+  /** 'npc' = postava DM bez majitele (jen DM) */
+  kind?: 'pc' | 'npc'
   name: string
   race: string
   subrace?: string

@@ -24,6 +24,7 @@ const HomebrewFormPage = lazy(() => import('@/features/rules/HomebrewFormPage').
 const RuleDetailPage = lazy(() => import('@/features/rules/RuleDetailPage').then((m) => ({ default: m.RuleDetailPage })))
 const RulesPage = lazy(() => import('@/features/rules/RulesPage').then((m) => ({ default: m.RulesPage })))
 const CharacterPage = lazy(() => import('@/features/sheet/CharacterPage').then((m) => ({ default: m.CharacterPage })))
+const EnemiesPage = lazy(() => import('@/features/enemies/EnemiesPage').then((m) => ({ default: m.EnemiesPage })))
 const CreateCharacterPage = lazy(() => import('@/features/sheet/CreateCharacterPage').then((m) => ({ default: m.CreateCharacterPage })))
 const LevelUpPage = lazy(() => import('@/features/sheet/LevelUpWizard').then((m) => ({ default: m.LevelUpPage })))
 
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
+            <Route path="campaigns/:campaignId/enemies" element={<EnemiesPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
             <Route path="campaigns/:campaignId/journal" element={<JournalPage />} />
             <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />

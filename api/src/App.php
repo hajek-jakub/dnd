@@ -9,6 +9,7 @@ use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
 use Dnd\Controllers\DiceController;
 use Dnd\Controllers\DmController;
+use Dnd\Controllers\EnemyController;
 use Dnd\Controllers\InventoryController;
 use Dnd\Controllers\JournalController;
 use Dnd\Controllers\MapController;
@@ -99,6 +100,12 @@ final class App
         $r->add('DELETE', '/dm-notes/{id}', [CharacterController::class, 'deleteNote']);
 
         // DM panel: rozdávání, zranění, stavy, efekty; oznámení hráčům
+        $r->add('GET', '/campaigns/{id}/enemies', [EnemyController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/enemies', [EnemyController::class, 'create']);
+        $r->add('PATCH', '/enemies/{id}', [EnemyController::class, 'update']);
+        $r->add('DELETE', '/enemies/{id}', [EnemyController::class, 'delete']);
+        $r->add('POST', '/enemies/{id}/hp', [EnemyController::class, 'hp']);
+        $r->add('POST', '/enemies/{id}/duplicate', [EnemyController::class, 'duplicate']);
         $r->add('POST', '/campaigns/{id}/dm/items', [DmController::class, 'giveItem']);
         $r->add('POST', '/campaigns/{id}/dm/currency', [DmController::class, 'giveCurrency']);
         $r->add('POST', '/campaigns/{id}/dm/xp', [DmController::class, 'giveXp']);

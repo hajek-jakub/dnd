@@ -3,6 +3,8 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
   CoinsIcon,
+  PlusIcon,
+  SkullIcon,
   HeartPulseIcon,
   PackagePlusIcon,
   ShieldPlusIcon,
@@ -12,7 +14,7 @@ import {
   ZapIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { useCampaign } from '@/features/campaigns/api'
@@ -53,6 +55,7 @@ export function DmPage() {
     if (!bundle || !list) return []
     return list
       .filter((c): c is CharacterFull => c.access === 'full')
+      .sort((a, b) => Number(a.kind === 'npc') - Number(b.kind === 'npc')) // NPC až za postavami hráčů
       .map((character) => {
         const { sheet, hpCurrent } = deriveSheet(character, bundle, rules)
         return { character, sheet, hpCurrent }
@@ -79,7 +82,17 @@ export function DmPage() {
         <Link to={`/campaigns/${campaignId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon aria-hidden className="size-4" /> {campaign.name}
         </Link>
-        <h1 className="text-2xl font-bold">Panel DM</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">Panel DM</h1>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/campaigns/${campaignId}/enemies`} className={buttonVariants({ variant: 'secondary' })}>
+              <SkullIcon aria-hidden /> Nepřátelé
+            </Link>
+            <Link to={`/campaigns/${campaignId}/characters/new?npc=1`} className={buttonVariants({ variant: 'secondary' })}>
+              <PlusIcon aria-hidden /> Nové NPC
+            </Link>
+          </div>
+        </div>
       </div>
 
       <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
@@ -88,9 +101,9 @@ export function DmPage() {
             <p aria-live="polite" className="text-sm">
               Vybráno: <strong>{targets.length}</strong> z {rows.length}
             </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setSelected(new Set(rows.map((r) => r.character.id)))} disabled={rows.length === 0}>
-                Vybrat všechny
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setSelected(new Set(rows.filter((r) => r.character.kind !== 'npc').map((r) => r.character.id)))} disabled={rows.length === 0}>
+                Vybrat všechny hráče
               </Button>
               <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={targets.length === 0}>
                 Zrušit výběr
@@ -113,7 +126,7 @@ export function DmPage() {
       ) : rows.length === 0 ? (
         <p className="text-muted-foreground">V kampani zatím nejsou žádné postavy.</p>
       ) : (
-        <ul aria-label="Postavy" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul aria-label="Postavy" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
           {rows.map(({ character, sheet, hpCurrent }) => (
             <CharacterOverview
               key={character.id}
@@ -178,6 +191,7 @@ function CharacterOverview({
           <Link to={`/characters/${character.id}`} className="block truncate font-semibold underline-offset-4 hover:underline">
             {character.name}
           </Link>
+          {character.kind === 'npc' && <span className="mb-0.5 inline-flex rounded-full border border-primary px-2 text-xs font-medium text-primary">NPC</span>}
           <p className="truncate text-sm text-muted-foreground">
             {[character.race, sheet.classSummary].filter(Boolean).join(' · ')} · level {sheet.totalLevel}
           </p>

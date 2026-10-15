@@ -52,7 +52,7 @@ describe('postavy a DM poznámky: oprávnění', () => {
     const hajos = res.body.characters.find((c: { id: string }) => c.id === bobChar)
     expect(hajos).toBeDefined()
     expect(hajos).toMatchObject({ name: 'Hajoš', race: 'Human', classSummary: 'Monk 5 / Warlock 1', level: 6, access: 'public' })
-    expect(Object.keys(hajos).sort()).toEqual(['access', 'campaignId', 'classSummary', 'id', 'level', 'name', 'ownerId', 'photoVersion', 'race'])
+    expect(Object.keys(hajos).sort()).toEqual(['access', 'campaignId', 'classSummary', 'id', 'kind', 'level', 'name', 'ownerId', 'photoVersion', 'race'])
     expect(JSON.stringify(res.body)).not.toContain('TAJNÉ')
     // vlastní postavu vidí celou
     expect(res.body.characters.find((c: { id: string }) => c.id === carolChar).notes).toBe('carol soukromě')

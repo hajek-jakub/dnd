@@ -35,7 +35,9 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
 4. **Zprávy**: soukromě jednomu hráči, tajně více hráčům najednou, nebo do skupiny. Hráči si mezi sebou soukromě píšou jen přes společný jazyk (tyhle zprávy DM nevidí, ani když má postavu s tím jazykem); jinak píšou jen tobě.
 5. **Deník**: zakládáš zápisy podle témat (příběh, místa, postavy, frakce, domácí pravidla…) pro všechny, vybrané hráče, nebo jen pro sebe, a důležité připneš nahoru. Formátování: `**tučně**`, `*kurzíva*`, `# nadpis`, odrážky `- položka`, odkazy.
 6. **Pravidla**: SRD 5.1 (kouzla, itemy, třídy, rasy…) a katalog magických itemů (jen údaje s odkazem). **Homebrew** (kouzla, itemy, zbraně, featury, subclassy) vytvoříš v sekci Pravidla po výběru kampaně a vidí ho členové kampaně.
-7. **Kostky**: stejné jako hráči, navíc vidíš skryté hody hráčů a můžeš hodit za kteroukoli postavu.
+7. **NPC a nepřátelé**: DM nemá vlastní postavu. Za vedlejší postavy hraješ **NPC** („Nové NPC“ na stránce kampaně nebo v Panelu DM): je to celý sheet jako u hráčů, ale nepatří nikomu, takže jich můžeš mít kolik chceš. Hráči NPC vidí v kampani a můžou mu předat peníze nebo item (třeba Batanovi zlaťáky).
+   **Nepřátelé** (Panel DM → Nepřátelé) jsou jen tvoje poznámky k boji: jméno, životy, AC a útoky. Přidáš víc kusů najednou, zapisuješ zranění tlačítky nebo vlastním číslem, klikáš na hody útoku a zranění (výchozí skryté před hráči) a „Další“ udělá kopii s plným zdravím. Hráči o nepřátelích nic nevidí a nemůžou jim nic předat.
+8. **Kostky**: stejné jako hráči, navíc vidíš skryté hody hráčů a můžeš hodit za kteroukoli postavu.
 
 ## Když něco nejde
 
