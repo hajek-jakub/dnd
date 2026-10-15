@@ -64,6 +64,7 @@ const normalizeName = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '')
 
 export function computeSheet(input: CharacterInput, bundle: RulesBundle): ComputedSheet {
   const ov = input.overrides
+  const ruleset = input.rules?.ruleset ?? '2014'
   const classes = groupClasses(input)
   const totalLevel = Math.max(1, input.levels.length)
   const effects = activeEffects(input)
@@ -288,7 +289,8 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   if (monk) {
     const ma = bundle.classes.monk?.levels[monk.level]?.classSpecific.martial_arts as
       { dice_count?: number; dice_value?: number } | undefined
-    if (ma?.dice_value) martialArtsDie = `${ma.dice_count ?? 1}d${ma.dice_value}`
+    // 2024: martial arts kostka je o jeden stupeň vyšší (d6, d8, d10, d12 místo d4, d6, d8, d10).
+    if (ma?.dice_value) martialArtsDie = `${ma.dice_count ?? 1}d${ruleset === '2024' ? ma.dice_value + 2 : ma.dice_value}`
   }
 
   // --- Extra Attack (nesčítá se mezi třídami)
@@ -319,7 +321,8 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
         (stats?.range === 'melee' &&
           !props.includes('two-handed') &&
           !props.includes('heavy') &&
-          (stats.category === 'simple' || /^shortsword$/i.test(w.name))))
+          // 2014: simple melee zbraně a shortsword; 2024: simple melee zbraně a martial melee zbraně s vlastností Light
+          (stats.category === 'simple' || (ruleset === '2024' ? props.includes('light') : /^shortsword$/i.test(w.name)))))
     const candidates: AbilityKey[] = ranged ? ['dex'] : props.includes('finesse') || monkWeapon ? ['str', 'dex'] : ['str']
     const ability = candidates.reduce((best, a) => (mod(a) > mod(best) ? a : best))
     const proficient = w === null ? true : isProficientWith(w)
@@ -410,7 +413,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   // --- zdroje
   const resources: ResourceInfo[] = []
   for (const c of classes) {
-    for (const def of classResources(bundle, c.classIndex, c.level, mod)) {
+    for (const def of classResources(bundle, c.classIndex, c.level, mod, ruleset)) {
       const max = makeComputed(`resource.${def.key}.max`, def.max, [{ label: def.source, value: def.max }], ov)
       resources.push({
         key: def.key,

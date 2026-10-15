@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { useCampaign } from '@/features/campaigns/api'
+import { engineRulesOf } from '@/features/campaigns/ruleset'
 import { DescriptionText } from '@/features/rules/DescriptionText'
 import { useRules } from '@/features/rules/api'
 import { ApiError } from '@/lib/api'
@@ -96,7 +98,8 @@ function Wizard({ character, bundle }: { character: CharacterFull; bundle: Rules
   const asiTotal = Object.values(increases).reduce((n, v) => n + (v ?? 0), 0)
 
   // Výpočet "před" a "po" enginem: co se tímto level upem změní.
-  const baseInput = useMemo(() => toEngineInput(character), [character])
+  const { data: campaign } = useCampaign(character.campaignId)
+  const baseInput = useMemo(() => toEngineInput(character, engineRulesOf(campaign?.settings)), [character, campaign?.settings])
   const before = useMemo(() => computeSheet({ ...baseInput, state: { ...baseInput.state, hpCurrent: 0 } }, bundle), [baseInput, bundle])
   const afterInput = useMemo(() => {
     const scores = { ...character.abilityScores }

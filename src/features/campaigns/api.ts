@@ -126,11 +126,11 @@ export function useAcceptInvite() {
   })
 }
 
-/** Nastavení kampaně (jen DM): zatím nosnost a přetížení. */
+/** Nastavení kampaně (jen DM): nosnost a přetížení, sada pravidel (2014 / 2024). */
 export function useUpdateCampaignSettings(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (settings: { encumbrance?: boolean }) =>
+    mutationFn: async (settings: { encumbrance?: boolean; ruleset?: '2014' | '2024' }) =>
       (await api.patch<{ campaign: Campaign }>(`/campaigns/${campaignId}`, { settings })).campaign,
     // Přepínač reaguje hned, při chybě se vrátí.
     onMutate: async (settings) => {

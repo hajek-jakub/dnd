@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeftIcon, CopyIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { useAuth } from '@/features/auth/auth-context'
@@ -19,6 +21,7 @@ import {
 } from './api'
 import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
+import { RULESETS, rulesetOf } from './ruleset'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 
 export function CampaignPage() {
@@ -64,7 +67,12 @@ export function CampaignPage() {
           <ArrowLeftIcon aria-hidden className="size-4" /> Všechny kampaně
         </Link>
         <h1 className="text-2xl font-bold">{campaign.name}</h1>
-        {myRole && <RoleBadge role={myRole} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {myRole && <RoleBadge role={myRole} />}
+          <span data-testid="ruleset-badge" className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">
+            Pravidla {rulesetOf(campaign.settings)}
+          </span>
+        </div>
         {isDm && campaignId && (
           <div>
             <Link to={`/campaigns/${campaignId}/dm`} className={buttonVariants({ variant: 'default' })}>
@@ -123,7 +131,7 @@ export function CampaignPage() {
               <CardTitle>Nastavení kampaně</CardTitle>
             </CardHeader>
             <CardContent>
-              <SettingsForm campaignId={campaignId} encumbrance={campaign.settings?.encumbrance === true} />
+              <SettingsForm campaignId={campaignId} settings={campaign.settings} />
             </CardContent>
           </Card>
         )}
@@ -222,32 +230,58 @@ function InvitesCard({ campaignId, className }: { campaignId: string; className?
   )
 }
 
-function SettingsForm({ campaignId, encumbrance }: { campaignId: string; encumbrance: boolean }) {
+function SettingsForm({ campaignId, settings }: { campaignId: string; settings: Record<string, unknown> | undefined }) {
   const update = useUpdateCampaignSettings(campaignId)
   // Přepínač se přepne okamžitě (synchronně), server se dozví změnu na pozadí; při chybě se vrátí.
   const [optimistic, setOptimistic] = useState<boolean | null>(null)
-  const checked = optimistic ?? encumbrance
+  const checked = optimistic ?? settings?.encumbrance === true
+  const ruleset = rulesetOf(settings)
   return (
-    <label className="flex min-h-11 cursor-pointer items-start gap-3">
-      <input
-        type="checkbox"
-        className="mt-1 size-5 shrink-0 accent-primary"
-        checked={checked}
-        onChange={(e) => {
-          setOptimistic(e.target.checked)
-          update.mutate(
-            { encumbrance: e.target.checked },
-            {
-              onError: () => toast.error('Nastavení se nepodařilo uložit'),
-              onSettled: () => setOptimistic(null),
-            },
-          )
-        }}
-      />
-      <span>
-        Sledovat nosnost a přetížení
-        <span className="block text-sm text-muted-foreground">Nad 5× STR liber −10 ft rychlosti, nad 10× STR −20 ft (volitelné pravidlo z PHB).</span>
-      </span>
-    </label>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="campaign-ruleset">Pravidla kampaně</Label>
+        <NativeSelect
+          id="campaign-ruleset"
+          value={ruleset}
+          onChange={(e) =>
+            update.mutate(
+              { ruleset: e.target.value === '2024' ? '2024' : '2014' },
+              { onError: () => toast.error('Nastavení se nepodařilo uložit'), onSuccess: () => toast.success('Pravidla kampaně změněna') },
+            )
+          }
+        >
+          {RULESETS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
+        </NativeSelect>
+        <p className="text-sm text-muted-foreground">
+          Podle toho engine počítá martial arts kostku mnicha (d6 / d8 na 5. levelu), které zbraně jsou monk zbraně a jak se jmenuje ki (Ki / Focus Points).
+          Data pravidel (itemy, kouzla, třídy) jsou zatím jen ze SRD 5.1.
+        </p>
+      </div>
+      <label className="flex min-h-11 cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          className="mt-1 size-5 shrink-0 accent-primary"
+          checked={checked}
+          onChange={(e) => {
+            setOptimistic(e.target.checked)
+            update.mutate(
+              { encumbrance: e.target.checked },
+              {
+                onError: () => toast.error('Nastavení se nepodařilo uložit'),
+                onSettled: () => setOptimistic(null),
+              },
+            )
+          }}
+        />
+        <span>
+          Sledovat nosnost a přetížení
+          <span className="block text-sm text-muted-foreground">Nad 5× STR liber −10 ft rychlosti, nad 10× STR −20 ft (volitelné pravidlo z PHB).</span>
+        </span>
+      </label>
+    </div>
   )
 }

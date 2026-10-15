@@ -194,3 +194,30 @@ describe('Hajoš ze seedu: známé rozdíly proti papíru', () => {
     expect(sheet.attacks.find((a) => a.name === 'Demonic Spear')!.damageDice).toBe('1d6')
   })
 })
+
+/** Papír je psaný podle pravidel 2024: s nimi sedí i martial arts kostka a útok Nunchaku (1d8+4). */
+describe('Hajoš ze seedu: kampaň s pravidly 2024', () => {
+  const sheet2024 = computeSheet({ ...input, rules: { ruleset: '2024' } }, bundle)
+
+  it('martial arts d8 a Nunchaku 1d8+4 přesně podle papíru', () => {
+    expect(sheet2024.martialArtsDie).toBe('1d8')
+    const row = seed.attacks.find((a) => a.name === 'Nunchaku')!
+    const nunchaku = sheet2024.attacks.find((a) => a.name === 'Nunchaku')!
+    expect(row.damage).toBe('1d8+4')
+    expect(nunchaku.damageDice).toBe('1d8')
+    expect(nunchaku.damageBonus.value).toBe(4)
+    expect(nunchaku.toHit.value).toBe(row.toHit)
+  })
+
+  it('Focus Points: maximum 5 jako ki na papíře', () => {
+    const fp = sheet2024.resources.find((r) => r.key === 'monk.ki')!
+    expect(fp.name).toBe('Focus Points')
+    expect(fp.max.value).toBe(v.kiMax)
+  })
+
+  it('ostatní čísla z papíru zůstávají stejná jako v 2014', () => {
+    expect(sheet2024.ac.value).toBe(v.armorClass)
+    expect(sheet2024.proficiencyBonus.value).toBe(v.proficiencyBonus)
+    expect(sheet2024.hp.max.value).toBe(seed.hitPoints.max)
+  })
+})

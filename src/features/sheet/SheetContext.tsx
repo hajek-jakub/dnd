@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import type { RulesBundle } from '@/engine'
 import { useAuth } from '@/features/auth/auth-context'
 import { useCampaign } from '@/features/campaigns/api'
+import { engineRulesOf } from '@/features/campaigns/ruleset'
 import { ApiError } from '@/lib/api'
 import { useAdjust, useUpdateCharacter } from './api'
 import { deriveSheet } from './model'
@@ -17,8 +18,8 @@ export function SheetProvider({ character, bundle, children }: { character: Char
 
   const isDm = campaign?.role === 'dm'
   const canEdit = isDm || character.ownerId === user?.id
-  const encumbrance = campaign?.settings?.encumbrance === true
-  const { sheet, hpCurrent } = useMemo(() => deriveSheet(character, bundle, { encumbrance }), [character, bundle, encumbrance])
+  const rules = useMemo(() => engineRulesOf(campaign?.settings), [campaign?.settings])
+  const { sheet, hpCurrent } = useMemo(() => deriveSheet(character, bundle, rules), [character, bundle, rules])
 
   const onError = useCallback((e: Error) => toast.error(e instanceof ApiError ? e.message : 'Změna se nepodařila a vrátila se zpět.'), [])
   const adjust = useCallback((ops: AdjustOp[]) => adjustMutation.mutate(ops, { onError }), [adjustMutation, onError])

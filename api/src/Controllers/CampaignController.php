@@ -80,7 +80,7 @@ final class CampaignController
         }
         if (array_key_exists('settings', $data)) {
             $in = $data['settings'];
-            if (!is_array($in) || array_diff(array_keys($in), ['encumbrance']) !== []) {
+            if (!is_array($in) || array_diff(array_keys($in), ['encumbrance', 'ruleset']) !== []) {
                 throw HttpError::validation('Neznámé nastavení kampaně.', 'settings');
             }
             $current = json_decode((string) Db::value('SELECT settings FROM campaigns WHERE id = ?', [$params['id']]), true);
@@ -90,6 +90,12 @@ final class CampaignController
                     throw HttpError::validation('encumbrance musí být true/false.', 'settings');
                 }
                 $current['encumbrance'] = $in['encumbrance'];
+            }
+            if (array_key_exists('ruleset', $in)) {
+                if (!in_array($in['ruleset'], ['2014', '2024'], true)) {
+                    throw HttpError::validation("Pravidla musí být '2014' nebo '2024'.", 'settings');
+                }
+                $current['ruleset'] = $in['ruleset'];
             }
             $sets[] = 'settings = ?';
             $values[] = json_encode($current === [] ? new \stdClass() : $current, JSON_UNESCAPED_UNICODE);

@@ -194,4 +194,28 @@ describe('pozvánky', () => {
     expect((await anon.get(`/invites/${code}`)).status).toBe(401)
     expect((await anon.post(`/invites/${code}/accept`)).status).toBe(401)
   })
+
+  it('pravidla kampaně (2014 / 2024): mění jen DM, platné jsou jen dvě hodnoty, ostatní nastavení se nepřepíše', async () => {
+    const dm = await registerUser('dm')
+    const id = await createCampaign(dm, 'Pravidla')
+    const player = await joinAsPlayer(dm, id, 'hrac')
+    const outsider = await registerUser('cizi')
+
+    // bez nastavení je kampaň ve výchozím stavu (klient bere 2014)
+    expect((await dm.client.get(`/campaigns/${id}`)).body.campaign.settings).toEqual({})
+
+    expectStatus(await player.client.patch(`/campaigns/${id}`, { settings: { ruleset: '2024' } }), 403)
+    expectStatus(await outsider.client.patch(`/campaigns/${id}`, { settings: { ruleset: '2024' } }), 404)
+    for (const bad of ['2020', 2024, null, '', '5e']) {
+      expectStatus(await dm.client.patch(`/campaigns/${id}`, { settings: { ruleset: bad } }), 422)
+    }
+    expectStatus(await dm.client.patch(`/campaigns/${id}`, { settings: { encumbrance: true } }), 200)
+    const res = await dm.client.patch(`/campaigns/${id}`, { settings: { ruleset: '2024' } })
+    expectStatus(res, 200)
+    expect(res.body.campaign.settings).toEqual({ encumbrance: true, ruleset: '2024' })
+    // člen kampaně nastavení vidí, cizinec ne
+    expect((await player.client.get(`/campaigns/${id}`)).body.campaign.settings.ruleset).toBe('2024')
+    expectStatus(await outsider.client.get(`/campaigns/${id}`), 404)
+    expect((await dm.client.patch(`/campaigns/${id}`, { settings: { ruleset: '2014' } })).body.campaign.settings).toEqual({ encumbrance: true, ruleset: '2014' })
+  })
 })

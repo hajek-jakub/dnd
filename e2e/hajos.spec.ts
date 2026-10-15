@@ -106,3 +106,45 @@ test('homebrew zbraň: DM ji vytvoří ve formuláři a přidá postavě do inve
   await expect(attack.getByRole('button', { name: /bonus k útoku: \+3/ })).toBeVisible() // STR 0 / DEX 2 + proficiency 2 + magie 1
   await expectNoHorizontalScroll(page)
 })
+
+test('DM přepne pravidla kampaně na 2024: sheet počítá martial arts d8 a Focus Points, prohlížeč pravidel upozorní', async ({ page }) => {
+  const username = await registerDm(page, 'ruleset')
+  seedHajos(username)
+
+  await page.goto('/')
+  await page.getByRole('link', { name: /Testovací kampaň \(seed\)/ }).click()
+  const campaignId = page.url().split('/campaigns/')[1]!
+  await expect(page.getByTestId('ruleset-badge')).toHaveText('Pravidla 2014')
+
+  // 2014: martial arts d6, ki
+  await page.getByRole('link', { name: /Hajoš/ }).click()
+  await expect(page.getByText(/Martial Arts 1d6/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ki: použít' })).toBeVisible()
+  const nunchaku = page.getByRole('listitem').filter({ hasText: 'Nunchaku' }).filter({ hasText: 'k20' })
+  await expect(nunchaku).toContainText('1d6')
+  await page.goBack()
+
+  // DM přepne pravidla
+  await page.getByLabel('Pravidla kampaně').selectOption('2024')
+  await expect(page.getByText('Pravidla kampaně změněna')).toBeVisible()
+  await expect(page.getByTestId('ruleset-badge')).toHaveText('Pravidla 2024')
+  await expectNoHorizontalScroll(page)
+
+  await page.getByRole('link', { name: /Hajoš/ }).click()
+  await expect(page.getByText(/Martial Arts 1d8/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Focus Points: použít' })).toBeVisible()
+  await expect(nunchaku).toContainText('1d8') // jako na papíře: Nunchaku 1d8+4
+  await expectNoHorizontalScroll(page)
+
+  // prohlížeč pravidel s vybranou kampaní 2024 upozorní, že data jsou ze SRD 5.1
+  await page.goto(`/rules?campaign=${campaignId}`)
+  await expect(page.getByTestId('ruleset-notice')).toContainText('SRD 5.1')
+  await expectNoHorizontalScroll(page)
+
+  // a zpět na 2014 se všechno vrátí
+  await page.goto(`/campaigns/${campaignId}`)
+  await page.getByLabel('Pravidla kampaně').selectOption('2014')
+  await expect(page.getByTestId('ruleset-badge')).toHaveText('Pravidla 2014')
+  await page.goto(`/rules?campaign=${campaignId}`)
+  await expect(page.getByTestId('ruleset-notice')).toHaveCount(0)
+})

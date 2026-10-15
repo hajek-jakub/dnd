@@ -33,6 +33,9 @@ export interface ArmorStats {
   strMinimum?: number
 }
 
+/** Sada pravidel: 2014 (SRD 5.1) nebo 2024 (SRD 5.2). Engine zná rozdíly v martial arts, monk zbraních a pojmenování ki. */
+export type Ruleset = '2014' | '2024'
+
 export interface WeaponStats {
   damageDice: string
   damageType: string
@@ -97,7 +100,8 @@ export interface CharacterInput {
   customResources: CustomResource[]
   state: CharacterState
   /** Pravidla kampaně, která ovlivňují výpočty. */
-  rules?: { encumbrance?: boolean }
+  /** Pravidla kampaně: nosnost a sada pravidel (výchozí 2014 = SRD 5.1). */
+  rules?: { encumbrance?: boolean; ruleset?: Ruleset }
 }
 
 export type Recharge = 'short' | 'long' | 'dawn' | 'manual'

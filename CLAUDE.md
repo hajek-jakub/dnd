@@ -195,6 +195,13 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   (papírových 13 je nejspíš DC záchranného hodu ki: 8 + 3 + WIS 2; není v `discrepancies`), versatile 1d8 spearu se v útoku nemodeluje. Opravené hodnoty ze `discrepancies` (Stealth +7, STR save +3) engine dává přímo.
 - API test `api-tests/seed-hajos.test.ts` (18 testů): spouští seed skript proti testovací DB, kontroluje uložená data, SRD vs. homebrew mapování, engine z uložených dat, idempotenci, `--force`, zastavení před zápisem a soukromí postavy. E2E `e2e/hajos.spec.ts` (počítač i telefon): sheet ze seedu a formulář homebrew zbraně.
 
+### Pravidla kampaně: 2014 / 2024
+- DM je nastaví na stránce kampaně („Nastavení kampaně“ → Pravidla kampaně); uloží se do `campaigns.settings.ruleset` (`'2014'` | `'2024'`, bez hodnoty = 2014, bez migrace), API: `PATCH /campaigns/{id}` `{settings: {ruleset}}` jen DM, jiná hodnota 422, ostatní nastavení se nepřepíše.
+  Odznak „Pravidla 2014/2024“ je v hlavičce kampaně. Frontend skládá pravidla pro engine přes `engineRulesOf(settings)` (`src/features/campaigns/ruleset.ts`): sheet, panel DM i průvodce level upem.
+- **Engine** (`CharacterInput.rules.ruleset`): v 2024 je martial arts kostka o stupeň vyšší (d6/d8/d10/d12 místo d4/d6/d8/d10), monk zbraně jsou simple melee a martial melee s vlastností Light (2014: simple melee a shortsword), ki se jmenuje Focus Points (klíč `monk.ki` zůstává). Ostatní třídy a výpočty se nemění.
+- **Data pravidel jsou stále jen SRD 5.1** (tabulka `rules_entries` má sloupec `ruleset`, SRD 5.2 se nenačítá). Prohlížeč pravidel u kampaně s 2024 ukáže upozornění, že itemy, kouzla a třídy jsou z 5.1. Načtení SRD 5.2 a filtrování podle sady je případná další práce.
+- Testy: engine (`engine.test.ts` blok „Pravidla kampaně“, `hajos-sheet.test.ts`: s 2024 vychází Nunchaku 1d8+4 přesně podle papíru), API (`campaigns.test.ts`), E2E (`hajos.spec.ts`: přepnutí 2024 a zpět, počítač i telefon).
+
 ### Změny datového modelu při seedu Hajoše (domluvené)
 - **Migrace 006**: `characters.xp` je nepovinné, `NULL` = nedoplněno. Změna XP (DM, `adjust`, level up) bere NULL jako 0; běžné úpravy (HP apod.) NULL zachovají. `PATCH {xp: null}` XP zase „odnastaví“.
 - **Doplňková zranění zbraně**: ve `stats` zbraně (JSON, bez migrace) je volitelné `extraDamage: [{dice, type}]` (nejvýš 3, např. `1d4` + `Fire`). Engine ho vrací v `AttackInfo.extraDamage`, sheet ukazuje „+ 1d4 fire“ (bonus k útoku se k němu nepřidává). Formulář itemu má pole „Doplňková zranění“.

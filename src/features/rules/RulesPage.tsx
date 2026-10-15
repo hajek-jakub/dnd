@@ -5,7 +5,8 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
-import { useMyCampaigns } from '@/features/campaigns/api'
+import { useCampaign, useMyCampaigns } from '@/features/campaigns/api'
+import { rulesetOf } from '@/features/campaigns/ruleset'
 import type { RuleSummary } from '@/lib/types'
 import { useRuleFacets, useRules, type RuleFilters } from './api'
 import { GROUPS, HOMEBREW_KIND_LABELS, capitalize, groupById, metaLine, newWord } from './labels'
@@ -78,6 +79,7 @@ export function RulesPage() {
     [group, params, urlQ, campaignId],
   )
 
+  const { data: campaign } = useCampaign(campaignId || undefined)
   const { data: facets } = useRuleFacets(group.kinds, campaignId || undefined)
   const { data, isPending, isFetching, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useRules(filters)
   const entries = data?.pages.flatMap((p) => p.entries) ?? []
@@ -97,6 +99,12 @@ export function RulesPage() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start">
       <section className={cn('min-w-0 space-y-4', detailOpen && 'hidden lg:block')} aria-label="Seznam pravidel">
         <h1 className="text-2xl font-bold">Pravidla a obsah</h1>
+        {campaignId && rulesetOf(campaign?.settings) === '2024' && (
+          <p data-testid="ruleset-notice" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-sm">
+            Kampaň hraje podle pravidel 2024, ale itemy, kouzla a třídy tu jsou zatím jen ze SRD 5.1 (2014). Na kartě postavy už se
+            počítá podle 2024 (martial arts kostka, monk zbraně, Focus Points); u konkrétních itemů a kouzel si rozdíly hlídej podle příručky.
+          </p>
+        )}
 
         <nav aria-label="Druh obsahu" className="-mx-4 overflow-x-auto px-4 pb-1">
           <ul className="flex gap-2">

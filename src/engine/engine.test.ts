@@ -628,3 +628,43 @@ describe('pomocná pravidla level upu', () => {
     expect(maxSpellLevel(bundle, 'cleric', 9)).toBe(5)
   })
 })
+
+
+describe('Pravidla kampaně: 2014 vs 2024', () => {
+  const monkAt = (n: number, ruleset: '2014' | '2024') => computeSheet(makeInput({ levels: levelsOf(['monk', n]), rules: { ruleset } }), bundle)
+
+  it('martial arts kostka je v 2024 o stupeň vyšší (d6 / d8 / d10 / d12) než v 2014 (d4 / d6 / d8 / d10)', () => {
+    expect([1, 5, 11, 17].map((n) => monkAt(n, '2014').martialArtsDie)).toEqual(['1d4', '1d6', '1d8', '1d10'])
+    expect([1, 5, 11, 17].map((n) => monkAt(n, '2024').martialArtsDie)).toEqual(['1d6', '1d8', '1d10', '1d12'])
+  })
+
+  it('bez nastavení se počítá podle 2014', () => {
+    expect(computeSheet(makeInput({ levels: levelsOf(['monk', 5]) }), bundle).martialArtsDie).toBe('1d6')
+  })
+
+  it('ki se v 2024 jmenuje Focus Points, klíč zdroje i maximum zůstávají', () => {
+    const old = monkAt(5, '2014').resources.find((r) => r.key === 'monk.ki')
+    const now = monkAt(5, '2024').resources.find((r) => r.key === 'monk.ki')
+    expect(old).toMatchObject({ name: 'Ki' })
+    expect(now).toMatchObject({ name: 'Focus Points' })
+    expect(now?.max.value).toBe(old?.max.value)
+  })
+
+  it('monk zbraně: 2014 simple melee a shortsword, 2024 simple melee a martial melee s vlastností Light', () => {
+    const scimitar = item({ id: 'sc', name: 'Scimitar', kind: 'weapon', weapon: { damageDice: '1d6', damageType: 'Slashing', category: 'martial', range: 'melee', properties: ['Finesse', 'Light'] } })
+    const longsword = item({ id: 'ls', name: 'Longsword', kind: 'weapon', weapon: { damageDice: '1d8', damageType: 'Slashing', category: 'martial', range: 'melee', properties: ['Versatile'] } })
+    const run = (ruleset: '2014' | '2024', w: typeof scimitar) =>
+      computeSheet(makeInput({ levels: levelsOf(['monk', 11]), scores: { dex: 16, str: 8 }, items: [w], rules: { ruleset } }), bundle).attacks.find((a) => a.id === w.id)!
+    expect(run('2014', scimitar).notes).not.toContain('Martial Arts')
+    expect(run('2024', scimitar).notes).toContain('Martial Arts')
+    expect(run('2024', scimitar).damageDice).toBe('1d10') // martial arts d10 na 11. levelu
+    expect(run('2024', longsword).notes).not.toContain('Martial Arts') // martial bez Light není monk zbraň
+  })
+
+  it('sada pravidel nic nemění u postav bez mnicha', () => {
+    const base = makeInput({ levels: levelsOf(['fighter', 5]), scores: { str: 16 } })
+    const a = computeSheet({ ...base, rules: { ruleset: '2014' } }, bundle)
+    const b = computeSheet({ ...base, rules: { ruleset: '2024' } }, bundle)
+    expect(b).toEqual(a)
+  })
+})

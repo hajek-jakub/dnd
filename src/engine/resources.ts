@@ -1,6 +1,6 @@
 import type { AbilityKey } from './abilities'
 import type { RulesBundle } from './rules-bundle'
-import type { Recharge } from './types'
+import type { Recharge, Ruleset } from './types'
 
 export interface ResourceDef {
   key: string
@@ -18,6 +18,7 @@ export function classResources(
   classIndex: string,
   level: number,
   mod: (ability: AbilityKey) => number,
+  ruleset: Ruleset = '2014',
 ): ResourceDef[] {
   const cls = bundle.classes[classIndex]
   const spec = cls?.levels[level]?.classSpecific ?? {}
@@ -45,7 +46,8 @@ export function classResources(
       add('indomitable', 'Indomitable', num(spec.indomitable_uses), 'long')
       break
     case 'monk':
-      add('ki', 'Ki', num(spec.ki_points), 'short')
+      // v pravidlech 2024 se ki jmenuje Focus Points (klíč zdroje zůstává monk.ki, aby se uložené hodnoty nerozbily)
+      add('ki', ruleset === '2024' ? 'Focus Points' : 'Ki', num(spec.ki_points), 'short')
       break
     case 'paladin':
       add('lay-on-hands', 'Lay on Hands', level * 5, 'long')

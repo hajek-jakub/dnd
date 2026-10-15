@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { useCampaign } from '@/features/campaigns/api'
+import { engineRulesOf } from '@/features/campaigns/ruleset'
 import { Avatar } from '@/features/sheet/Avatar'
 import { useCharacters, useEngineBundle } from '@/features/sheet/api'
 import { deriveSheet } from '@/features/sheet/model'
@@ -43,17 +44,17 @@ export function DmPage() {
   const { data: list } = useCharacters(campaignId, { pollMs: 5000 })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [action, setAction] = useState<DmAction | null>(null)
-  const encumbrance = campaign?.settings?.encumbrance === true
+  const rules = useMemo(() => engineRulesOf(campaign?.settings), [campaign?.settings])
 
   const rows = useMemo(() => {
     if (!bundle || !list) return []
     return list
       .filter((c): c is CharacterFull => c.access === 'full')
       .map((character) => {
-        const { sheet, hpCurrent } = deriveSheet(character, bundle, { encumbrance })
+        const { sheet, hpCurrent } = deriveSheet(character, bundle, rules)
         return { character, sheet, hpCurrent }
       })
-  }, [bundle, list, encumbrance])
+  }, [bundle, list, rules])
 
   if (isPending) return <FullPageSpinner />
   if (!campaign) return <Navigate to="/" replace />
