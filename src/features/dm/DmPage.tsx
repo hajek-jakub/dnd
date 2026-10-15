@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { useDmHp, useRemoveEffect } from './api'
 import { DmDialogs, type DmAction, type DmTarget } from './DmDialogs'
 import { NotesPanel } from './NotesPanel'
+import { DiceDock } from '@/features/dice/DiceDock'
 
 const ACTIONS: { id: DmAction; label: string; icon: typeof ZapIcon }[] = [
   { id: 'hp', label: 'Zranění / léčení', icon: HeartPulseIcon },
@@ -126,6 +127,8 @@ export function DmPage() {
       )}
 
       <NotesPanel campaignId={campaignId} characters={rows.map((r) => ({ id: r.character.id, name: r.character.name }))} />
+
+      <DiceDock campaignId={campaignId} />
 
       <DmDialogs action={action} campaignId={campaignId} targets={targets} onClose={() => setAction(null)} />
     </>

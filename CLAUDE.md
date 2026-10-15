@@ -228,13 +228,23 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   popis vybraného bodu, formulář s ikonou a viditelností. Značky jsou `divIcon` s emoji (žádné obrázky značek Leafletu). Mapa je v `isolate`, aby její z-index nepřekryl sticky hlavičku.
 - Testy: 15 API testů (`maps.test.ts`, mutation check provedený) a E2E `maps.spec.ts` (DM počítač + hráč telefon: nahrání, zveřejnění, body, soukromá poznámka, skrytí; přesouvání, hlavička nad mapou, bez horizontálního scrollu).
 
+### Fáze 9 – Kostky: HOTOVO
+- **Hody se losují na serveru** (`Dice::roll`, `random_int`), takže je z prohlížeče nejde zfalšovat. Výraz je součet a rozdíl členů `NdM` a celých čísel (`2d6+3`, `d8`, `1d20+7-1`), omezený: nejvýš 100 znaků, 100 kostek na člen, 200 kostek celkem, 2 až 1000 stěn, konstanty do 10 000, aspoň jedna kostka; jinak 422. Uložený výraz je v ustáleném tvaru (`1d20+7`).
+  Výhoda a nevýhoda (`mode`) hodí celý výraz dvakrát a vezmou vyšší/nižší součet (oba hody se uloží a ukážou). `crit` zdvojí počty kostek (konstanty ne). U jednoho k20 se vrací `natural` (zvýraznění 20 a 1).
+- **API** (migrace 009, `dice_rolls`): `POST /campaigns/{id}/rolls` `{expression, label?, mode?, crit?, hidden?, characterId?}` (60 hodů za minutu na uživatele, 429), `GET /campaigns/{id}/rolls[?after=]` (posledních 50 viditelných, s `after` jen novější).
+  Soukromí: log vidí členové kampaně (cizinec 404, anonym 401), **skrytý hod vidí jen ten, kdo hodil, a DM**, skrytý hod DM jen DM. Hod za postavu (`characterId`) smí jen její majitel nebo DM (jinak 403), postava musí být z kampaně (422).
+- **UI** (`src/features/dice/`): plovoucí tlačítko Kostky na stránce kampaně, panelu DM a sheetu (`DiceDock`): rychlé kostky d4 až d100, volný hod, přepínač Normálně/Výhoda/Nevýhoda a Skrytý hod (`RollSettingsProvider` v `AppLayout`, společné pro celý web) a sdílený log kampaně.
+  Na sheetu u majitele a DM jsou u hodnot tlačítka s kostkou (`RollButton`): zkoušky vlastností, záchranné hody, dovednosti, iniciativa, útok zbraní a kouzlem, zranění a „Krit“ (zranění se bonusem a doplňkovými zraněními, např. `1d8+4+1d4`). Výsledek ukáže toast (přirozená 20 zeleně, 1 červeně) a zapíše se do logu;
+  hody ostatních se ukážou jako toast i při zavřeném panelu. Útok a zranění se na úzkém displeji zalomí pod sebe (dřív by stránka jezdila do stran).
+- Testy: 14 API testů (`dice.test.ts`: parser a limity, součty, výhoda/nevýhoda, krit, soukromí skrytých hodů, postavy, rate limit; mutation check proveden), 5 unit testů formátování, E2E `dice.spec.ts` (hráč na telefonu hází ze sheetu, DM na počítači a druhý hráč čtou log, skrytý hod, výhoda, krit, volný hod).
+
 ### Bezpečnostní pojistky testů a databáze (po incidentu)
 - Jednou se omylem smazala ostrá databáze: v shellu zůstala `DND_CONFIG` na ostrou konfiguraci a API testy pustily `migrate --fresh`. Proto: **`DND_CONFIG` nikdy neexportovat do shellu** (nastavovat jen před jedním příkazem),
   `Migrator::dropAll` odmítne cokoli jiného než lokální DB (`127.0.0.1`/`localhost`) a `api-tests/global-setup.ts` ignoruje `DND_CONFIG` z prostředí (vždy `api/config.test.php`, jiná jen přes `DND_TEST_CONFIG`). Hlídá to `api-tests/safety.test.ts`.
 - Ostrá DB nemá zálohy (Endora je nemá zapnuté). Než se na ostré DB spustí cokoli, co zapisuje, nejdřív `--check` / čtení. Postavu Hajoš do kampaně Mirabilis na ostré DB zakládá `seed-hajos.php` s `DND_CONFIG=<ostrá>` jen pro ten jeden příkaz.
 
 ### Další fáze (dle zadání)
-9. Kostky. 10. Leštění.
+10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

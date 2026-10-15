@@ -1,4 +1,6 @@
 import { formatModifier } from '@/engine'
+import { RollButton } from '@/features/dice/RollButton'
+import { d20 } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { useSheet } from './sheet-context'
 
@@ -12,6 +14,7 @@ export function StatsCard() {
       </Stat>
       <Stat label="Iniciativa">
         <ComputedValue title="Iniciativa" computed={sheet.initiative} overrideKey="initiative" format={formatModifier} className="w-full text-2xl" />
+        <RollButton label="Iniciativa" expression={d20(sheet.initiative.value)} text="Hod" className="-mt-2" />
       </Stat>
       <Stat label="Rychlost">
         <ComputedValue title="Rychlost" computed={sheet.speed} overrideKey="speed" format={(n) => `${n} ft`} className="w-full text-2xl" />

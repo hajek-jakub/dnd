@@ -1,5 +1,7 @@
 import { formatModifier } from '@/engine'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { RollButton } from '@/features/dice/RollButton'
+import { d20, damageExpression } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { useSheet } from './sheet-context'
 
@@ -17,7 +19,7 @@ export function AttacksCard() {
       <CardContent>
         <ul className="divide-y">
           {sheet.attacks.map((a) => (
-            <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <li key={a.id} className="space-y-1 py-2">
               <div>
                 <p className="font-medium">{a.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -26,22 +28,34 @@ export function AttacksCard() {
                   {!a.proficient && ' · bez proficiency'}
                 </p>
               </div>
-              <div className="flex items-center gap-1 text-sm">
-                <span className="text-muted-foreground">k20</span>
-                <ComputedValue title={`${a.name}: bonus k útoku`} computed={a.toHit} overrideKey={`attack.${a.id}.toHit`} format={formatModifier} />
-                <span className="ml-2 text-muted-foreground">zranění</span>
-                <span className="font-semibold">{a.damageDice}</span>
-                <ComputedValue
-                  title={`${a.name}: bonus ke zranění`}
-                  computed={a.damageBonus}
-                  overrideKey={`attack.${a.id}.damage`}
-                  format={formatModifier}
-                />
-                {a.extraDamage.map((x) => (
-                  <span key={`${x.dice}${x.type}`} className="font-semibold" title="Doplňkové zranění">
-                    + {x.dice} {x.type.toLowerCase()}
-                  </span>
-                ))}
+              {/* Útok a zranění se na úzkém displeji zalomí pod sebe, ať stránka nejezdí do stran. */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">k20</span>
+                  <ComputedValue title={`${a.name}: bonus k útoku`} computed={a.toHit} overrideKey={`attack.${a.id}.toHit`} format={formatModifier} />
+                  <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} />
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-muted-foreground">zranění</span>
+                  <span className="font-semibold">{a.damageDice}</span>
+                  <ComputedValue
+                    title={`${a.name}: bonus ke zranění`}
+                    computed={a.damageBonus}
+                    overrideKey={`attack.${a.id}.damage`}
+                    format={formatModifier}
+                  />
+                  {a.extraDamage.map((x) => (
+                    <span key={`${x.dice}${x.type}`} className="font-semibold" title="Doplňkové zranění">
+                      + {x.dice} {x.type.toLowerCase()}
+                    </span>
+                  ))}
+                  {damageExpression(a.damageDice, a.damageBonus.value, a.extraDamage) && (
+                    <>
+                      <RollButton label={`${a.name}: zranění`} expression={damageExpression(a.damageDice, a.damageBonus.value, a.extraDamage)!} />
+                      <RollButton label={`${a.name}: zranění`} expression={damageExpression(a.damageDice, a.damageBonus.value, a.extraDamage)!} crit text="Krit" />
+                    </>
+                  )}
+                </div>
               </div>
             </li>
           ))}

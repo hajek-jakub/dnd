@@ -3,6 +3,7 @@ import { BellIcon, LogOutIcon, MessageSquareIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/features/auth/auth-context'
+import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useNewMessageToasts, useUnreadMessages } from '@/features/messages/api'
 import { useNotifications } from '@/features/notifications/api'
 import { cn } from '@/lib/utils'
@@ -88,7 +89,9 @@ export function AppLayout() {
         </nav>
       </header>
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-8 lg:max-w-6xl">
-        <Outlet />
+        <RollSettingsProvider>
+          <Outlet />
+        </RollSettingsProvider>
       </main>
       <footer className="mx-auto w-full max-w-3xl px-4 pb-10 text-sm text-muted-foreground lg:max-w-6xl">
         <Link to="/about" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">

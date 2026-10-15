@@ -22,6 +22,7 @@ import {
 import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
 import { RULESETS, rulesetOf } from './ruleset'
+import { DiceDock } from '@/features/dice/DiceDock'
 import { useUnreadMessages } from '@/features/messages/api'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 
@@ -169,6 +170,7 @@ export function CampaignPage() {
           </CardContent>
         </Card>
       </div>
+      {campaignId && <DiceDock campaignId={campaignId} />}
     </>
   )
 }

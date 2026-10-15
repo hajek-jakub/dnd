@@ -13,6 +13,8 @@ import { SpellsTab } from './SpellsTab'
 import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
+import { DiceDock } from '@/features/dice/DiceDock'
+import { RollModeSwitch } from '@/features/dice/RollModeSwitch'
 import { EffectsCard } from './EffectsCard'
 import { MissingInfo } from './MissingInfo'
 import { NotFilled } from './NotesText'
@@ -119,6 +121,7 @@ function SheetView() {
 
       {tab === 'overview' && (
         <div className="space-y-4">
+          {canEdit && <RollModeSwitch />}
           <StatsCard />
           <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
             <div className="space-y-4">
@@ -141,6 +144,7 @@ function SheetView() {
       {tab === 'inventory' && <InventoryTab />}
       {tab === 'features' && <FeaturesTab />}
       {tab === 'profile' && <ProfileTab />}
+      <DiceDock campaignId={character.campaignId} characterId={character.id} />
     </div>
   )
 }

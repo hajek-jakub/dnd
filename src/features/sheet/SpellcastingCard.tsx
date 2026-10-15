@@ -1,5 +1,7 @@
 import { formatModifier } from '@/engine'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { RollButton } from '@/features/dice/RollButton'
+import { d20 } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { useSheet } from './sheet-context'
 
@@ -36,6 +38,7 @@ export function SpellcastingCard() {
                   overrideKey={`spellAttack.${c.classIndex}`}
                   format={formatModifier}
                 />
+                <RollButton label={`${c.className}: útok kouzlem`} expression={d20(c.attackBonus.value)} />
               </dd>
               {c.cantripsKnown !== null && (
                 <>

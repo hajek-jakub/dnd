@@ -7,6 +7,7 @@ namespace Dnd;
 use Dnd\Controllers\AuthController;
 use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
+use Dnd\Controllers\DiceController;
 use Dnd\Controllers\DmController;
 use Dnd\Controllers\InventoryController;
 use Dnd\Controllers\MapController;
@@ -123,6 +124,10 @@ final class App
         $r->add('POST', '/maps/{id}/pins', [MapController::class, 'createPin']);
         $r->add('PATCH', '/pins/{id}', [MapController::class, 'updatePin']);
         $r->add('DELETE', '/pins/{id}', [MapController::class, 'deletePin']);
+
+        // Kostky: hody na serveru a sdílený log kampaně
+        $r->add('POST', '/campaigns/{id}/rolls', [DiceController::class, 'roll']);
+        $r->add('GET', '/campaigns/{id}/rolls', [DiceController::class, 'index']);
 
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);

@@ -1,6 +1,8 @@
 import { ABILITIES, SKILLS, formatModifier, type SkillKey } from '@/engine'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { RollButton } from '@/features/dice/RollButton'
+import { d20 } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { useSheet } from './sheet-context'
 import { ABILITY_LABELS, SKILL_LABELS } from './labels'
@@ -29,6 +31,7 @@ export function AbilitiesCard() {
                 overrideKey={`ability.${a}`}
                 className="min-h-11 text-sm text-muted-foreground"
               />
+              <RollButton label={`Zkouška: ${ABILITY_LABELS[a]}`} expression={d20(sheet.abilities[a].modifier)} text="Hod" />
             </li>
           ))}
         </ul>
@@ -62,6 +65,7 @@ export function SavesCard() {
                 overrideKey={`save.${a}`}
                 format={formatModifier}
               />
+              <RollButton label={`Záchranný hod: ${ABILITY_LABELS[a]}`} expression={d20(sheet.saves[a].value)} className="-my-1" />
             </li>
           ))}
         </ul>
@@ -112,7 +116,10 @@ export function SkillsCard() {
                   </button>
                   {SKILL_LABELS[s.key]} <span className="text-xs text-muted-foreground uppercase">{s.ability}</span>
                 </span>
-                <ComputedValue title={SKILL_LABELS[s.key]} computed={skill} overrideKey={`skill.${s.key}`} format={formatModifier} />
+                <span className="flex items-center">
+                  <ComputedValue title={SKILL_LABELS[s.key]} computed={skill} overrideKey={`skill.${s.key}`} format={formatModifier} />
+                  <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} />
+                </span>
               </li>
             )
           })}
