@@ -10,10 +10,12 @@ import { Label } from '@/components/ui/label'
 import { useCampaign } from '@/features/campaigns/api'
 import { mapImageUrl, useDeleteMap, useMaps, useUpdateMap, useUploadMap, type MapInfo } from './api'
 import { shrinkImage } from './shrink-image'
+import { usePageTitle } from '@/lib/page-title'
 
 export function MapsPage() {
   const { campaignId = '' } = useParams<{ campaignId: string }>()
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle('Mapy', campaign?.name)
   const { data: maps, isPending: mapsPending } = useMaps(campaignId)
   const isDm = campaign?.role === 'dm'
 

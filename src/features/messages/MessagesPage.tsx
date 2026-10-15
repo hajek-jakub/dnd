@@ -12,6 +12,7 @@ import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useMarkThreadRead, useMessages, useSendMessage, type ChatMessage } from './api'
+import { usePageTitle } from '@/lib/page-title'
 
 interface ThreadInfo {
   id: string
@@ -33,6 +34,7 @@ export function MessagesPage() {
   const { campaignId = '' } = useParams<{ campaignId: string }>()
   const { user } = useAuth()
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle('Zprávy', campaign?.name)
   const { data: members } = useCampaignMembers(campaignId)
   const { data: state } = useMessages(campaignId)
   const markRead = useMarkThreadRead(campaignId)

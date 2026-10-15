@@ -129,7 +129,8 @@ test('peníze: úprava, převod mincí a celková hodnota', async ({ page }) => 
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   await page.getByLabel('Zlaté (gp)').fill('25')
   await page.getByLabel('Stříbrné (sp)').fill('7')
-  await page.getByLabel('Měděné (cp)').click() // blur uloží
+  // blur uloží; před obnovením stránky se počká na odpověď serveru, jinak by reload zrušil rozeslaný požadavek
+  await Promise.all([page.waitForResponse((r) => r.request().method() === 'PATCH' && /\/characters\//.test(r.url())), page.getByLabel('Měděné (cp)').click()])
   await page.reload()
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   await expect(page.getByLabel('Zlaté (gp)')).toHaveValue('25')

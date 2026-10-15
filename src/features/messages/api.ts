@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { SUMMARY_KEY, useSummary } from '@/features/summary/api'
 
 export interface ChatMessage {
   id: number
@@ -59,7 +60,7 @@ export function useSendMessage(campaignId: string) {
       queryClient.setQueryData<MessagesState>(['messages', campaignId], (old) =>
         old && !old.messages.some((m) => m.id === message.id) ? { ...old, messages: [...old.messages, message] } : old,
       )
-      void queryClient.invalidateQueries({ queryKey: ['messages-unread'] })
+      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY })
     },
   })
 }
@@ -70,7 +71,7 @@ export function useMarkThreadRead(campaignId: string) {
     mutationFn: async (thread: string) => (await api.post<{ unread: Record<string, number> }>(`/campaigns/${campaignId}/messages/read`, { thread })).unread,
     onSuccess: (unread) => {
       queryClient.setQueryData<MessagesState>(['messages', campaignId], (old) => (old ? { ...old, unread } : old))
-      void queryClient.invalidateQueries({ queryKey: ['messages-unread'] })
+      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY })
     },
   })
 }
@@ -82,12 +83,7 @@ export interface UnreadOverview {
 
 /** Nepřečtené zprávy ve všech kampaních (odznak v hlavičce a u kampaně). */
 export function useUnreadMessages() {
-  return useQuery({
-    queryKey: ['messages-unread'],
-    refetchInterval: 8000,
-    refetchIntervalInBackground: false,
-    queryFn: () => api.get<UnreadOverview>('/messages/unread'),
-  })
+  return useSummary((s) => s.messages)
 }
 
 /** Když přibude nová zpráva, ukáže toast. Volá se jen z jednoho místa (hlavička), ať se toasty nezdvojí. */

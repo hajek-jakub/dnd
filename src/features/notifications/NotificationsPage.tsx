@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { useMarkNotificationsRead, useNotifications } from './api'
+import { usePageTitle } from '@/lib/page-title'
 
 export function NotificationsPage() {
+  usePageTitle('Oznámení')
   const { data, isPending } = useNotifications()
   const markRead = useMarkNotificationsRead()
   const unread = data?.unread ?? 0

@@ -23,7 +23,8 @@ DirectoryIndex index.php
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
-  Header always set Cache-Control "no-store"
+  # Výchozí je no-store; trasy, které si cachování řídí samy (fotky postav a mapy: private, max-age s ETag), ho nepřepíšou.
+  Header always setifempty Cache-Control "no-store"
   # API vrací jen JSON a obrázky: nikdy skripty ani vložení do rámců.
   Header always set Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
   Header always set Cross-Origin-Resource-Policy "same-origin"

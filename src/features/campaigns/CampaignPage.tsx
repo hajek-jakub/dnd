@@ -24,6 +24,7 @@ import { RULESETS, rulesetOf } from './ruleset'
 import { DiceDock } from '@/features/dice/DiceDock'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 import { JournalPreview } from '@/features/journal/JournalPreview'
+import { usePageTitle } from '@/lib/page-title'
 
 // Karta s postavou počítá sheet enginem, proto se načítá až po úvodní stránce.
 const MyCharacterCard = lazy(() => import('./MyCharacterCard'))
@@ -32,6 +33,7 @@ export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
   const { user } = useAuth()
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle(campaign?.name)
   const { data: members } = useCampaignMembers(campaignId)
   const myRole = members?.find((m) => m.userId === user?.id)?.role
   const isDm = myRole === 'dm'

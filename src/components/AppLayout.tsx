@@ -2,6 +2,7 @@ import { Suspense, useState } from 'react'
 import { BellIcon, LibraryBigIcon, UserRoundCogIcon } from 'lucide-react'
 import { Link, Outlet } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
+import { OfflineBanner } from '@/components/OfflineBanner'
 import { DiceSlotContext } from '@/features/dice/dice-slot-context'
 import { RollOverlayProvider } from '@/features/dice/RollOverlay'
 import { RollSettingsProvider } from '@/features/dice/roll-settings'
@@ -21,6 +22,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-dvh">
+      <OfflineBanner />
       <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 lg:max-w-6xl">
           <div className="flex min-w-0 items-center gap-2">

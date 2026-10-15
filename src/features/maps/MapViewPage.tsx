@@ -16,12 +16,14 @@ import { cn } from '@/lib/utils'
 import { mapImageUrl, useCreatePin, useDeletePin, useMapPins, useMaps, useUpdatePin, type MapPin } from './api'
 import { LeafletMap } from './LeafletMap'
 import { PIN_ICONS, VISIBILITY_LABELS, emojiOf } from './pin-icons'
+import { usePageTitle } from '@/lib/page-title'
 
 type Draft = { kind: 'new'; x: number; y: number } | { kind: 'edit'; pin: MapPin }
 
 export default function MapViewPage() {
   const { campaignId = '', mapId = '' } = useParams<{ campaignId: string; mapId: string }>()
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle('Mapa', campaign?.name)
   const { data: maps, isPending: mapsPending } = useMaps(campaignId)
   const { data: pins } = useMapPins(mapId)
   const updatePin = useUpdatePin(mapId)

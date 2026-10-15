@@ -10,6 +10,7 @@ import { rulesetOf } from '@/features/campaigns/ruleset'
 import type { RuleSummary } from '@/lib/types'
 import { useRuleFacets, useRules, type RuleFilters } from './api'
 import { GROUPS, HOMEBREW_KIND_LABELS, capitalize, groupById, metaLine, newWord } from './labels'
+import { usePageTitle } from '@/lib/page-title'
 
 const CAMPAIGN_KEY = 'dnd-rules-campaign'
 
@@ -23,6 +24,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function RulesPage() {
+  usePageTitle('Pravidla')
   const [params, setParams] = useSearchParams()
   const location = useLocation()
   const detailOpen = useMatch('/rules/:id/*') !== null
@@ -337,7 +339,7 @@ function RuleListItem({ entry, search }: { entry: RuleSummary; search: string })
           {!entry.isSrd && !entry.isHomebrew && <span className="rounded-full border px-2 py-0.5 text-xs">{entry.source}</span>}
         </span>
         <span className="mt-0.5 block text-sm text-muted-foreground">{metaLine(entry)}</span>
-        {entry.summary && <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">{entry.summary}</span>}
+        {entry.summary && <span className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.summary}</span>}
       </Link>
     </li>
   )

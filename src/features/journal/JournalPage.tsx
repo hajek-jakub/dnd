@@ -14,6 +14,7 @@ import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useCreateEntry, useDeleteEntry, useJournal, useMarkJournalRead, useUpdateEntry, type JournalEntry } from './api'
+import { usePageTitle } from '@/lib/page-title'
 
 const DEFAULT_TOPICS = ['Příběh', 'Místa', 'Postavy', 'Frakce', 'Úkoly', 'Předměty', 'Domácí pravidla']
 
@@ -29,6 +30,7 @@ const dateFormat = (iso: string) => new Date(iso).toLocaleDateString('cs-CZ', { 
 export function JournalPage() {
   const { campaignId = '' } = useParams<{ campaignId: string }>()
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle('Deník', campaign?.name)
   const { data, isPending: entriesPending } = useJournal(campaignId)
   const markRead = useMarkJournalRead(campaignId)
   const remove = useDeleteEntry(campaignId)

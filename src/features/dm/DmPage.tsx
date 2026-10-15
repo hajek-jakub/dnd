@@ -35,6 +35,7 @@ import { useDmHp, useRemoveEffect, useSetCondition } from './api'
 import { DmDialogs, type DmAction, type DmTarget } from './DmDialogs'
 import { NotesPanel } from './NotesPanel'
 import { DiceDock } from '@/features/dice/DiceDock'
+import { usePageTitle } from '@/lib/page-title'
 
 const ACTIONS: { id: DmAction; label: string; icon: typeof ZapIcon }[] = [
   { id: 'hp', label: 'Zranění / léčení', icon: HeartPulseIcon },
@@ -50,6 +51,7 @@ const ACTIONS: { id: DmAction; label: string; icon: typeof ZapIcon }[] = [
 export function DmPage() {
   const { campaignId = '' } = useParams<{ campaignId: string }>()
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle('Panel DM', campaign?.name)
   const { data: bundle } = useEngineBundle()
   const { data: list } = useCharacters(campaignId, { pollMs: 5000 })
   const [selected, setSelected] = useState<Set<string>>(new Set())

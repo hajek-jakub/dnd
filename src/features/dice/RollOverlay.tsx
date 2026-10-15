@@ -42,6 +42,8 @@ export function RollOverlayProvider({ children }: { children: ReactNode }) {
         return token
       },
       finish(token, roll) {
+        // Krátké zavibrování na telefonu, když kostky dosednou (přirozená 20 a 1 mají vlastní vzor).
+        if (typeof navigator.vibrate === 'function' && !prefersReducedMotion()) navigator.vibrate(roll.natural === 20 ? [30, 50, 30] : roll.natural === 1 ? [80] : 20)
         setState((s) => {
           if (!s || s.token !== token) return s
           const wait = prefersReducedMotion() ? 0 : Math.max(0, MIN_ROLL_MS - (Date.now() - s.startedAt))

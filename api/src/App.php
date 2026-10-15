@@ -18,6 +18,7 @@ use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
+use Dnd\Controllers\SummaryController;
 use Dnd\Controllers\TacticsController;
 use Dnd\Controllers\AdminController;
 use Throwable;
@@ -125,6 +126,7 @@ final class App
         $r->add('POST', '/campaigns/{id}/dm/effects', [DmController::class, 'addEffect']);
         $r->add('DELETE', '/effects/{effectId}', [DmController::class, 'removeEffect']);
         $r->add('DELETE', '/characters/{id}/effects/long-rest', [DmController::class, 'expireLongRestEffects']);
+        $r->add('GET', '/summary', [SummaryController::class, 'index']);
         $r->add('GET', '/notifications', [NotificationController::class, 'index']);
         $r->add('POST', '/notifications/read', [NotificationController::class, 'markRead']);
 

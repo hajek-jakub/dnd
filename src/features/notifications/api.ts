@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { SUMMARY_KEY, useSummary } from '@/features/summary/api'
 
 export interface AppNotification {
   id: number
@@ -14,24 +15,17 @@ export interface AppNotification {
   read: boolean
 }
 
-interface NotificationsResponse {
+export interface NotificationsResponse {
   notifications: AppNotification[]
   unread: number
 }
-
-const POLL_MS = 5000
 
 /**
  * Průběžně (každých pár sekund) se ptá na nová oznámení. Nová oznámení, která přijdou, zatímco je aplikace otevřená,
  * se hned ukážou jako toast; oznámení, která tu už byla při otevření, se jen započítají do nepřečtených.
  */
 export function useNotifications() {
-  const query = useQuery({
-    queryKey: ['notifications'],
-    refetchInterval: POLL_MS,
-    refetchIntervalInBackground: false,
-    queryFn: () => api.get<NotificationsResponse>('/notifications'),
-  })
+  const query = useSummary((s) => s.notifications)
   const seen = useRef<number | null>(null)
 
   useEffect(() => {
@@ -54,6 +48,6 @@ export function useMarkNotificationsRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api.post<{ unread: number }>('/notifications/read', {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SUMMARY_KEY }),
   })
 }

@@ -88,7 +88,8 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
 
     // hráč vidí bonus s původem, AC 13, stav, a HP
     await player.getByRole('button', { name: 'Armor Class: 13' }).waitFor({ timeout: 45_000 })
-    await expect(player.getByText('Shield of Faith')).toBeVisible()
+    // název zdroje bonusu je vidět na sheetu a může být i v toastu s oznámením, proto first()
+    await expect(player.getByText('Shield of Faith').first()).toBeVisible()
     await expect(player.getByText('do long restu')).toBeVisible()
     await expect(player.getByRole('list', { name: 'Stavy' })).toContainText('Poisoned')
     await expect(player.getByRole('button', { name: 'Zrušit bonus Shield of Faith' })).toHaveCount(0) // hráč bonus zrušit nemůže
@@ -107,7 +108,7 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
     await player.getByRole('button', { name: 'Long rest' }).click()
     await player.getByRole('dialog', { name: 'Long rest' }).getByRole('button', { name: 'Dát si long rest' }).click()
     await expect(player.getByRole('button', { name: /^Armor Class: 11/ })).toBeVisible()
-    await expect(player.getByText('Shield of Faith')).toHaveCount(0)
+    await expect(player.getByText('Shield of Faith').first()).toBeHidden()
 
     // DM ruší stav a přidá bonus bez expirace, který pak zruší
     await dm.getByLabel('Vybrat Elfka').check()

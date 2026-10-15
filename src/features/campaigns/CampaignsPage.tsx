@@ -9,8 +9,10 @@ import { Label } from '@/components/ui/label'
 import { RoleBadge } from './RoleBadge'
 import { useCreateCampaign, useMyCampaigns } from './api'
 import { extractInviteCode, isValidInviteCode } from './invite'
+import { usePageTitle } from '@/lib/page-title'
 
 export function CampaignsPage() {
+  usePageTitle('Kampaně')
   const navigate = useNavigate()
   const { data: campaigns, isPending, error } = useMyCampaigns()
   const createCampaign = useCreateCampaign()

@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/AppLayout'
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { buttonVariants } from '@/components/ui/button'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -13,19 +14,52 @@ import { JoinPage } from '@/features/campaigns/JoinPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 
 // Těžší části (pravidlový engine, Leaflet, průvodce level upem) se načítají až při otevření stránky, ať se úvodní načtení nezdržuje.
-const DmPage = lazy(() => import('@/features/dm/DmPage').then((m) => ({ default: m.DmPage })))
-const MapsPage = lazy(() => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })))
-const JournalPage = lazy(() => import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })))
-const MapViewPage = lazy(() => import('@/features/maps/MapViewPage'))
-const MessagesPage = lazy(() => import('@/features/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })))
-const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
-const AboutPage = lazy(() => import('@/features/about/AboutPage').then((m) => ({ default: m.AboutPage })))
-const HomebrewFormPage = lazy(() => import('@/features/rules/HomebrewFormPage').then((m) => ({ default: m.HomebrewFormPage })))
-const RuleDetailPage = lazy(() => import('@/features/rules/RuleDetailPage').then((m) => ({ default: m.RuleDetailPage })))
-const RulesPage = lazy(() => import('@/features/rules/RulesPage').then((m) => ({ default: m.RulesPage })))
-const CharacterPage = lazy(() => import('@/features/sheet/CharacterPage').then((m) => ({ default: m.CharacterPage })))
-const CreateCharacterPage = lazy(() => import('@/features/sheet/CreateCharacterPage').then((m) => ({ default: m.CreateCharacterPage })))
-const LevelUpPage = lazy(() => import('@/features/sheet/LevelUpWizard').then((m) => ({ default: m.LevelUpPage })))
+// Po načtení se ty nejčastější stáhnou předem v době nečinnosti (preloadRoutes), takže přepnutí záložky pak nečeká na síť.
+const loaders = {
+  dm: () => import('@/features/dm/DmPage').then((m) => ({ default: m.DmPage })),
+  maps: () => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })),
+  journal: () => import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
+  mapView: () => import('@/features/maps/MapViewPage'),
+  messages: () => import('@/features/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })),
+  notifications: () => import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+  about: () => import('@/features/about/AboutPage').then((m) => ({ default: m.AboutPage })),
+  homebrewForm: () => import('@/features/rules/HomebrewFormPage').then((m) => ({ default: m.HomebrewFormPage })),
+  ruleDetail: () => import('@/features/rules/RuleDetailPage').then((m) => ({ default: m.RuleDetailPage })),
+  rules: () => import('@/features/rules/RulesPage').then((m) => ({ default: m.RulesPage })),
+  character: () => import('@/features/sheet/CharacterPage').then((m) => ({ default: m.CharacterPage })),
+  createCharacter: () => import('@/features/sheet/CreateCharacterPage').then((m) => ({ default: m.CreateCharacterPage })),
+  levelUp: () => import('@/features/sheet/LevelUpWizard').then((m) => ({ default: m.LevelUpPage })),
+}
+const DmPage = lazy(loaders.dm)
+const MapsPage = lazy(loaders.maps)
+const JournalPage = lazy(loaders.journal)
+const MapViewPage = lazy(loaders.mapView)
+const MessagesPage = lazy(loaders.messages)
+const NotificationsPage = lazy(loaders.notifications)
+const AboutPage = lazy(loaders.about)
+const HomebrewFormPage = lazy(loaders.homebrewForm)
+const RuleDetailPage = lazy(loaders.ruleDetail)
+const RulesPage = lazy(loaders.rules)
+const CharacterPage = lazy(loaders.character)
+const CreateCharacterPage = lazy(loaders.createCharacter)
+const LevelUpPage = lazy(loaders.levelUp)
+
+/** Stáhne předem stránky, na které se nejčastěji přepíná (sheet, deník, zprávy, mapy, pravidla); šetří data a přeskočí se při úsporném režimu. */
+function preloadRoutes() {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+  if (connection?.saveData || connection?.effectiveType === '2g' || connection?.effectiveType === 'slow-2g') return
+  const queue = [loaders.character, loaders.messages, loaders.journal, loaders.dm, loaders.maps, loaders.rules]
+  const idle = (cb: () => void) => {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(cb, { timeout: 4000 })
+    else globalThis.setTimeout(cb, 1500)
+  }
+  const next = () => {
+    const load = queue.shift()
+    if (!load) return
+    void load().finally(() => idle(next))
+  }
+  idle(next)
+}
 
 function NotFound() {
   return (
@@ -39,11 +73,16 @@ function NotFound() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (import.meta.env.PROD) preloadRoutes()
+  }, [])
+
   // basename = Vite base (např. "/" nebo "/dnd/"), bez koncového lomítka
   const basename = import.meta.env.BASE_URL.replace(/\/$/, '')
 
   return (
     <BrowserRouter basename={basename}>
+      <ScrollToTop />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

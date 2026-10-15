@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/api'
 import { AuthShell } from './AuthShell'
 import { useAuth } from './auth-context'
 import { safeNextPath } from './next-path'
+import { usePageTitle } from '@/lib/page-title'
 
 /** Kód pozvánky z odkazu /join/KOD (odkaz od DM), aby ho hráč nemusel opisovat. */
 function codeFromNext(next: string): string {
@@ -16,6 +17,7 @@ function codeFromNext(next: string): string {
 }
 
 export function RegisterPage() {
+  usePageTitle('Registrace')
   const { user, loading, register } = useAuth()
   const [params] = useSearchParams()
   const next = safeNextPath(params.get('next'))

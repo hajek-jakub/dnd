@@ -9,8 +9,10 @@ import { ApiError } from '@/lib/api'
 import { AuthShell } from './AuthShell'
 import { useAuth } from './auth-context'
 import { safeNextPath } from './next-path'
+import { usePageTitle } from '@/lib/page-title'
 
 export function LoginPage() {
+  usePageTitle('Přihlášení')
   const { user, loading, login } = useAuth()
   const [params] = useSearchParams()
   const next = safeNextPath(params.get('next'))

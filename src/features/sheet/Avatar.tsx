@@ -4,7 +4,7 @@ import { characterPhotoUrl } from './api'
 export function Avatar({ id, name, version, className }: { id: string; name: string; version: string | null; className?: string }) {
   const url = characterPhotoUrl(id, version)
   return url ? (
-    <img src={url} alt={`Fotka postavy ${name}`} loading="lazy" className={cn('size-14 shrink-0 rounded-full border object-cover', className)} />
+    <img src={url} alt={`Fotka postavy ${name}`} loading="lazy" decoding="async" className={cn('size-14 shrink-0 rounded-full border object-cover', className)} />
   ) : (
     <span
       aria-hidden

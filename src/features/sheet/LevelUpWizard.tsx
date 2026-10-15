@@ -32,6 +32,7 @@ import { useCharacter, useClassFeatures, useEngineBundle, useLevelUp, type Level
 import { ABILITY_LABELS } from './labels'
 import { toEngineInput } from './model'
 import type { CharacterFull } from './types'
+import { usePageTitle } from '@/lib/page-title'
 
 const SUBCLASS_LEVEL: Record<string, number> = { cleric: 1, sorcerer: 1, warlock: 1, druid: 2, wizard: 2 }
 const STEPS = ['Třída', 'Životy', 'Featury', 'Vlastnosti', 'Kouzla', 'Souhrn'] as const
@@ -48,6 +49,7 @@ function rollDie(sides: number): number {
 export function LevelUpPage() {
   const { id } = useParams<{ id: string }>()
   const { data: character, isPending } = useCharacter(id)
+  usePageTitle(character ? `Level up: ${character.name}` : 'Level up')
   const { data: bundle, isPending: bundlePending } = useEngineBundle()
   if (isPending || bundlePending) return <FullPageSpinner />
   if (!character || !bundle) return <Navigate to="/" replace />

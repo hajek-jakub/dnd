@@ -60,7 +60,20 @@ final class Response
             return;
         }
         if ($this->body !== null && $this->status !== 204) {
-            echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $json = json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            // Větší odpovědi (seznam postav, pravidla) se komprimují sami, protože mod_deflate na sdíleném hostingu není jistota.
+            $accepts = (string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '');
+            if (strlen($json) > 1024 && str_contains($accepts, 'gzip') && function_exists('gzencode') && !headers_sent()) {
+                $packed = gzencode($json, 5);
+                if ($packed !== false) {
+                    header('Content-Encoding: gzip');
+                    header('Vary: Accept-Encoding');
+                    header('Content-Length: ' . strlen($packed));
+                    echo $packed;
+                    return;
+                }
+            }
+            echo $json;
         }
     }
 }

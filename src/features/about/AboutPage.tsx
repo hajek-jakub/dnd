@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { usePageTitle } from '@/lib/page-title'
 
 /** Veřejná stránka (bez přihlášení) s povinnou atribucí SRD 5.1 a poděkováním zdrojům dat. */
 export function AboutPage() {
+  usePageTitle('O aplikaci')
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-4 pb-16">
       <Link to="/" className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground">

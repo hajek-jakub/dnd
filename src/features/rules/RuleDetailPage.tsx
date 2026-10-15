@@ -8,8 +8,10 @@ import { DescriptionText } from './DescriptionText'
 import { useDeleteHomebrew, useRule } from './api'
 import { factsFor } from './facts'
 import { KIND_LABELS } from './labels'
+import { usePageTitle } from '@/lib/page-title'
 
 export function RuleDetailPage() {
+  usePageTitle('Pravidla')
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const navigate = useNavigate()

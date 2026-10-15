@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { SUMMARY_KEY, useSummary } from '@/features/summary/api'
 
 export interface JournalEntry {
   id: string
@@ -67,7 +68,7 @@ export function useMarkJournalRead(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api.post(`/campaigns/${campaignId}/journal/read`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal-unread'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SUMMARY_KEY }),
   })
 }
 
@@ -78,10 +79,5 @@ export interface JournalUnread {
 
 /** Nové zápisy v deníku ve všech kampaních (odznak v dolní liště). */
 export function useJournalUnread() {
-  return useQuery({
-    queryKey: ['journal-unread'],
-    refetchInterval: 30_000,
-    refetchIntervalInBackground: false,
-    queryFn: () => api.get<JournalUnread>('/journal/unread'),
-  })
+  return useSummary((s) => s.journal)
 }

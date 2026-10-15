@@ -13,6 +13,7 @@ import type { HomebrewKind, RuleDetail } from '@/lib/types'
 import { useCreateHomebrew, useRule, useUpdateHomebrew, type HomebrewInput } from './api'
 import { formatExtraDamage, parseExtraDamage } from '@/features/sheet/extra-damage'
 import { RARITIES, capitalize, newWord } from './labels'
+import { usePageTitle } from '@/lib/page-title'
 
 const SCHOOLS = ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation']
 const CLASSES = [
@@ -202,6 +203,7 @@ function toInput(kind: HomebrewKind, s: FormState, create: boolean): HomebrewInp
 }
 
 export function HomebrewFormPage() {
+  usePageTitle('Homebrew')
   const { id } = useParams<{ id: string }>()
   return id ? <EditForm id={id} /> : <CreateForm />
 }

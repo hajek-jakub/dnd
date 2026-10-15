@@ -5,7 +5,7 @@ import { useSheet } from './sheet-context'
 
 /** Co na postavě chybí (null / prázdné) a co čeká na potvrzení (TO_CONFIRM v poznámkách). Zmizí, až je všechno doplněno. */
 export function MissingInfo() {
-  const { character } = useSheet()
+  const { character, canEdit } = useSheet()
   const missing = [
     character.background.trim() === '' ? 'background' : null,
     character.alignment.trim() === '' ? 'alignment' : null,
@@ -15,11 +15,12 @@ export function MissingInfo() {
     ...unconfirmedLines(character.notes).map((t) => ({ where: 'Postava', text: t })),
     ...character.items.flatMap((i) => unconfirmedLines(i.notes).map((t) => ({ where: i.name, text: t }))),
   ]
-  if (missing.length === 0 && toConfirm.length === 0) return null
+  // Co chybí, doplňuje majitel nebo DM; ostatní hráči (cizí postava s plným náhledem) to nepotřebují vidět.
+  if (!canEdit || (missing.length === 0 && toConfirm.length === 0)) return null
 
   return (
     <Card className="border-amber-500/60">
-      <CardContent className="space-y-2 p-4 text-sm">
+      <CardContent className="space-y-2 px-3 py-2 text-sm">
         {missing.length > 0 && (
           <p data-testid="missing-info">
             <strong>Nedoplněno:</strong> {missing.join(', ')} <NotFilled>(doplň na záložce Postava)</NotFilled>

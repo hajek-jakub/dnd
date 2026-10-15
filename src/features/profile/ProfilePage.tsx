@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
 import { CampaignDangerCard } from './CampaignDangerCard'
 import { useChangePassword, useUpdateDisplayName } from './api'
+import { usePageTitle } from '@/lib/page-title'
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: 'system', label: 'Podle systému' },
@@ -21,6 +22,7 @@ const THEMES: { value: Theme; label: string }[] = [
 ]
 
 export function ProfilePage() {
+  usePageTitle('Profil')
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const { campaigns, active } = useActiveCampaign()
@@ -74,7 +76,7 @@ export function ProfilePage() {
         <CardContent className="space-y-4">
           <div role="group" aria-label="Motiv" className="grid grid-cols-3 gap-2">
             {THEMES.map((t) => (
-              <Button key={t.value} type="button" variant={theme === t.value ? 'default' : 'outline'} aria-pressed={theme === t.value} onClick={() => setTheme(t.value)}>
+              <Button key={t.value} type="button" className="px-2 text-sm" variant={theme === t.value ? 'default' : 'outline'} aria-pressed={theme === t.value} onClick={() => setTheme(t.value)}>
                 {t.label}
               </Button>
             ))}

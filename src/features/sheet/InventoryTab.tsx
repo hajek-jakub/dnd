@@ -62,7 +62,7 @@ export function InventoryTab() {
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
                 <div
-                  className={cn('h-full', enc.status === 'ok' ? 'bg-green-500' : enc.status === 'encumbered' ? 'bg-amber-500' : 'bg-red-500')}
+                  className={cn('h-full', !enc.enabled ? 'bg-primary/50' : enc.status === 'ok' ? 'bg-green-500' : enc.status === 'encumbered' ? 'bg-amber-500' : 'bg-red-500')}
                   style={{ width: `${percent}%` }}
                 />
               </div>

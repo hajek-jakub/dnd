@@ -26,6 +26,7 @@ import { useSheet } from './sheet-context'
 import { SpellcastingCard } from './SpellcastingCard'
 import { StatsCard } from './StatsCard'
 import { useCharacter, useEngineBundle } from './api'
+import { usePageTitle } from '@/lib/page-title'
 
 const TABS = [
   { id: 'overview', label: 'Přehled' },
@@ -55,6 +56,7 @@ export function CharacterPage() {
 
 function SheetView() {
   const { character, sheet, canEdit, adjust } = useSheet()
+  usePageTitle(character.name)
   const [tab, setTab] = useState<TabId>('overview')
   useEffect(() => {
     // Spodní lišta pak míří na tuhle postavu a do její kampaně.
@@ -112,7 +114,7 @@ function SheetView() {
         </ul>
       )}
 
-      <nav aria-label="Části karty postavy" className="-mx-4 overflow-x-auto px-4">
+      <nav aria-label="Části karty postavy" className="sticky top-14 z-10 -mx-4 overflow-x-auto bg-background/95 px-4 py-2 backdrop-blur">
         <ul className="flex gap-2">
           {TABS.map((t) => (
             <li key={t.id}>

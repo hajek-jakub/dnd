@@ -16,6 +16,7 @@ import { useCreateCharacter, useEngineBundle } from './api'
 import { toEngineInput } from './model'
 import { ABILITY_LABELS, ALIGNMENTS, SKILL_LABELS } from './labels'
 import type { CharacterFull } from './types'
+import { usePageTitle } from '@/lib/page-title'
 
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8]
 /** Level třídy, na kterém se vybírá subclass (stejná tabulka jako na serveru). */
@@ -39,6 +40,7 @@ export function CreateCharacterPage() {
   // /characters/new?npc=1: DM zakládá NPC (postavu bez majitele, za kterou hraje on)
   const npc = useSearchParams()[0].get('npc') === '1'
   const { data: campaign, isPending } = useCampaign(campaignId)
+  usePageTitle(npc ? 'Nové NPC' : 'Nová postava', campaign?.name)
   const { data: bundle, isPending: bundlePending } = useEngineBundle()
   const { data: races } = useRules({ kinds: ['race'] })
   const create = useCreateCharacter(campaignId)

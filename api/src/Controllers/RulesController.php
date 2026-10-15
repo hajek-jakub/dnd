@@ -93,17 +93,23 @@ final class RulesController
      * Data pro pravidlový engine v prohlížeči: třídy a tabulky levelů z SRD (stejný tvar jako zdrojová data).
      * @param array{id:string} $user
      */
-    public static function engine(Request $req, array $params, array $user): array
+    public static function engine(Request $req, array $params, array $user): Response
     {
+        // Pravidla pro engine se mění jen novým seedem (nasazením), takže je prohlížeč může chvíli držet a pak se jen zeptá, jestli se změnila (304).
+        $etag = '"' . md5('engine:' . (string) Db::value("SELECT hash FROM seed_state WHERE name = 'rules'")) . '"';
+        $headers = ['ETag' => $etag, 'Cache-Control' => 'private, max-age=600'];
+        if ($req->header('if-none-match') === $etag) {
+            return new Response(304, null, null, null, $headers);
+        }
         $classes = Db::all("SELECT idx, name, data FROM rules_entries WHERE kind = 'class' AND scope = '' ORDER BY idx");
         $levels = Db::all("SELECT idx, name, level, category, data FROM rules_entries WHERE kind = 'class_level' AND scope = '' ORDER BY idx");
         $decode = static fn (string $json): mixed => json_decode($json, true) ?? new \stdClass();
-        return [
+        return new Response(200, [
             'classes' => array_map(static fn (array $r): array => ['idx' => $r['idx'], 'name' => $r['name'], 'data' => $decode((string) $r['data'])], $classes),
             'levels' => array_map(static fn (array $r): array => [
                 'idx' => $r['idx'], 'name' => $r['name'], 'level' => (int) $r['level'], 'category' => $r['category'], 'data' => $decode((string) $r['data']),
             ], $levels),
-        ];
+        ], null, null, $headers);
     }
 
     /**
