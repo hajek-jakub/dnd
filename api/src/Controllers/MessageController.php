@@ -9,6 +9,7 @@ use Dnd\Db;
 use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
+use Dnd\Languages;
 use Dnd\RateLimiter;
 use Dnd\Request;
 use Dnd\Response;
@@ -17,9 +18,11 @@ use Dnd\Response;
  * Zprávy v kampani.
  *  - skupinový chat (thread 'group'): píše i čte každý člen kampaně,
  *  - soukromá konverzace DM a hráče (thread 'dm:<id hráče>'): hráč smí psát jen DM, DM smí psát hráči,
- *  - tajná zpráva od DM více hráčům (thread 'secret'): vidí ji jen DM a příjemci.
+ *  - tajná zpráva od DM více hráčům (thread 'secret'): vidí ji jen DM a příjemci,
+ *  - zpráva v jazyce (thread 'lang:<jazyk>'): píše hráč, který jazyk umí, a čtou ji ostatní hráči, kteří ho umí (v okamžiku odeslání).
+ *    DM ji nevidí (platí obecné pravidlo níže), takže si hráči můžou psát, když nechtějí, aby to někdo slyšel.
  * Viditelnost drží jediné pravidlo (visibleSql): skupinové vidí každý člen, ostatní jen odesílatel a příjemci.
- * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal (hráči si mezi sebou soukromě psát nemohou).
+ * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal. Hráči si mezi sebou soukromě píšou jen přes jazyky, které sdílejí.
  */
 final class MessageController
 {
@@ -68,6 +71,7 @@ final class MessageController
         return [
             'messages' => array_map(static fn (array $r): array => self::payload($r, $recipients[(int) $r['id']] ?? []), $rows),
             'unread' => self::unreadByThread($params['id'], $user['id']),
+            'languages' => self::myLanguages($params['id'], $user['id']),
         ];
     }
 
@@ -82,7 +86,9 @@ final class MessageController
         $to = $data['to'] ?? null;
         $recipientIds = [];
         $thread = 'group';
-        if ($to !== 'all') {
+        if (is_array($to) && array_key_exists('language', $to)) {
+            [$thread, $recipientIds] = self::languageTarget($role, $user['id'], $params['id'], $to['language']);
+        } elseif ($to !== 'all') {
             if (!is_array($to) || $to === [] || count($to) > 50) {
                 throw HttpError::validation("Zadej příjemce: 'all' nebo seznam členů kampaně.", 'to');
             }
@@ -138,7 +144,7 @@ final class MessageController
     {
         Access::requireMember($user, $params['id']);
         $thread = $req->json()['thread'] ?? null;
-        if (!is_string($thread) || preg_match('/^(group|secret|dm:[0-9a-f-]{36})$/', $thread) !== 1) {
+        if (!is_string($thread) || preg_match('/^(group|secret|dm:[0-9a-f-]{36}|lang:[\p{L}\p{N}-]{1,40})$/u', $thread) !== 1) {
             throw HttpError::validation('Neplatné vlákno.', 'thread');
         }
         $max = Db::value(
@@ -173,6 +179,63 @@ final class MessageController
     }
 
     // ------------------------------------------------------------------ pomocné
+
+    /**
+     * Cíl zprávy v jazyce: vlákno a příjemci (ostatní hráči, kteří jazyk umí). Píše jen hráč, který jazyk sám umí.
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function languageTarget(string $role, string $userId, string $campaignId, mixed $language): array
+    {
+        if ($role !== 'player') {
+            throw HttpError::forbidden('Zprávy v jazyce píšou jen hráči.');
+        }
+        $slug = is_string($language) ? Languages::slug($language) : '';
+        if ($slug === '') {
+            throw HttpError::validation('Zadej jazyk.', 'to');
+        }
+        $all = Languages::byPlayer($campaignId);
+        if (!isset($all[$userId][$slug])) {
+            throw HttpError::forbidden('Tento jazyk tvoje postava neumí.');
+        }
+        $recipients = [];
+        foreach ($all as $uid => $langs) {
+            if ($uid !== $userId && isset($langs[$slug])) {
+                $recipients[] = (string) $uid;
+            }
+        }
+        if ($recipients === []) {
+            throw HttpError::validation('Tento jazyk neumí žádný další hráč.', 'to');
+        }
+        return ['lang:' . $slug, $recipients];
+    }
+
+    /**
+     * Jazyky, které uživatel umí, a ostatní hráči, se kterými je sdílí (jen takové jazyky jde použít k psaní).
+     * @return list<array{slug: string, name: string, speakers: list<array{id: string, name: string}>}>
+     */
+    private static function myLanguages(string $campaignId, string $userId): array
+    {
+        $all = Languages::byPlayer($campaignId);
+        $mine = $all[$userId] ?? [];
+        if ($mine === []) {
+            return [];
+        }
+        $names = [];
+        foreach (Db::all('SELECT user_id, display_name FROM campaign_members m JOIN users u ON u.id = m.user_id WHERE m.campaign_id = ?', [$campaignId]) as $r) {
+            $names[(string) $r['user_id']] = (string) $r['display_name'];
+        }
+        $out = [];
+        foreach ($mine as $slug => $name) {
+            $speakers = [];
+            foreach ($all as $uid => $langs) {
+                if ($uid !== $userId && isset($langs[$slug])) {
+                    $speakers[] = ['id' => (string) $uid, 'name' => $names[(string) $uid] ?? '?'];
+                }
+            }
+            $out[] = ['slug' => (string) $slug, 'name' => $name, 'speakers' => $speakers];
+        }
+        return $out;
+    }
 
     /** @return array<string, int> počet nepřečtených zpráv (cizích) po vláknech */
     private static function unreadByThread(string $campaignId, string $userId): array

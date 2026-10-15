@@ -190,6 +190,86 @@ describe('zprávy v kampani', () => {
     })
   })
 
+  describe('zprávy v jazyce (hráči mezi sebou)', () => {
+    let cid: string
+    let gm: TestUser
+    let [p1, p2, p3, p4]: TestUser[] = []
+
+    const character = (user: TestUser, name: string, languages: string[]) =>
+      user.client.post(`/campaigns/${cid}/characters`, {
+        name,
+        abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        levels: [{ classIndex: 'fighter', hpRoll: null }],
+        extraProficiencies: languages.map((l) => `Language: ${l}`),
+      })
+    const say = (user: TestUser, language: string, body = 'šeptem') => user.client.post(`/campaigns/${cid}/messages`, { to: { language }, body })
+    const read = async (user: TestUser) => (await user.client.get(`/campaigns/${cid}/messages`)).body as { messages: any[]; unread: Record<string, number>; languages: any[] }
+
+    beforeAll(async () => {
+      gm = await registerUser('gm')
+      cid = await createCampaign(gm, 'Jazyky')
+      ;[p1, p2, p3, p4] = [await joinAsPlayer(gm, cid, 'pa'), await joinAsPlayer(gm, cid, 'pb'), await joinAsPlayer(gm, cid, 'pc'), await joinAsPlayer(gm, cid, 'pd')]
+      expectStatus(await character(p1, 'Aja', ['Orc', 'Elvish']), 201)
+      expectStatus(await character(p2, 'Bob', ['Orc']), 201)
+      expectStatus(await character(p3, 'Cyra', ['elvish']), 201) // malá písmena nevadí
+      expectStatus(await character(p4, 'Dan', []), 201)
+      expectStatus(await character(gm, 'NPC Skřet', ['Orc']), 201) // DM jazyky nesdílí
+    })
+
+    it('hráč napíše v jazyce: vidí ho jen hráči, kteří jazyk umí (ne DM, ne ostatní)', async () => {
+      const res = await say(p1, 'Orc', 'Zradíme ho')
+      expectStatus(res, 201)
+      expect(res.body.message).toMatchObject({ thread: 'lang:orc', recipients: [{ id: p2.id }] })
+      for (const u of [p1, p2]) expect((await read(u)).messages.map((m) => m.body), u.username).toContain('Zradíme ho')
+      for (const u of [p3, p4, gm]) expect((await read(u)).messages.map((m) => m.body), u.username).not.toContain('Zradíme ho')
+      // odpověď jde jen Aje, DM s NPC se nepočítá
+      const reply = await say(p2, 'orc', 'Souhlas')
+      expect(reply.body.message.recipients).toEqual([expect.objectContaining({ id: p1.id })])
+      expect((await read(p1)).messages.map((m) => m.body)).toContain('Souhlas')
+      expect((await read(gm)).messages.map((m) => m.body)).not.toContain('Souhlas')
+    })
+
+    it('rozlišuje jazyky (Elvish jde jen k Cyře, i když je zapsaný malými písmeny)', async () => {
+      const res = await say(p1, 'Elvish', 'Elfí tajemství')
+      expectStatus(res, 201)
+      expect(res.body.message).toMatchObject({ thread: 'lang:elvish', recipients: [{ id: p3.id }] })
+      expect((await read(p2)).messages.map((m) => m.body)).not.toContain('Elfí tajemství')
+      expect((await read(p3)).messages.map((m) => m.body)).toContain('Elfí tajemství')
+    })
+
+    it('nezná-li hráč jazyk, nebo je DM, odmítne to', async () => {
+      expectStatus(await say(p2, 'Elvish'), 403)
+      expectStatus(await say(p4, 'Orc'), 403)
+      expectStatus(await say(p1, 'Dwarvish'), 403)
+      expectStatus(await say(gm, 'Orc'), 403)
+    })
+
+    it('seznam jazyků v odpovědi: moje jazyky a s kým je sdílím', async () => {
+      const mine = (await read(p1)).languages
+      expect(mine.map((l) => l.slug).sort()).toEqual(['elvish', 'orc'])
+      expect(mine.find((l) => l.slug === 'orc')).toMatchObject({ name: 'Orc', speakers: [{ id: p2.id }] })
+      expect((await read(p4)).languages).toEqual([])
+      expect((await read(gm)).languages).toEqual([])
+    })
+
+    it('nepřečtené po vláknu a označení za přečtené', async () => {
+      await say(p1, 'Orc', 'ještě jedna')
+      const before = (await read(p2)).unread['lang:orc']
+      expect(before).toBeGreaterThanOrEqual(1)
+      expect((await read(p3)).unread['lang:orc']).toBeUndefined()
+      const marked = await p2.client.post(`/campaigns/${cid}/messages/read`, { thread: 'lang:orc' })
+      expectStatus(marked, 200)
+      expect(marked.body.unread['lang:orc'] ?? 0).toBe(0)
+      expectStatus(await p2.client.post(`/campaigns/${cid}/messages/read`, { thread: 'lang:' }), 422)
+    })
+
+    it('jazyk, který nikdo další neumí, nejde použít', async () => {
+      expectStatus(await character(p4, 'Dan2', ['Sylvan']), 201)
+      expectStatus(await say(p4, 'Sylvan'), 422)
+      expect(JSON.stringify((await read(p4)).languages)).toContain('"speakers":[]')
+    })
+  })
+
   describe('omezení četnosti', () => {
     it('víc než 40 zpráv za minutu vrátí 429', async () => {
       const spammer = await joinAsPlayer(dm, campaignId, 'spam')

@@ -7,7 +7,7 @@ export interface ChatMessage {
   id: number
   senderId: string
   senderName: string
-  /** 'group' | 'secret' | 'dm:<id hráče>' */
+  /** 'group' | 'secret' | 'dm:<id hráče>' | 'lang:<jazyk>' */
   thread: string
   recipients: { id: string; name: string }[]
   body: string
@@ -18,6 +18,14 @@ export interface MessagesState {
   messages: ChatMessage[]
   /** nepřečtené (cizí) zprávy podle vlákna */
   unread: Record<string, number>
+  /** jazyky, které umím, a ostatní hráči, kteří je umí taky */
+  languages: LanguageInfo[]
+}
+
+export interface LanguageInfo {
+  slug: string
+  name: string
+  speakers: { id: string; name: string }[]
 }
 
 const POLL_MS = 4000
@@ -37,7 +45,7 @@ export function useMessages(campaignId: string) {
       const res = await api.get<MessagesState>(`/campaigns/${campaignId}/messages${last > 0 ? `?after=${last}` : ''}`)
       if (!prev) return res
       const known = new Set(prev.messages.map((m) => m.id))
-      return { messages: [...prev.messages, ...res.messages.filter((m) => !known.has(m.id))], unread: res.unread }
+      return { messages: [...prev.messages, ...res.messages.filter((m) => !known.has(m.id))], unread: res.unread, languages: res.languages }
     },
   })
 }
@@ -45,7 +53,7 @@ export function useMessages(campaignId: string) {
 export function useSendMessage(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { to: 'all' | string[]; body: string }) =>
+    mutationFn: async (input: { to: 'all' | string[] | { language: string }; body: string }) =>
       (await api.post<{ message: ChatMessage }>(`/campaigns/${campaignId}/messages`, input)).message,
     onSuccess: (message) => {
       queryClient.setQueryData<MessagesState>(['messages', campaignId], (old) =>

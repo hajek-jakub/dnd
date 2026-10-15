@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, LockIcon, MessageSquareIcon, SendIcon, UsersIcon } from 'lucide-react'
+import { ArrowLeftIcon, LanguagesIcon, LockIcon, MessageSquareIcon, SendIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,7 +17,9 @@ interface ThreadInfo {
   id: string
   label: string
   hint: string
-  icon: 'group' | 'private' | 'secret'
+  icon: 'group' | 'private' | 'secret' | 'language'
+  /** název jazyka u vlákna `lang:<jazyk>` */
+  language?: string
 }
 
 function formatTime(iso: string): string {
@@ -41,6 +43,7 @@ export function MessagesPage() {
   const dmMember = members?.find((m) => m.role === 'dm')
   const messages = useMemo(() => state?.messages ?? [], [state?.messages])
   const unread = state?.unread ?? {}
+  const languages = useMemo(() => state?.languages ?? [], [state?.languages])
 
   const threads = useMemo<ThreadInfo[]>(() => {
     const list: ThreadInfo[] = [{ id: 'group', label: 'Skupina', hint: 'Vidí všichni v kampani', icon: 'group' }]
@@ -52,9 +55,21 @@ export function MessagesPage() {
     } else {
       if (dmMember) list.push({ id: `dm:${me}`, label: `${dmMember.displayName} (DM)`, hint: 'Soukromě jen mezi tebou a DM', icon: 'private' })
       if (messages.some((m) => m.thread === 'secret')) list.push({ id: 'secret', label: 'Tajné zprávy', hint: 'Zprávy od DM jen pro vybrané', icon: 'secret' })
+      // Jazyky, které umím a umí je ještě někdo další, plus vlákna, kde už nějaké zprávy jsou.
+      const shown = new Set<string>()
+      for (const l of languages) {
+        if (l.speakers.length === 0 && !messages.some((m) => m.thread === `lang:${l.slug}`)) continue
+        shown.add(l.slug)
+        list.push({ id: `lang:${l.slug}`, label: l.name, hint: `Jen hráči, kteří umí tento jazyk (${l.speakers.map((s) => s.name).join(', ') || 'nikdo další'}). DM to nevidí.`, icon: 'language', language: l.name })
+      }
+      for (const t of new Set(messages.filter((m) => m.thread.startsWith('lang:')).map((m) => m.thread))) {
+        if (shown.has(t.slice(5))) continue
+        const name = t.slice(5).replace(/^./u, (c) => c.toUpperCase())
+        list.push({ id: t, label: name, hint: 'Jazyk, který už nemáš na postavě (staré zprávy zůstávají)', icon: 'language' })
+      }
     }
     return list
-  }, [isDm, members, dmMember, me, messages])
+  }, [isDm, members, dmMember, me, messages, languages])
 
   const selectedParam = params.get('t')
   const selected = threads.find((t) => t.id === (selectedParam ?? 'group')) ?? threads[0]
@@ -102,7 +117,15 @@ export function MessagesPage() {
                       selected?.id === t.id && 'lg:border-primary lg:ring-2 lg:ring-primary/30',
                     )}
                   >
-                    {t.icon === 'group' ? <UsersIcon aria-hidden className="size-5 shrink-0" /> : t.icon === 'secret' ? <LockIcon aria-hidden className="size-5 shrink-0" /> : <MessageSquareIcon aria-hidden className="size-5 shrink-0" />}
+                    {t.icon === 'group' ? (
+                      <UsersIcon aria-hidden className="size-5 shrink-0" />
+                    ) : t.icon === 'secret' ? (
+                      <LockIcon aria-hidden className="size-5 shrink-0" />
+                    ) : t.icon === 'language' ? (
+                      <LanguagesIcon aria-hidden className="size-5 shrink-0" />
+                    ) : (
+                      <MessageSquareIcon aria-hidden className="size-5 shrink-0" />
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{t.label}</span>
                       <span className="block truncate text-xs text-muted-foreground">{t.hint}</span>
@@ -117,6 +140,11 @@ export function MessagesPage() {
               )
             })}
           </ul>
+          {!isDm && !threads.some((t) => t.icon === 'language') && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Znáš s jiným hráčem společný jazyk? Přidej ho postavě (Postava → Jazyky) a objeví se tu vlákno, které nikdo jiný (ani DM) neuvidí.
+            </p>
+          )}
         </nav>
 
         {selected && (
@@ -165,7 +193,7 @@ function MessageList({ messages, me }: { messages: ChatMessage[]; me: string }) 
           <div key={m.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
             <p className="text-xs text-muted-foreground">
               {mine ? 'Ty' : m.senderName} · {formatTime(m.createdAt)}
-              {m.thread === 'secret' && m.recipients.length > 0 && ` · pro: ${m.recipients.map((r) => (r.id === me ? 'tebe' : r.name)).join(', ')}`}
+              {(m.thread === 'secret' || m.thread.startsWith('lang:')) && m.recipients.length > 0 && ` · pro: ${m.recipients.map((r) => (r.id === me ? 'tebe' : r.name)).join(', ')}`}
             </p>
             <p className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2', mine ? 'bg-primary text-primary-foreground' : 'bg-muted')}>{m.body}</p>
           </div>
@@ -195,10 +223,11 @@ function Composer({
 
   // Příjemci podle vlákna: skupina všem, soukromé jednomu, tajné vybraným (jen DM).
   const secret = thread.id === 'secret'
-  const to: 'all' | string[] | null =
-    thread.id === 'group' ? 'all' : secret ? (isDm && picked.size >= 2 ? [...picked] : null) : thread.id.startsWith('dm:') ? [isDm ? thread.id.slice(3) : (dmId ?? '')] : null
+  const to: 'all' | string[] | { language: string } | null =
+    thread.id === 'group' ? 'all' : thread.language ? { language: thread.language } : secret ? (isDm && picked.size >= 2 ? [...picked] : null) : thread.id.startsWith('dm:') ? [isDm ? thread.id.slice(3) : (dmId ?? '')] : null
   const canWrite = !secret || isDm
   const valid = text.trim().length > 0 && to !== null && !(Array.isArray(to) && to[0] === '')
+  const readOnly = thread.id.startsWith('lang:') && !thread.language
 
   function submit() {
     if (!valid || to === null || send.isPending) return
@@ -211,6 +240,7 @@ function Composer({
     )
   }
 
+  if (readOnly) return <p className="text-sm text-muted-foreground">Tenhle jazyk už tvoje postava neumí, nové zprávy v něm psát nejde.</p>
   if (!canWrite) return <p className="text-sm text-muted-foreground">Tajné zprávy posílá jen DM. Odpovědět mu můžeš soukromě ve vlákně s DM.</p>
 
   return (

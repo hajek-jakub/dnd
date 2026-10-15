@@ -18,7 +18,7 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
    **Úprava:** zapni „Upravit taktiky“, pak u každé položky šipkami změníš pořadí, „Upravit“ otevře formulář a koš ji smaže; „Přidat“ u nadpisu sekce založí novou. Taktiky smí upravovat hráč i DM.
 5. **Kostky**: u dovedností, záchranných hodů, iniciativy, útoků a zranění je malá kostka. Hod losuje server: ukáže se animace kostek, pak hozená čísla a součet (tlačítko „Hodit znovu“ ho zopakuje) a výsledek vidí celá družina v logu (tlačítko s kostkou v horní liště). Nahoře přepneš **Výhodu / Nevýhodu**, „Krit“ zdvojí kostky zranění.
    **Skrytý hod** vidíš jen ty a DM. Volný hod napíšeš třeba jako `2d6+3`.
-6. **Zprávy**: Skupina (vidí všichni), soukromě s DM (nikdo jiný to nevidí) a Tajné zprávy od DM jen pro vybrané. Nepřečtené ukazuje odznak v horní liště a u vlákna.
+6. **Zprávy**: Skupina (vidí všichni), soukromě s DM (nikdo jiný to nevidí) Tajné zprávy od DM jen pro vybrané a **vlákna v jazycích**: když ty a další hráč umíte stejný jazyk (přidáš ho na sheetu v Postava → Jazyky), objeví se ve Zprávách vlákno s jeho názvem, kam si můžete psát tak, že to nikdo jiný, ani DM, neuvidí. Zprávu vidí hráči, kteří jazyk uměli v okamžiku odeslání. Nepřečtené ukazuje odznak v horní liště a u vlákna.
 7. **Mapy**: DM zveřejní mapu, ty na ní vidíš body, které ti DM ukázal. Vlastní **soukromé poznámky** na mapě (tlačítko „Přidat poznámku“) uvidíš jen ty, ani DM ne.
 8. **Deník**: informace od DM podle témat (příběh, místa, postavy, frakce…). Nové zápisy ukazuje odznak v liště a štítek „nové“; důležité jsou připnuté nahoře. Můžeš hledat a filtrovat podle tématu a psát si **soukromé zápisky**, které uvidíš jen ty.
 9. **Oznámení** (zvonek): když ti DM něco dá nebo změní (item, XP, bonus, zranění), ukáže se to hned.
@@ -32,7 +32,7 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
    **dočasná HP** (platí nová hodnota) a **bonus s trváním** („do long restu“, „dokud nezruším“, trvalý), který se promítne do výpočtů s viditelným zdrojem. Hráč dostane oznámení. Stav jde zrušit klepnutím na štítek přímo na kartě postavy. Záporné hodnoty bonusu fungují jako debuff (třeba −2 AC). Poznámky DM vidíš jen ty.
 3. **Mapy**: nahraj obrázek (zmenší se na 4096 px), mapa je zprvu skrytá, „Zveřejnit“ ji ukáže hráčům. Na mapu přidáváš body s ikonou (hrad, město, nebezpečí, poklad…) a vybereš, kdo je uvidí:
    všichni, vybraní hráči, nebo jen ty. Body jdou tahem přesouvat.
-4. **Zprávy**: soukromě jednomu hráči, tajně více hráčům najednou, nebo do skupiny. Hráči si mezi sebou soukromě psát nemohou, jen tobě.
+4. **Zprávy**: soukromě jednomu hráči, tajně více hráčům najednou, nebo do skupiny. Hráči si mezi sebou soukromě píšou jen přes společný jazyk (tyhle zprávy DM nevidí, ani když má postavu s tím jazykem); jinak píšou jen tobě.
 5. **Deník**: zakládáš zápisy podle témat (příběh, místa, postavy, frakce, domácí pravidla…) pro všechny, vybrané hráče, nebo jen pro sebe, a důležité připneš nahoru. Formátování: `**tučně**`, `*kurzíva*`, `# nadpis`, odrážky `- položka`, odkazy.
 6. **Pravidla**: SRD 5.1 (kouzla, itemy, třídy, rasy…) a katalog magických itemů (jen údaje s odkazem). **Homebrew** (kouzla, itemy, zbraně, featury, subclassy) vytvoříš v sekci Pravidla po výběru kampaně a vidí ho členové kampaně.
 7. **Kostky**: stejné jako hráči, navíc vidíš skryté hody hráčů a můžeš hodit za kteroukoli postavu.

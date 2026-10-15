@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CameraIcon, Trash2Icon } from 'lucide-react'
+import { CameraIcon, PlusIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +14,7 @@ import { PhotoCropper } from './PhotoCropper'
 import { useDeleteCharacter, useDeletePhoto, useRevertLevel, useUploadPhoto } from './api'
 import { useSheet } from './sheet-context'
 import { ALIGNMENTS } from './labels'
+import { COMMON_LANGUAGES, MAX_LANGUAGE_LENGTH, languagesOf, withLanguage, withoutLanguage } from './languages'
 
 export function ProfileTab() {
   const { character, canEdit, isDm, update } = useSheet()
@@ -22,6 +23,7 @@ export function ProfileTab() {
       <div className="space-y-6">
         <PhotoCard />
         {canEdit && <DetailsForm key={character.rev} />}
+        {canEdit && <LanguagesCard />}
       </div>
       <div className="space-y-6">
         {canEdit && <PersonalityForm key={`p${character.rev}`} />}
@@ -47,6 +49,64 @@ export function ProfileTab() {
         {canEdit && <DangerCard />}
       </div>
     </div>
+  )
+}
+
+/** Jazyky postavy. Hráči, kteří sdílejí jazyk, si v Zprávách můžou psát tak, že to nikdo jiný (ani DM) nevidí. */
+function LanguagesCard() {
+  const { character, update } = useSheet()
+  const [name, setName] = useState('')
+  const languages = languagesOf(character.extraProficiencies)
+
+  function add(e: FormEvent) {
+    e.preventDefault()
+    const next = withLanguage(character.extraProficiencies, name)
+    if (next !== character.extraProficiencies) update({ extraProficiencies: next })
+    setName('')
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Jazyky</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {languages.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Zatím žádný jazyk.</p>
+        ) : (
+          <ul aria-label="Znám jazyky" className="flex flex-wrap gap-2">
+            {languages.map((l) => (
+              <li key={l} className="flex items-center rounded-full border pl-3">
+                {l}
+                <button
+                  type="button"
+                  aria-label={`Odebrat jazyk ${l}`}
+                  className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+                  onClick={() => update({ extraProficiencies: withoutLanguage(character.extraProficiencies, l) })}
+                >
+                  <XIcon aria-hidden className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={add} className="flex gap-2">
+          <Label htmlFor="pf-language" className="sr-only">
+            Přidat jazyk
+          </Label>
+          <Input id="pf-language" list="pf-language-options" maxLength={MAX_LANGUAGE_LENGTH} placeholder="Přidat jazyk (např. Orc)" value={name} onChange={(e) => setName(e.target.value)} />
+          <datalist id="pf-language-options">
+            {COMMON_LANGUAGES.filter((l) => !languages.some((x) => x.toLowerCase() === l.toLowerCase())).map((l) => (
+              <option key={l} value={l} />
+            ))}
+          </datalist>
+          <Button type="submit" variant="secondary" disabled={name.trim() === ''}>
+            <PlusIcon aria-hidden /> Přidat
+          </Button>
+        </form>
+        <p className="text-xs text-muted-foreground">Když stejný jazyk umí i jiný hráč, můžete si v Zprávách psát tak, že to nikdo jiný (ani DM) neuvidí.</p>
+      </CardContent>
+    </Card>
   )
 }
 
