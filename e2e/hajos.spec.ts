@@ -44,7 +44,7 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
   await expect(page.getByTestId('missing-info')).toContainText('background, alignment, XP')
   // co čeká na potvrzení, je vypsané
   await expect(page.getByText(/Ke ověření \(\d+\)/)).toBeVisible()
-  await expect(page.getByText(/5e 2014 \(SRD 5\.1\) nebo 2024/)).toBeVisible()
+  await expect(page.getByText(/na sheetu „Cross“, předpokládám Light Crossbow/).first()).toBeVisible()
 
   // útok Demonic Spear: +8 k útoku, kostka 1d6 a doplňkové zranění 1d4 fire
   const spear = page.getByRole('listitem').filter({ hasText: 'Demonic Spear' }).filter({ hasText: 'k20' })
@@ -121,7 +121,8 @@ test('DM přepne pravidla kampaně na 2024: sheet počítá martial arts d8 a Fo
   await expect(page.getByText(/Martial Arts 1d6/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Ki: použít' })).toBeVisible()
   const nunchaku = page.getByRole('listitem').filter({ hasText: 'Nunchaku' }).filter({ hasText: 'k20' })
-  await expect(nunchaku).toContainText('1d6')
+  await expect(nunchaku).toContainText('1d8') // homebrew zbraň s kostkou d8 (martial arts d6 je nižší)
+  await expect(page.getByRole('listitem').filter({ hasText: 'Unarmed Strike' }).filter({ hasText: 'k20' })).toContainText('1d6')
   await page.goBack()
 
   // DM přepne pravidla
@@ -133,7 +134,8 @@ test('DM přepne pravidla kampaně na 2024: sheet počítá martial arts d8 a Fo
   await page.getByRole('link', { name: /Hajoš/ }).click()
   await expect(page.getByText(/Martial Arts 1d8/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Focus Points: použít' })).toBeVisible()
-  await expect(nunchaku).toContainText('1d8') // jako na papíře: Nunchaku 1d8+4
+  await expect(nunchaku).toContainText('1d8')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Unarmed Strike' }).filter({ hasText: 'k20' })).toContainText('1d8') // v 2024 je martial arts kostka vyšší
   await expectNoHorizontalScroll(page)
 
   // prohlížeč pravidel s vybranou kampaní 2024 upozorní, že data jsou ze SRD 5.1

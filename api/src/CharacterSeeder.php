@@ -33,9 +33,9 @@ final class CharacterSeeder
     private const ALIASES = ['light crossbow' => 'Crossbow, light', 'heavy crossbow' => 'Crossbow, heavy', 'hand crossbow' => 'Crossbow, hand'];
     /** Základ homebrew zbraní, které nejsou v SRD a papír k nim neříká víc než název. Co je odhad, dostane TO_CONFIRM v poznámce. */
     private const HOMEBREW_DEFAULTS = [
+        // Kostku a typ zranění vezme seed z řádku v sekci attacks (homebrew zbraň s d8), kategorie a vlastnosti jsou odhad (monk zbraň: simple, melee).
         'nunchaku' => [
             'weapon' => ['damageDice' => '1d6', 'damageType' => 'Bludgeoning', 'category' => 'simple', 'range' => 'melee', 'properties' => ['Light'], 'weight' => 1],
-            'itemNote' => 'TO_CONFIRM: základní kostka nunchaku není na sheetu. Použito 1d6 bludgeoning, simple, melee, Light (sheet má 1d8 z martial arts kostky podle pravidel 2024).',
         ],
     ];
 
@@ -312,7 +312,7 @@ final class CharacterSeeder
                 $fail("Kouzla třídy \"$classKey\", kterou postava nemá.");
                 continue;
             }
-            foreach (['cantrips', 'leveled'] as $group) {
+            foreach (['cantrips', 'known', 'leveled'] as $group) {
                 foreach (is_array($block[$group] ?? null) ? $block[$group] : [] as $spellName) {
                     $rule = Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND is_srd = 1 AND LOWER(name) = LOWER(?)", [$spellName]);
                     if ($rule !== null) {
@@ -393,6 +393,17 @@ final class CharacterSeeder
                         'properties' => array_values(array_map('strval', $d['properties'] ?? [])), 'weight' => $d['weight'] ?? 0,
                         'versatileDice' => $d['two_handed_damage']['dice'] ?? null,
                     ];
+                }
+                if ($weapon !== null && !is_string($entry['base'] ?? null)) {
+                    // Homebrew bez základní zbraně: kostka a typ zranění jsou na papíře v řádku útoku (např. "1d8+4", bludgeoning).
+                    foreach ($attacks as $a) {
+                        if (strtolower((string) ($a['name'] ?? '')) === $lower && preg_match('/^\s*(\d{1,2}d\d{1,3})/', (string) ($a['damage'] ?? ''), $dm) === 1) {
+                            $weapon['damageDice'] = strtolower($dm[1]);
+                            if (is_string($a['damageType'] ?? null) && !str_contains((string) $a['damageType'], '+')) {
+                                $weapon['damageType'] = ucfirst(strtolower((string) $a['damageType']));
+                            }
+                        }
+                    }
                 }
                 if ($weapon === null) {
                     $fail("Homebrew \"$itemName\": nevím, jaké má staty (chybí základní zbraň ani výchozí hodnoty).");

@@ -17,7 +17,7 @@ interface SeedFile {
   abilityScores: Record<string, number>
   proficiencies: { skills: string[]; expertise: string[]; savingThrows: string[] }
   hitPoints: { max: number; current: number; temp: number }
-  attacks: { name: string; toHit: number; damage: string }[]
+  attacks: { name: string; toHit: number; damage: string; damageType: string }[]
   inventory: { item: string; qty: number; equipped?: boolean; base?: string; magicBonus?: number; extraDamage?: string }[]
   sheetValues: {
     proficiencyBonus: number
@@ -28,6 +28,10 @@ interface SeedFile {
     armorClass: number
     initiative: number
     kiMax: number
+    kiSaveDC: number
+    martialArtsDie: string
+    eldritchBlastBeams: number
+    darkOnesBlessingTempHp: number
     warlockSpellSaveDC: number
     warlockSpellAttack: number
     discrepancies: string[]
@@ -73,10 +77,11 @@ function inventoryFromSeed(): InventoryItem[] {
     effects: [],
   })
   const spearRow = seed.inventory.find((i) => i.item === 'Demonic Spear')!
+  const nunchakuRow = seed.attacks.find((a) => a.name === 'Nunchaku')!
   const [extraDice, ...extraType] = (spearRow.extraDamage ?? '').split(' ')
   return [
-    // Nunchaku nejsou v SRD a papír k nim neříká víc než název: základ 1d6 bludgeoning, simple, melee, Light (viz CharacterSeeder)
-    weapon('nunchaku', 'Nunchaku', { damageDice: '1d6', damageType: 'Bludgeoning', category: 'simple', range: 'melee', properties: ['Light'], weight: 1 }),
+    // Nunchaku nejsou v SRD: kostku a typ zranění seed bere z řádku útoku na papíře (homebrew d8), simple melee je odhad (viz CharacterSeeder)
+    weapon('nunchaku', 'Nunchaku', { damageDice: nunchakuRow.damage.slice(0, nunchakuRow.damage.indexOf('+')), damageType: 'Bludgeoning', category: 'simple', range: 'melee', properties: ['Light'], weight: 1 }),
     weapon('crossbow', 'Light Crossbow', srdWeapon('Crossbow, light')),
     weapon('spear', 'Demonic Spear', srdWeapon(spearRow.base!), {
       magicBonus: spearRow.magicBonus,
@@ -151,14 +156,14 @@ describe('Hajoš ze seedu: engine vychází stejně jako papírový sheet', () =
     expect(warlock.attackBonus.value).toBe(v.warlockSpellAttack)
   })
 
-  it('útoky z papíru: k20 a kostky odpovídají (kromě rozdílů 2014/2024 níže)', () => {
+  it('útoky z papíru (včetně Unarmed Strike a homebrew Nunchaku): k20, kostky i bonus ke zranění odpovídají', () => {
     for (const row of seed.attacks) {
       const attack = sheet.attacks.find((a) => a.name === (row.name === 'Crossbow' ? 'Light Crossbow' : row.name))
       expect(attack, row.name).toBeDefined()
       expect(attack!.toHit.value, `${row.name}: k20`).toBe(row.toHit)
       const m = /^(\d+d\d+)\+(\d+)/.exec(row.damage)!
       expect(attack!.damageBonus.value, `${row.name}: bonus ke zranění`).toBe(Number(m[2]))
-      if (row.name !== 'Nunchaku') expect(attack!.damageDice, `${row.name}: kostka`).toBe(m[1])
+      expect(attack!.damageDice, `${row.name}: kostka`).toBe(m[1])
     }
   })
 
@@ -171,53 +176,43 @@ describe('Hajoš ze seedu: engine vychází stejně jako papírový sheet', () =
   })
 })
 
+/** Dopočty, které engine zatím nemá jako samostatnou hodnotu: ověřují se z pravidel (SRD 5.1) a čísel enginu. */
+describe('Hajoš ze seedu: další hodnoty z papíru', () => {
+  it('martial arts kostka je d6 (pravidla 2014, Monk 5), jako na papíře', () => {
+    expect(sheet.martialArtsDie).toBe(`1${v.martialArtsDie}`)
+    const unarmed = sheet.attacks.find((a) => a.name === 'Unarmed Strike')!
+    expect(unarmed.damageDice).toBe('1d6')
+  })
+
+  it('Ki: maximum 5 a DC záchranného hodu ki je 8 + proficiency + WIS = 13', () => {
+    expect(sheet.resources.find((r) => r.key === 'monk.ki')?.max.value).toBe(v.kiMax)
+    expect(8 + sheet.proficiencyBonus.value + sheet.abilities.wis.modifier).toBe(v.kiSaveDC)
+  })
+
+  it('Dark One\'s Blessing: dočasná HP = CHA modifikátor + level warlocka = 4 (jak je uložené v seedu)', () => {
+    expect(sheet.abilities.cha.modifier + 1).toBe(v.darkOnesBlessingTempHp)
+    expect(sheet.hp.temp).toBe(v.darkOnesBlessingTempHp)
+  })
+
+  it('Eldritch Blast má na celkovém levelu 6 dva paprsky (další přibývají na 5., 11. a 17. levelu)', () => {
+    const beams = (level: number) => 1 + [5, 11, 17].filter((l) => level >= l).length
+    expect(beams(sheet.totalLevel)).toBe(v.eldritchBlastBeams)
+    expect([1, 4, 5, 10, 11, 16, 17, 20].map(beams)).toEqual([1, 1, 2, 2, 3, 3, 4, 4])
+  })
+})
+
 /**
  * Rozdíly mezi papírem a enginem, které NEJSOU chyba výpočtu. Každý je vědomě zdokumentovaný, ať se nepletou do testů výše.
  */
 describe('Hajoš ze seedu: známé rozdíly proti papíru', () => {
-  it('martial arts kostka: engine počítá pravidla 2014 (d6 na Monk 5), papír má d8 podle 2024', () => {
-    expect(sheet.martialArtsDie).toBe('1d6')
-    const nunchaku = sheet.attacks.find((a) => a.name === 'Nunchaku')!
-    expect(nunchaku.damageDice).toBe('1d6') // papír: 1d8+4
-    expect(nunchaku.damageBonus.value).toBe(4)
-  })
-
   it('Spell save DC warlocka: papír má 13, správně je 14 (8 + proficiency 3 + CHA 3)', () => {
-    // Rozdíl NENÍ v seznamu discrepancies. Papírových 13 je nejspíš DC záchranného hodu ki (8 + 3 + WIS 2).
+    // Rozdíl NENÍ v seznamu discrepancies. Papírových 13 je DC záchranného hodu ki (8 + 3 + WIS 2), warlockovo DC je o 1 vyšší.
     const warlock = sheet.spellcasting.classes.find((c) => c.classIndex === 'warlock')!
     expect(warlock.saveDc.value).toBe(14)
     expect(v.warlockSpellSaveDC).toBe(13)
-    expect(8 + sheet.proficiencyBonus.value + sheet.abilities.wis.modifier).toBe(v.warlockSpellSaveDC)
   })
 
   it('Demonic Spear: versatile 1d8 se v útoku nemodeluje (engine ukazuje jednoruční 1d6)', () => {
     expect(sheet.attacks.find((a) => a.name === 'Demonic Spear')!.damageDice).toBe('1d6')
-  })
-})
-
-/** Papír je psaný podle pravidel 2024: s nimi sedí i martial arts kostka a útok Nunchaku (1d8+4). */
-describe('Hajoš ze seedu: kampaň s pravidly 2024', () => {
-  const sheet2024 = computeSheet({ ...input, rules: { ruleset: '2024' } }, bundle)
-
-  it('martial arts d8 a Nunchaku 1d8+4 přesně podle papíru', () => {
-    expect(sheet2024.martialArtsDie).toBe('1d8')
-    const row = seed.attacks.find((a) => a.name === 'Nunchaku')!
-    const nunchaku = sheet2024.attacks.find((a) => a.name === 'Nunchaku')!
-    expect(row.damage).toBe('1d8+4')
-    expect(nunchaku.damageDice).toBe('1d8')
-    expect(nunchaku.damageBonus.value).toBe(4)
-    expect(nunchaku.toHit.value).toBe(row.toHit)
-  })
-
-  it('Focus Points: maximum 5 jako ki na papíře', () => {
-    const fp = sheet2024.resources.find((r) => r.key === 'monk.ki')!
-    expect(fp.name).toBe('Focus Points')
-    expect(fp.max.value).toBe(v.kiMax)
-  })
-
-  it('ostatní čísla z papíru zůstávají stejná jako v 2014', () => {
-    expect(sheet2024.ac.value).toBe(v.armorClass)
-    expect(sheet2024.proficiencyBonus.value).toBe(v.proficiencyBonus)
-    expect(sheet2024.hp.max.value).toBe(seed.hitPoints.max)
   })
 })

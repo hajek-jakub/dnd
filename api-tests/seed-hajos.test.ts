@@ -79,12 +79,12 @@ describe('seed postavy Hajoš', () => {
     expect(character.subclasses).toEqual({ monk: 'open-hand', warlock: 'fiend' })
     expect(character.skillProficiencies).toEqual({ acrobatics: 1, medicine: 1, religion: 1, stealth: 1 })
     expect(character.extraSaveProficiencies).toEqual([]) // STR a DEX dává Monk sám
-    expect(character.extraProficiencies).toEqual(expect.arrayContaining(['Language: Common', 'Language: Orc', 'Weapon: Martial weapons with the Light property (monk)']))
-    expect(character.extraProficiencies).not.toContain('Weapon: Simple weapons') // to zná engine ze třídy
+    // jazyky se uloží, zbraně a zbroje z papíru (Simple weapons, Shortswords, Light armor) zná engine ze tříd, takže se neukládají
+    expect(character.extraProficiencies).toEqual(['Language: Common', 'Language: Orc'])
     expect(character.state.hpCurrent).toBe(39)
     expect(character.state.hpTemp).toBe(4)
     expect(character.currency).toEqual({ cp: 6, sp: 9, ep: 0, gp: 628, pp: 0 })
-    expect(character.inspiration).toBe(true)
+    expect(character.inspiration).toBe(false) // na papíře žádná inspirace není
     expect(character.state.resources).toEqual({}) // ki a pact sloty jsou plné, nic se neukládá
     expect(character.customResources).toEqual([])
     expect(character.race).toBe('Human')
@@ -97,8 +97,8 @@ describe('seed postavy Hajoš', () => {
   })
 
   it('TO_CONFIRM se uloží tak, jak je (poznámky postavy a itemů)', () => {
-    expect(character.notes).toContain('TO_CONFIRM: 5e 2014 (SRD 5.1) nebo 2024 (SRD 5.2).')
-    expect(character.notes).toContain('Heroic')
+    // poznámka „Heroic“ je jen informace, nečeká na potvrzení; pravidla 2014 jsou rozhodnutá
+    expect(character.notes).toBe('Na sheetu je pod nadpisem připsáno „Heroic“, význam zatím neznámý.')
     const crossbow = character.items.find((i: any) => i.name === 'Crossbow, light')
     expect(crossbow.notes).toContain('TO_CONFIRM')
     expect(crossbow.notes).toContain('Cross')
@@ -126,15 +126,23 @@ describe('seed postavy Hajoš', () => {
       expect(rule.campaignId).toBe(campaignId)
       expect(rule.kind).toBe('weapon')
     }
+    expect(byName('Nunchaku').weapon).toMatchObject({ damageDice: '1d8', damageType: 'Bludgeoning' }) // homebrew d8 podle papíru
     expect(byName('Nunchaku').equipped).toBe(true)
     expect(byName('Demonic Spear').equipped).toBe(true)
     expect(byName('Demonic Spear').weapon).toMatchObject({ damageDice: '1d6', damageType: 'Piercing', magicBonus: 1, extraDamage: [{ dice: '1d4', type: 'Fire' }] })
 
-    expect(character.spells).toHaveLength(1)
-    const hex = (await owner.client.get(`/rules/${character.spells[0].ruleId}`)).body.entry
-    expect(hex.name).toBe('Hex')
-    expect(hex.isHomebrew).toBe(true) // Hex není v SRD 5.1
-    expect(character.spells[0].classIdx).toBe('warlock')
+    expect(character.spells).toHaveLength(4)
+    const spells: Record<string, any> = {}
+    for (const sp of character.spells) {
+      const entry = (await owner.client.get(`/rules/${sp.ruleId}`)).body.entry
+      spells[entry.name] = { entry, sp }
+      expect(sp.classIdx).toBe('warlock')
+    }
+    expect(Object.keys(spells).sort()).toEqual(['Command', 'Eldritch Blast', 'Hex', 'Minor Illusion'])
+    expect(spells.Hex.entry.isHomebrew).toBe(true) // Hex není v SRD 5.1
+    for (const name of ['Eldritch Blast', 'Minor Illusion', 'Command']) expect(spells[name].entry.isSrd, name).toBe(true)
+    expect(spells['Eldritch Blast'].entry.level).toBe(0)
+    expect(spells.Command.entry.level).toBe(1)
   })
 
   it('engine z uložených dat vychází jako papír (sheetValues), včetně útoku Demonic Spear', async () => {
@@ -162,7 +170,12 @@ describe('seed postavy Hajoš', () => {
     expect(spear.toHit.value).toBe(8)
     expect(spear.damageBonus.value).toBe(5)
     expect(spear.extraDamage).toEqual([{ dice: '1d4', type: 'Fire' }])
-    expect(sheet.attacks.find((a) => a.name === 'Nunchaku')!.toHit.value).toBe(7)
+    const nunchaku = sheet.attacks.find((a) => a.name === 'Nunchaku')!
+    expect(nunchaku.toHit.value).toBe(7)
+    expect(nunchaku.damageDice).toBe('1d8')
+    expect(nunchaku.damageBonus.value).toBe(4)
+    expect(sheet.attacks.find((a) => a.name === 'Unarmed Strike')!.damageDice).toBe('1d6')
+    expect(sheet.martialArtsDie).toBe('1d6')
     expect(sheet.attacks.find((a) => a.name === 'Dart')!.toHit.value).toBe(7)
     expect(sheet.attacks.find((a) => a.name === 'Crossbow, light')!.toHit.value).toBe(7)
   })
@@ -221,7 +234,7 @@ describe('seed postavy Hajoš', () => {
       ['neznámé pole itemu', (s) => (s.inventory[3].charges = 3), 'charges'],
       ['částečně vyčerpané ki', (s) => (s.resources[0].current = 2), 'není plný'],
       ['neznámý zdroj', (s) => s.resources.push({ name: 'Rage', max: 2, current: 2 }), 'Neznámý zdroj'],
-      ['neznámé kouzlo', (s) => s.spells.warlock.leveled.push('Fireball Of Doom'), 'Fireball Of Doom'],
+      ['neznámé kouzlo', (s) => s.spells.warlock.known.push('Fireball Of Doom'), 'Fireball Of Doom'],
       ['neznámý extraDamage', (s) => (s.inventory[2].extraDamage = 'hodně ohně'), 'extraDamage'],
     ]
     const before = (await characters()).length
