@@ -26,7 +26,7 @@ to na Endoře nejde, proto je backend **vlastní PHP API + MySQL**. Důsledky pr
   Nepoužívat funkce PHP 8.1+ (`readonly`, `array_is_list`, enumy, `never`, standalone `null` typ ...).
 - **DB**: MySQL 5.7+/MariaDB 10.3+, InnoDB, utf8mb4, všechny časy v UTC (`DATETIME`, API vrací ISO 8601 s `Z`). ID jsou UUID v4 (`CHAR(36)`).
 - **API**: JSON, camelCase, chyby ve tvaru `{"error":{"code","message","field?"}}`. Stejný origin jako frontend (`/api/...`), cookie `dnd_session`.
-- **Hosting**: `dnd.hajekjakub.cz` = ručně vytvořená subdoména Endory směrovaná na `public_html/_sub/dnd`. FTP účet `jakubhajek` je zamčený v `public_html`, proto je `FTP_REMOTE_DIR=/_sub/dnd` (automatická Endora `_sub` je o úroveň výš, v prostoru hlavního FTP účtu). `npm run deploy` nahraje `dist/` + `api/` a zavolá migrace.
+- **Hosting**: `dnd.hajekjakub.cz` = automatická subdoména Endory (složka `_sub/dnd` v kořeni domény). Nasazuje se samostatným FTP účtem zamčeným do `_sub/dnd` (`FTP_JAILED=true`). Účet `jakubhajek` (stafeta) je zamčený v `public_html` a na `_sub` nedosáhne. `npm run deploy` nahraje `dist/` + `api/` a zavolá migrace.
 - **Stav v klientu**: TanStack Query s optimistickými aktualizacemi (rollback při chybě). Vzor: `src/features/campaigns/api.ts`.
 - **Pravidlový engine** (od fáze 3): čisté TS funkce v `src/engine/`, bez UI a DB, pokryté Vitestem.
 

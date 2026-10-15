@@ -12,16 +12,16 @@ je ale zamčený do podsložky `public_html`. Složka `/_sub/dnd`, kterou deploy
 Názvy menu v administraci Endory se mohou lišit podle tarifu. Když něco nenajdeš nebo vypadá jinak,
 napiš mi, co přesně vidíš, a postup upravíme.
 
-## 0. Subdoména `dnd` (ručně, směrovaná na složku s aplikací)
+## 0. Subdoména `dnd` (automatická) a FTP účet
 
-1. V administraci Endory otevři **Subdomény** pro `hajekjakub.cz` a v části **Manuálně vytvořené subdomény** klepni na **Přidat subdoménu**.
-2. Název: `dnd`. Směrování: složka `public_html/_sub/dnd` (v FTP účtu `jakubhajek` je to `/_sub/dnd`).
-   Vyber ji v nabídce, případně zadej `/public_html/_sub/dnd`.
-3. PHP verze: nastav **8.1 nebo novější** přímo u této subdomény (sloupec „PHP verze“). Stafeta tak může zůstat na své verzi.
-4. Ulož. Změna může trvat od několika minut do hodiny. Manuální subdoména má přednost před automatickými.
-5. Certifikát Let's Encrypt pro `dnd.hajekjakub.cz` si už objednal(a) a funguje.
+1. V administraci Endory nech zapnuté **Automaticky vytvářené subdomény**. Pak stačí, aby existovala složka `_sub/dnd` v kořeni domény
+   (vedle `public_html`). Vytvoří se sama, když pro ni uděláš FTP účet (krok 2).
+2. **Přidat FTP účet**: login např. `dnd`, silné heslo, směrování (adresář) na `/_sub/dnd` (v kořeni domény, ne v `public_html`).
+   Když složka `dnd` v `_sub` ještě neexistuje, vytvoř ji ve správci souborů.
+3. Do `.env.deploy` dej login a heslo toho účtu a `FTP_JAILED=true` (viz krok 4). Účet vidí jen složku aplikace.
+4. Certifikát Let's Encrypt pro `dnd.hajekjakub.cz` už je objednaný a funguje.
 
-Kontrola: `https://dnd.hajekjakub.cz/api/health` ukáže `{"ok":true}`.
+Kontrola po nasazení: `https://dnd.hajekjakub.cz/api/health` ukáže `{"ok":true}`. Změna subdomén v Endoře může trvat až hodinu.
 
 ## 1. Zkontroluj verzi PHP (musí být 8.0 nebo novější)
 
@@ -57,15 +57,16 @@ Rychlá kontrola po nasazení: otevři `https://dnd.hajekjakub.cz/api/health`. S
 2. Vyplň:
 
    ```
-   FTP_HOST=...                     # adresa FTP serveru z Endory
-   FTP_USER=...
+   FTP_HOST=ftp.hajekjakub.cz
+   FTP_USER=...                     # login FTP účtu z kroku 0
    FTP_PASSWORD=...
-   FTP_REMOTE_DIR=/_sub/dnd         # složka subdomény, kterou jsi vytvořil
+   FTP_JAILED=true                  # účet je zamčený ve složce aplikace
    SITE_URL=https://dnd.hajekjakub.cz
    FTP_SECURE=true                  # když se nepřipojí, zkus false
    ```
 
-   `FTP_REMOTE_DIR` nesmí být kořen `/`. Skript totiž maže soubory, které v nové verzi nejsou, a smazal by i jiné weby.
+   Skript maže soubory, které v nové verzi nejsou. Proto buď použij zamčený účet (`FTP_JAILED=true`), nebo nastav konkrétní
+   složku v `FTP_REMOTE_DIR` (nikdy ne `/` na účtu, který vidí víc webů).
 
 ## 5. HTTPS (důležité kvůli heslům)
 

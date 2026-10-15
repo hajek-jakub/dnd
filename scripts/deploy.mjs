@@ -63,14 +63,17 @@ const host = env.FTP_HOST
 const user = env.FTP_USER
 const password = env.FTP_PASSWORD
 const port = env.FTP_PORT ? Number(env.FTP_PORT) : 21
-const remoteDir = (env.FTP_REMOTE_DIR || '').replace(/\/+$/, '')
+// FTP_JAILED=true: účet je na serveru zamčený přímo ve složce aplikace (Endora: FTP účet se směrováním
+// na _sub/dnd), takže jeho kořen "/" je bezpečný a je to složka, do které se nasazuje.
+const jailed = env.FTP_JAILED === 'true'
+const remoteDir = jailed ? '' : (env.FTP_REMOTE_DIR || '').replace(/\/+$/, '')
 const secure = env.FTP_SECURE ? env.FTP_SECURE !== 'false' : true
 const siteUrl = (env.SITE_URL || '').replace(/\/+$/, '')
 
 if (!host || !user || !password) {
   fail('Chybí FTP_HOST, FTP_USER nebo FTP_PASSWORD. Zkopíruj .env.deploy.example do .env.deploy a vyplň ho.')
 }
-if (!remoteDir || remoteDir === '/') {
+if (!jailed && (!remoteDir || remoteDir === '/')) {
   fail(
     'FTP_REMOTE_DIR musí být konkrétní složka subdomény (např. /_sub/dnd), ne kořen FTP.\n' +
       'Smazání starých souborů by jinak mohlo zasáhnout jiné weby na hostingu.',
@@ -160,7 +163,7 @@ async function listRemote(client, dir, prefix = '') {
     const rel = prefix ? `${prefix}/${item.name}` : item.name
     if (item.isDirectory) {
       dirs.push(rel)
-      const sub = await listRemote(client, `${dir}/${item.name}`, rel)
+      const sub = await listRemote(client, `${dir.replace(/\/+$/, '')}/${item.name}`, rel)
       files.push(...sub.files)
       dirs.push(...sub.dirs)
     } else {
@@ -175,15 +178,15 @@ try {
   console.log(`Připojuji se k ${host} jako ${user} (${secure ? 'FTPS' : 'FTP bez šifrování'})…`)
   await client.access({ host, port, user, password, secure, secureOptions: { rejectUnauthorized: false } })
 
-  await client.ensureDir(remoteDir)
-  const remote = await listRemote(client, remoteDir)
+  if (remoteDir) await client.ensureDir(remoteDir)
+  const remote = await listRemote(client, remoteDir || '/')
 
   const uploadSet = new Set(uploads.map((u) => u.remote))
   const staleFiles = remote.files.filter((f) => !uploadSet.has(f))
   const keptDirs = new Set(uploads.flatMap((u) => u.remote.split('/').slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join('/'))))
   const staleDirs = remote.dirs.filter((d) => !keptDirs.has(d)).sort((a, b) => b.length - a.length)
 
-  console.log(`\nNahraju ${uploads.length} souborů, smažu ${staleFiles.length} starých souborů v ${remoteDir}.`)
+  console.log(`\nNahraju ${uploads.length} souborů, smažu ${staleFiles.length} starých souborů v ${remoteDir || '/ (uzamčený FTP účet)'}.`)
   if (dryRun) {
     for (const u of uploads) console.log(`  + ${u.remote}`)
     for (const f of staleFiles) console.log(`  - ${f}`)
