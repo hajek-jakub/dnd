@@ -50,7 +50,7 @@ export function SavesCard() {
       <CardContent>
         <ul>
           {ABILITIES.map((a) => (
-            <li key={a} className="flex items-center justify-between gap-2 border-b py-0.5 last:border-b-0">
+            <li key={a} className="grid grid-cols-[minmax(0,1fr)_4rem_2.75rem] items-center gap-2 border-b py-0.5 last:border-b-0">
               <span className="flex items-center gap-2 text-sm">
                 <span
                   aria-hidden
@@ -59,12 +59,14 @@ export function SavesCard() {
                 <span className="sr-only">{sheet.saves[a].proficient ? 'Proficient: ' : ''}</span>
                 {ABILITY_LABELS[a]}
               </span>
-              <ComputedValue
-                title={`Záchranný hod: ${ABILITY_LABELS[a]}`}
-                computed={sheet.saves[a]}
-                overrideKey={`save.${a}`}
-                format={formatModifier}
-              />
+              <span className="flex justify-center">
+                <ComputedValue
+                  title={`Záchranný hod: ${ABILITY_LABELS[a]}`}
+                  computed={sheet.saves[a]}
+                  overrideKey={`save.${a}`}
+                  format={formatModifier}
+                />
+              </span>
               <RollButton label={`Záchranný hod: ${ABILITY_LABELS[a]}`} expression={d20(sheet.saves[a].value)} className="-my-1" />
             </li>
           ))}
@@ -95,7 +97,7 @@ export function SkillsCard() {
           {SKILLS.map((s) => {
             const skill = sheet.skills[s.key]
             return (
-              <li key={s.key} className="flex items-center justify-between gap-2 border-b last:border-b-0">
+              <li key={s.key} className="grid grid-cols-[minmax(0,1fr)_4rem_2.75rem] items-center gap-2 border-b last:border-b-0">
                 <span className="flex items-center gap-1 text-sm">
                   <button
                     type="button"
@@ -116,10 +118,10 @@ export function SkillsCard() {
                   </button>
                   {SKILL_LABELS[s.key]} <span className="text-xs text-muted-foreground uppercase">{s.ability}</span>
                 </span>
-                <span className="flex items-center">
+                <span className="flex justify-center">
                   <ComputedValue title={SKILL_LABELS[s.key]} computed={skill} overrideKey={`skill.${s.key}`} format={formatModifier} />
-                  <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} />
                 </span>
+                <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} />
               </li>
             )
           })}
