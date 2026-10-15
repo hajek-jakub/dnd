@@ -1,8 +1,9 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOutIcon } from 'lucide-react'
+import { BellIcon, LogOutIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/features/auth/auth-context'
+import { useNotifications } from '@/features/notifications/api'
 import { cn } from '@/lib/utils'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -13,6 +14,8 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout() {
   const { user, logout } = useAuth()
+  const { data: notifications } = useNotifications()
+  const unread = notifications?.unread ?? 0
 
   return (
     <div className="min-h-dvh">
@@ -31,6 +34,22 @@ export function AppLayout() {
                 {user.displayName}
               </Link>
             )}
+            <Link
+              to="/notifications"
+              className="relative inline-flex size-11 items-center justify-center rounded-lg hover:bg-muted"
+              aria-label={unread > 0 ? `Oznámení (${unread} nepřečtených)` : 'Oznámení'}
+              title="Oznámení"
+            >
+              <BellIcon aria-hidden className="size-5" />
+              {unread > 0 && (
+                <span
+                  data-testid="unread-badge"
+                  className="absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground"
+                >
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </Link>
             <ThemeToggle />
             <Button variant="ghost" size="icon" aria-label="Odhlásit se" title="Odhlásit se" onClick={() => void logout()}>
               <LogOutIcon aria-hidden />

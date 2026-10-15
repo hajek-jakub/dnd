@@ -48,6 +48,7 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   overrides: Record<string, number>
   customResources: { key: string; name: string; max: number; recharge: Recharge }[]
   currency: Currency
+  effects: CharacterEffect[]
   items: CharacterItem[]
   spells: CharacterSpell[]
   state: CharacterState
@@ -60,6 +61,14 @@ export interface ItemEffect {
   target: string
   value: number
   source: string
+}
+
+export interface CharacterEffect {
+  id: string
+  target: string
+  value: number
+  source: string
+  duration: 'permanent' | 'long_rest' | 'manual'
 }
 
 export interface CharacterItem {

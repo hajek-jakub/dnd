@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, CopyIcon, UserMinusIcon } from 'lucide-react'
+import { ArrowLeftIcon, CopyIcon, ShieldIcon, UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { useAuth } from '@/features/auth/auth-context'
@@ -65,6 +65,13 @@ export function CampaignPage() {
         </Link>
         <h1 className="text-2xl font-bold">{campaign.name}</h1>
         {myRole && <RoleBadge role={myRole} />}
+        {isDm && campaignId && (
+          <div>
+            <Link to={`/campaigns/${campaignId}/dm`} className={buttonVariants({ variant: 'default' })}>
+              <ShieldIcon aria-hidden /> Panel DM
+            </Link>
+          </div>
+        )}
         {campaign.description && <p className="whitespace-pre-line text-muted-foreground">{campaign.description}</p>}
       </div>
 

@@ -7,6 +7,8 @@ import { RequireAuth } from '@/features/auth/RequireAuth'
 import { CampaignPage } from '@/features/campaigns/CampaignPage'
 import { CampaignsPage } from '@/features/campaigns/CampaignsPage'
 import { JoinPage } from '@/features/campaigns/JoinPage'
+import { DmPage } from '@/features/dm/DmPage'
+import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { AboutPage } from '@/features/about/AboutPage'
 import { HomebrewFormPage } from '@/features/rules/HomebrewFormPage'
@@ -41,6 +43,8 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
+            <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="campaigns/:campaignId/characters/new" element={<CreateCharacterPage />} />
             <Route path="characters/:id" element={<CharacterPage />} />
             <Route path="characters/:id/levelup" element={<LevelUpPage />} />

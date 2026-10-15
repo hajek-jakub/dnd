@@ -88,7 +88,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Roli v kampani (`campaign_members.role`) klient nemůže měnit: žádný endpoint, členové vznikají jen přes `POST /campaigns` a registraci/přijetí pozvánky.
 - Postavy: majitel a DM vidí vše, ostatní členové jen veřejný náhled (jméno, fotka, rasa, třída, level; `payload()` soukromá pole do odpovědi vůbec nevloží),
   pokud DM nenastaví `visibility = full`. Majitele, viditelnost a kampaň postavy hráč měnit nesmí.
-- DM poznámky: jen DM. Soukromé zprávy (fáze 7) musí dostat stejně důkladné testy.
+- DM poznámky: jen DM (API testy i E2E ověřují, že hráč dostane 403 a text nikde nevidí). Oznámení vidí jen jejich příjemce. Soukromé zprávy (fáze 7) musí dostat stejně důkladné testy.
 - Přihlášení: bcrypt (`password_hash`), heslo 8–72 bajtů, relace = náhodný token v HttpOnly cookie (`SameSite=Lax`, `Secure` při HTTPS), v DB jen SHA-256 hash tokenu.
   Rate limity (tabulka `rate_limits`): přihlášení, registrace, hádání kódů pozvánek, změna hesla. CSRF: kontrola `Origin` u mutací + SameSite.
 - Registrace: jen s platným kódem pozvánky (hráč se rovnou připojí do kampaně) nebo s tajným `registration_key` z konfigurace (DM / první uživatel).
@@ -166,10 +166,20 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - **Průvodce** (`/characters/:id/levelup`, `LevelUpWizard.tsx`): Třída (včetně multiclassu s kontrolou prerekvizit; výjimku „povolil DM“ lze zaškrtnout, aplikace hráče neblokuje) → Životy (průměr / hod / ruční zadání) → Featury (nové featury z SRD, výběr subclassu, pole pro ruční doplnění toho, co engine nezná) →
   Vlastnosti (ASI +2 nebo feat; krok se přeskočí, když level ASI nedává) → Kouzla (doporučené počty, přidání, výměna; přeskočí se u nesesilatelů) → Souhrn (před/po z enginu: HP, proficiency, sloty, pact, zdroje, útoky, martial arts).
 - Historie levelů s tlačítkem „Vrátit poslední level“ je na záložce Postava; featy jsou v záložce Featury.
-- Testy: 62 unit testů enginu, 148 API testů, 58 E2E.
+- Testy: 62 unit testů enginu, 148 API testů, 58 E2E (stav po fázi 5; aktuální počty jsou u fáze 6).
+
+### Fáze 6 – Panel DM: HOTOVO
+- **Panel** (`/campaigns/:id/dm`, `src/features/dm/`; odkaz „Panel DM“ na stránce kampaně vidí jen DM, hráč je z URL přesměrován): karty všech postav (HP s rychlými −5/−1/+1/+5, AC, pasivní vnímání, rychlost, stavy, sloty a zdroje, bonusy s tlačítkem Zrušit), výběr jedné/více/všech postav a akce pro výběr:
+  zranění/léčení (i skupinově), XP (každý dostane celou částku, nebo rozdělit rovným dílem), peníze, item (z pravidel s počtem kusů, nebo jednorázový přes `ItemForm`), stav (nastavit/zrušit), inspirace, bonus/efekt. Poznámky DM (`NotesPanel`, obecné i k postavě).
+- **API** (`DmController`, vše `POST /campaigns/{id}/dm/{items|currency|xp|inspiration|hp|conditions|effects}`, jen DM; cílové postavy se zamknou `FOR UPDATE` a musí patřit do kampaně, jinak 422; vše v jedné transakci),
+  `DELETE /effects/{id}` (DM) a `DELETE /characters/{id}/effects/long-rest` (majitel/DM, maže jen efekty „do long restu“).
+- **Efekty** (`character_effects`: cíl, hodnota, zdroj, trvání `permanent|long_rest|manual`) vstupují do enginu přes `toEngineInput` a ve výpočtu mají viditelný zdroj (tooltip hodnoty). Na sheetu je karta „Bonusy od DM“ (hráč vidí, zrušit jen DM). Long rest efekty „do long restu“ smaže.
+- **Oznámení** (`notifications`, `NotificationController`): každá změna od DM pošle hráči (majiteli postavy) oznámení („DM ti dal: Bag of Holding“); neposílá se sám sobě. Klient se ptá každých 5 s (`useNotifications`, žádný websocket – Endora), nové ukáže jako toast,
+  zvonek v hlavičce má odznak nepřečtených, `/notifications` je seznam a po otevření se označí jako přečtené. Při předávání itemů mezi hráči se oznámení posílá také.
+- Testy: 174 API testů (26 v `dm.test.ts`: autorizace všech akcí, cizí kampaň, atomicita, notifikace), E2E `dm.spec.ts` (DM počítač + hráč telefon: item, XP, bonus, stav, zranění, oznámení, long rest, soukromí poznámek; panel na telefonu bez horizontálního scrollu).
 
 ### Další fáze (dle zadání)
-6. DM panel. 7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
+7. Zprávy. 8. Mapy. 9. Kostky. 10. Leštění.
 
 Po každé fázi: aplikace jde spustit, testy projdou, commit, zastavit se a ukázat výsledek.
 

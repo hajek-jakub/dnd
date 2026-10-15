@@ -77,6 +77,11 @@ final class Sheets
             ];
         }
 
+        $effects = [];
+        foreach (Db::all("SELECT id, character_id, target, value, source, duration FROM character_effects WHERE character_id IN ($in) ORDER BY created_at, id", $ids) as $e) {
+            $effects[$e['character_id']][] = ['id' => $e['id'], 'target' => $e['target'], 'value' => (int) $e['value'], 'source' => $e['source'], 'duration' => $e['duration']];
+        }
+
         $out = [];
         foreach ($rows as $r) {
             $id = (string) $r['id'];
@@ -108,6 +113,7 @@ final class Sheets
                 'extraProficiencies' => self::json($r['extra_proficiencies'], []),
                 'overrides' => self::json($r['overrides'], new \stdClass()),
                 'customResources' => $custom[$id] ?? [],
+                'effects' => $effects[$id] ?? [],
                 'items' => $items[$id] ?? [],
                 'spells' => $spells[$id] ?? [],
                 'currency' => self::json($r['currency'], ['cp' => 0, 'sp' => 0, 'ep' => 0, 'gp' => 0, 'pp' => 0]),
@@ -166,6 +172,21 @@ final class Sheets
             throw HttpError::forbidden('Cizí postavu nemůžeš upravovat.');
         }
         return $row;
+    }
+
+    /**
+     * Zranění nebo léčení: zranění nejdřív spotřebuje dočasná HP, výsledek se ořízne na 0 až max.
+     * @return array{hp:int, temp:int}
+     */
+    public static function applyHp(?int $hp, int $temp, int $delta, int $max): array
+    {
+        $hp ??= $max;
+        if ($delta < 0) {
+            $absorbed = min($temp, -$delta);
+            $temp -= $absorbed;
+            $delta += $absorbed;
+        }
+        return ['hp' => max(0, min($max, $hp + $delta)), 'temp' => $temp];
     }
 
     // ------------------------------------------------------------------ validace

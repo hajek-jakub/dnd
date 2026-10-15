@@ -13,6 +13,7 @@ import { SpellsTab } from './SpellsTab'
 import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
+import { EffectsCard } from './EffectsCard'
 import { ResourcesCard } from './ResourcesCard'
 import { SheetProvider } from './SheetContext'
 import { useSheet } from './sheet-context'
@@ -120,6 +121,7 @@ function SheetView() {
               <HpCard />
               <RestButtons />
               <ResourcesCard />
+              <EffectsCard />
             </div>
             <div className="space-y-4">
               <AttacksCard />

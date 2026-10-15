@@ -286,14 +286,7 @@ final class CharacterController
                     case 'hp':
                         $delta = $intField($op, 'delta', -100000, 100000);
                         $max = $intField($op, 'max', 1, 100000);
-                        $hp ??= $max;
-                        if ($delta < 0) {
-                            // Poškození nejdřív spotřebuje dočasná HP.
-                            $absorbed = min($temp, -$delta);
-                            $temp -= $absorbed;
-                            $delta += $absorbed;
-                        }
-                        $hp = max(0, min($max, $hp + $delta));
+                        ['hp' => $hp, 'temp' => $temp] = Sheets::applyHp($hp, $temp, $delta, $max);
                         break;
                     case 'tempHp':
                         $temp = $intField($op, 'set', 0, 100000);

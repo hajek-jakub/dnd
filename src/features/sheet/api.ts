@@ -22,11 +22,11 @@ export function useEngineBundle() {
   })
 }
 
-export function useCharacters(campaignId: string | undefined) {
+export function useCharacters(campaignId: string | undefined, options: { pollMs?: number } = {}) {
   return useQuery({
     queryKey: ['characters', campaignId],
     enabled: Boolean(campaignId),
-    refetchInterval: 15_000,
+    refetchInterval: options.pollMs ?? 15_000,
     queryFn: async () => (await api.get<{ characters: CharacterListItem[] }>(`/campaigns/${campaignId}/characters`)).characters,
   })
 }
@@ -389,5 +389,14 @@ export function useRevertLevel(characterId: string) {
       queryClient.setQueryData(['character', characterId], character)
       void queryClient.invalidateQueries({ queryKey: ['characters'] })
     },
+  })
+}
+
+/** Po long restu zmizí efekty s trváním "do long restu". */
+export function useExpireLongRestEffects(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete(`/characters/${characterId}/effects/long-rest`),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['character', characterId] }),
   })
 }

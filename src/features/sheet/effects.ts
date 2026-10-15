@@ -1,5 +1,6 @@
 import { ABILITIES, SKILLS } from '@/engine'
 import { ABILITY_LABELS, SKILL_LABELS } from './labels'
+import type { CharacterEffect } from './types'
 
 /** Cíle efektů (bonusů) s českými popisy; stejné hodnoty akceptuje server i engine. */
 export const EFFECT_TARGETS: { value: string; label: string }[] = [
@@ -26,3 +27,11 @@ export const EFFECT_TARGETS: { value: string; label: string }[] = [
 export function effectLabel(target: string): string {
   return EFFECT_TARGETS.find((t) => t.value === target)?.label ?? target
 }
+
+export const DURATION_LABELS: Record<CharacterEffect['duration'], string> = {
+  permanent: 'trvalý',
+  long_rest: 'do long restu',
+  manual: 'dokud ho DM nezruší',
+}
+
+export const formatBonus = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}`

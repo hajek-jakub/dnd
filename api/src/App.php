@@ -7,7 +7,9 @@ namespace Dnd;
 use Dnd\Controllers\AuthController;
 use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
+use Dnd\Controllers\DmController;
 use Dnd\Controllers\InventoryController;
+use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
 use Dnd\Controllers\AdminController;
@@ -89,6 +91,19 @@ final class App
         $r->add('POST', '/campaigns/{id}/dm-notes', [CharacterController::class, 'createNote']);
         $r->add('PATCH', '/dm-notes/{id}', [CharacterController::class, 'updateNote']);
         $r->add('DELETE', '/dm-notes/{id}', [CharacterController::class, 'deleteNote']);
+
+        // DM panel: rozdávání, zranění, stavy, efekty; oznámení hráčům
+        $r->add('POST', '/campaigns/{id}/dm/items', [DmController::class, 'giveItem']);
+        $r->add('POST', '/campaigns/{id}/dm/currency', [DmController::class, 'giveCurrency']);
+        $r->add('POST', '/campaigns/{id}/dm/xp', [DmController::class, 'giveXp']);
+        $r->add('POST', '/campaigns/{id}/dm/inspiration', [DmController::class, 'setInspiration']);
+        $r->add('POST', '/campaigns/{id}/dm/hp', [DmController::class, 'hp']);
+        $r->add('POST', '/campaigns/{id}/dm/conditions', [DmController::class, 'condition']);
+        $r->add('POST', '/campaigns/{id}/dm/effects', [DmController::class, 'addEffect']);
+        $r->add('DELETE', '/effects/{effectId}', [DmController::class, 'removeEffect']);
+        $r->add('DELETE', '/characters/{id}/effects/long-rest', [DmController::class, 'expireLongRestEffects']);
+        $r->add('GET', '/notifications', [NotificationController::class, 'index']);
+        $r->add('POST', '/notifications/read', [NotificationController::class, 'markRead']);
 
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);

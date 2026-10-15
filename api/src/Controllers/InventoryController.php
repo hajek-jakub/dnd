@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
 use Dnd\Items;
+use Dnd\Notifications;
 use Dnd\Request;
 use Dnd\Response;
 use Dnd\Sheets;
@@ -25,8 +26,18 @@ final class InventoryController
     public static function addItem(Request $req, array $params, array $user): Response
     {
         $char = Sheets::loadMutable($params['id'], $user);
-        $in = $req->json();
+        $id = self::createItem($char, $user, $req->json());
+        return Response::json(['item' => self::find($id)], 201);
+    }
 
+    /**
+     * Vytvoří item postavě z pravidel (ruleId) nebo vlastní a vrátí jeho id. Sdílí ho hráč i DM (rozdávání).
+     * @param array<string, mixed> $char řádek postavy
+     * @param array{id:string} $user
+     * @param array<string, mixed> $in
+     */
+    public static function createItem(array $char, array $user, array $in): string
+    {
         $base = [];
         if (isset($in['ruleId'])) {
             $rule = RulesController::visibleEntry(is_string($in['ruleId']) ? $in['ruleId'] : '', $user);
@@ -47,11 +58,11 @@ final class InventoryController
                 rarity, stats, effects, notes, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
             [
-                $id, $params['id'], $item['ruleId'] ?? null, $item['name'], $item['description'], $item['kind'], $item['quantity'], $item['weight'],
+                $id, $char['id'], $item['ruleId'] ?? null, $item['name'], $item['description'], $item['kind'], $item['quantity'], $item['weight'],
                 $item['requires_attunement'], $item['rarity'], Sheets::enc($item['stats']), Sheets::enc($item['effects']), $item['notes'],
             ],
         );
-        return Response::json(['item' => self::find($id)], 201);
+        return $id;
     }
 
     /** @param array{id:string} $user */
@@ -161,7 +172,8 @@ final class InventoryController
         }
         $quantity = Input::optionalInt($in, 'quantity', 1, 9999, 'Množství');
 
-        Db::transaction(static function () use ($params, $toId, $itemId, $coins, $quantity): void {
+        $given = [];
+        Db::transaction(static function () use ($params, $toId, $itemId, $coins, $quantity, &$given): void {
             $ids = [$params['id'], $toId];
             sort($ids);
             foreach ($ids as $id) {
@@ -176,6 +188,7 @@ final class InventoryController
                     throw HttpError::notFound('Item nenalezen.');
                 }
                 $qty = $quantity ?? (int) $item['quantity'];
+                $given[] = $item['name'] . ($qty > 1 ? " ×$qty" : '');
                 if ($qty > (int) $item['quantity']) {
                     throw HttpError::validation('Nemáš tolik kusů.', 'quantity');
                 }
@@ -203,10 +216,17 @@ final class InventoryController
                     $fromWallet[$c] -= $v;
                     $toWallet[$c] += $v;
                 }
+                $ordered = array_filter(array_reverse($coins, true), static fn (int $v): bool => $v > 0);
+                $given[] = implode(', ', array_map(static fn (string $c, int $v): string => "$v $c", array_keys($ordered), $ordered));
                 Db::exec('UPDATE characters SET currency = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($fromWallet), $params['id']]);
                 Db::exec('UPDATE characters SET currency = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($toWallet), $toId]);
             }
         });
+
+        $recipient = Db::one('SELECT owner_id, name FROM characters WHERE id = ?', [$toId]);
+        if ($recipient !== null && $given !== []) {
+            Notifications::push((string) $recipient['owner_id'], $user['id'], (string) $from['campaign_id'], $toId, 'transfer', $from['name'] . ' ti předal(a): ' . implode(' a ', $given));
+        }
 
         $rows = Db::all('SELECT * FROM character_items WHERE character_id = ? ORDER BY created_at, id', [$params['id']]);
         $items = Items::loadMany($rows)[$params['id']] ?? [];

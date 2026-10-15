@@ -28,7 +28,7 @@ export function toEngineInput(c: CharacterFull, rules?: CharacterInput['rules'])
     extraSaveProficiencies: c.extraSaveProficiencies,
     extraProficiencies: c.extraProficiencies,
     items: (c.items ?? []).map(toInventoryItem),
-    effects: [],
+    effects: (c.effects ?? []).map((e) => ({ target: e.target, value: e.value, source: e.source })),
     overrides: c.overrides,
     customResources: c.customResources,
     state: { ...c.state, hpCurrent: c.state.hpCurrent ?? Number.MAX_SAFE_INTEGER },

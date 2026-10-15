@@ -3,6 +3,7 @@ import { MoonIcon, SunIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { longRest, shortRest, type CharacterState as EngineState } from '@/engine'
+import { useExpireLongRestEffects } from './api'
 import { useSheet } from './sheet-context'
 
 function roll(sides: number): number {
@@ -112,9 +113,12 @@ function ShortRestDialog({ open, onClose }: { open: boolean; onClose: () => void
 
 function LongRestDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { sheet, character, hpCurrent, update } = useSheet()
+  const expire = useExpireLongRestEffects(character.id)
   function confirm() {
     const next = longRest(engineState(character, hpCurrent), sheet)
     update({ state: { ...character.state, ...next } })
+    // Bonusy "do long restu" od DM zmizí.
+    if (character.effects.some((e) => e.duration === 'long_rest')) expire.mutate()
     onClose()
   }
   return (
@@ -125,6 +129,7 @@ function LongRestDialog({ open, onClose }: { open: boolean; onClose: () => void 
           <li>Všechny spell sloty a pact sloty se obnoví</li>
           <li>Zdroje s obnovou na short/long rest/úsvit se obnoví (ruční ne)</li>
           <li>Vrátí se polovina hit dice (aspoň jedna)</li>
+          <li>Bonusy od DM s trváním „do long restu“ skončí</li>
         </ul>
         <Button size="lg" className="w-full" onClick={confirm}>
           Dát si long rest
