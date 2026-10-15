@@ -46,8 +46,9 @@ export function CampaignsPage() {
   }
 
   return (
-    <>
-      <section className="space-y-3">
+    // Telefon: vše pod sebou. Počítač: seznam kampaní vlevo, formuláře vpravo.
+    <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+      <section className="space-y-3 lg:col-span-2">
         <h1 className="text-2xl font-bold">Moje kampaně</h1>
         {isPending && <p className="text-muted-foreground">Načítám…</p>}
         {error && (
@@ -76,60 +77,62 @@ export function CampaignsPage() {
         </ul>
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nová kampaň</CardTitle>
-          <CardDescription>Budeš v ní DM a můžeš pozvat hráče.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onCreate} className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="campaign-name">Název kampaně</Label>
-              <Input
-                id="campaign-name"
-                value={name}
-                maxLength={100}
-                required
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <Button type="submit" disabled={createCampaign.isPending || !name.trim()} className="w-full">
-              Založit kampaň
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nová kampaň</CardTitle>
+            <CardDescription>Budeš v ní DM a můžeš pozvat hráče.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onCreate} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="campaign-name">Název kampaně</Label>
+                <Input
+                  id="campaign-name"
+                  value={name}
+                  maxLength={100}
+                  required
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={createCampaign.isPending || !name.trim()} className="w-full">
+                Založit kampaň
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Připojit se kódem</CardTitle>
-          <CardDescription>Vlož kód nebo celý odkaz, který ti poslal DM.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onJoin} className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="invite-code">Kód pozvánky</Label>
-              <Input
-                id="invite-code"
-                value={codeInput}
-                autoCapitalize="characters"
-                autoComplete="off"
-                spellCheck={false}
-                required
-                onChange={(e) => setCodeInput(e.target.value)}
-              />
-              {codeError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {codeError}
-                </p>
-              )}
-            </div>
-            <Button type="submit" variant="secondary" className="w-full">
-              Pokračovat
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </>
+        <Card>
+          <CardHeader>
+            <CardTitle>Připojit se kódem</CardTitle>
+            <CardDescription>Vlož kód nebo celý odkaz, který ti poslal DM.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onJoin} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="invite-code">Kód pozvánky</Label>
+                <Input
+                  id="invite-code"
+                  value={codeInput}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  required
+                  onChange={(e) => setCodeInput(e.target.value)}
+                />
+                {codeError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {codeError}
+                  </p>
+                )}
+              </div>
+              <Button type="submit" variant="secondary" className="w-full">
+                Pokračovat
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }

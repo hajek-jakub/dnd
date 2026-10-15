@@ -17,7 +17,9 @@
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
     "deploy": "node scripts/deploy.mjs",
-    "deploy:dry": "node scripts/deploy.mjs --dry"
+    "deploy:dry": "node scripts/deploy.mjs --dry",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -28,7 +30,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.53.0",
-    "next-themes": "^0.4.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",

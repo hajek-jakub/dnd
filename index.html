@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0a0a" />
+    <script>
+      // Nastaví tmavý režim ještě před vykreslením, ať při načtení neproblikne světlá stránka.
+      try {
+        var t = localStorage.getItem('dnd-theme')
+        var dark = t === 'dark' || ((t === null || t === 'system') && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
     <title>D&amp;D kampaně</title>
   </head>
   <body>

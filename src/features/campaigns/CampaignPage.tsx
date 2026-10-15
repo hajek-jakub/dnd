@@ -65,59 +65,75 @@ export function CampaignPage() {
         {campaign.description && <p className="whitespace-pre-line text-muted-foreground">{campaign.description}</p>}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Členové</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="divide-y">
-            {members?.map((member) => {
-              const name = member.profiles?.display_name ?? 'Neznámý hráč'
-              return (
-                <li key={member.user_id} className="flex min-h-14 items-center justify-between gap-3 py-2">
-                  <span className="min-w-0 space-y-1">
-                    <span className="block truncate font-medium">
-                      {name}
-                      {member.user_id === user?.id && <span className="text-muted-foreground"> (ty)</span>}
+      {/* Telefon: jeden sloupec (členové, pozvánky, nebezpečná zóna).
+          Počítač (DM): členové a nebezpečná zóna vlevo, pozvánky vpravo přes obě řady. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Card className="lg:col-start-1">
+          <CardHeader>
+            <CardTitle>Členové</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y">
+              {members?.map((member) => {
+                const name = member.profiles?.display_name ?? 'Neznámý hráč'
+                return (
+                  <li key={member.user_id} className="flex min-h-14 items-center justify-between gap-3 py-2">
+                    <span className="min-w-0 space-y-1">
+                      <span className="block truncate font-medium">
+                        {name}
+                        {member.user_id === user?.id && <span className="text-muted-foreground"> (ty)</span>}
+                      </span>
+                      <RoleBadge role={member.role} />
                     </span>
-                    <RoleBadge role={member.role} />
-                  </span>
-                  {isDm && member.role === 'player' && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Odebrat hráče ${name}`}
-                      title="Odebrat z kampaně"
-                      onClick={() => removePlayer(member.user_id, name)}
-                    >
-                      <UserMinusIcon aria-hidden />
-                    </Button>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </CardContent>
-      </Card>
+                    {isDm && member.role === 'player' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Odebrat hráče ${name}`}
+                        title="Odebrat z kampaně"
+                        onClick={() => removePlayer(member.user_id, name)}
+                      >
+                        <UserMinusIcon aria-hidden />
+                      </Button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </CardContent>
+        </Card>
 
-      {isDm && campaignId && <InvitesCard campaignId={campaignId} />}
+        {isDm && campaignId && (
+          <InvitesCard campaignId={campaignId} className="lg:col-start-2 lg:row-span-2 lg:row-start-1" />
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nebezpečná zóna</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isDm ? (
-            <Button variant="destructive" className="w-full" onClick={remove} disabled={deleteCampaign.isPending}>
-              Smazat kampaň
-            </Button>
-          ) : (
-            <Button variant="destructive" className="w-full" onClick={leave} disabled={removeMember.isPending}>
-              Odejít z kampaně
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+        <Card className="lg:col-start-1">
+          <CardHeader>
+            <CardTitle>Nebezpečná zóna</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isDm ? (
+              <Button
+                variant="destructive"
+                className="w-full sm:w-auto"
+                onClick={remove}
+                disabled={deleteCampaign.isPending}
+              >
+                Smazat kampaň
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                className="w-full sm:w-auto"
+                onClick={leave}
+                disabled={removeMember.isPending}
+              >
+                Odejít z kampaně
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </>
   )
 }
@@ -129,7 +145,7 @@ function inviteStatus(invite: Invite): { label: string; active: boolean } {
   return { label: 'Platná', active: true }
 }
 
-function InvitesCard({ campaignId }: { campaignId: string }) {
+function InvitesCard({ campaignId, className }: { campaignId: string; className?: string }) {
   const { data: invites } = useInvites(campaignId, true)
   const createInvite = useCreateInvite(campaignId)
   const revoke = useRevokeInvite(campaignId)
@@ -144,7 +160,7 @@ function InvitesCard({ campaignId }: { campaignId: string }) {
   }
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>Pozvánky</CardTitle>
         <CardDescription>Pošli hráčům odkaz nebo kód. Každý, kdo ho otevře, se připojí jako hráč.</CardDescription>
@@ -182,13 +198,13 @@ function InvitesCard({ campaignId }: { campaignId: string }) {
                 </p>
                 {status.active && (
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => void copy(link, 'Odkaz')}>
+                    <Button variant="secondary" onClick={() => void copy(link, 'Odkaz')}>
                       <CopyIcon aria-hidden /> Kopírovat odkaz
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={() => void copy(invite.code, 'Kód')}>
+                    <Button variant="secondary" onClick={() => void copy(invite.code, 'Kód')}>
                       <CopyIcon aria-hidden /> Kopírovat kód
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => revoke.mutate(invite.id)}>
+                    <Button variant="ghost" onClick={() => revoke.mutate(invite.id)}>
                       Zrušit
                     </Button>
                   </div>

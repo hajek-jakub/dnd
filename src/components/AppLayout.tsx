@@ -12,25 +12,31 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center lg:max-w-6xl justify-between gap-2 px-4">
+          <Link to="/" className="flex min-h-11 items-center gap-2 font-semibold">
             <SwordsIcon aria-hidden className="size-5" />
             D&amp;D kampaně
           </Link>
           <div className="flex items-center gap-1">
             {profile && (
-              <Link to="/profile" className="max-w-32 truncate text-sm text-muted-foreground hover:text-foreground">
+              <Link to="/profile" className="inline-flex min-h-11 min-w-11 max-w-32 items-center truncate text-sm text-muted-foreground hover:text-foreground">
                 {profile.display_name}
               </Link>
             )}
             <ThemeToggle />
-            <Button variant="ghost" size="icon" aria-label="Odhlásit se" title="Odhlásit se" onClick={() => void signOut()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Odhlásit se"
+              title="Odhlásit se"
+              onClick={() => void signOut()}
+            >
               <LogOutIcon aria-hidden />
             </Button>
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-16">
+      <main className="mx-auto w-full max-w-3xl space-y-6 lg:max-w-6xl p-4 pb-16">
         <Outlet />
       </main>
     </div>
