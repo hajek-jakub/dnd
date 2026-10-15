@@ -11,6 +11,7 @@ import { rememberCampaign, useActiveCampaign } from '@/features/campaigns/active
 import { RoleBadge } from '@/features/campaigns/RoleBadge'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
+import { CampaignDangerCard } from './CampaignDangerCard'
 import { useChangePassword, useUpdateDisplayName } from './api'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -83,6 +84,7 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+      <CampaignDangerCard campaigns={campaigns} />
       <Card>
         <CardHeader>
           <CardTitle>Změna hesla</CardTitle>

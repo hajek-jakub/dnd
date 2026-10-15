@@ -41,7 +41,8 @@ test('DM na počítači pozve hráče, hráč se z telefonu zaregistruje a nevid
     // UI hráči nenabízí DM věci.
     await expect(player.getByRole('heading', { name: 'Pozvánky' })).toHaveCount(0)
     await expect(player.getByRole('button', { name: 'Smazat kampaň' })).toHaveCount(0)
-    await expect(player.getByRole('button', { name: 'Odejít z kampaně' })).toBeVisible()
+    // odejít z kampaně jde až v Profilu, na hlavní stránce kampaně to není
+    await expect(player.getByRole('button', { name: /Odejít z kampaně/ })).toHaveCount(0)
 
     // A přes API (obejití UI) hráč DM věci opravdu nedostane ani neprovede.
     const api = (path: string) => `/api${path}`
@@ -69,7 +70,8 @@ test('DM na počítači pozve hráče, hráč se z telefonu zaregistruje a nevid
 
     // ---- Hráč odejde z kampaně (potvrzení v dialogu)
     player.once('dialog', (dialog) => void dialog.accept())
-    await player.getByRole('button', { name: 'Odejít z kampaně' }).click()
+    await player.getByRole('link', { name: 'Profil a nastavení' }).click()
+    await player.getByRole('button', { name: 'Odejít z kampaně Ztracený důl' }).click()
     await expect(player).toHaveURL(/\/$/)
     await expect(player.getByText('Ztracený důl')).toHaveCount(0)
 

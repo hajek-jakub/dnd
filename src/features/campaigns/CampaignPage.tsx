@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { CopyIcon, UserMinusIcon } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -14,7 +13,6 @@ import {
   useCampaign,
   useCampaignMembers,
   useCreateInvite,
-  useDeleteCampaign,
   useInvites,
   useRemoveMember,
   useRevokeInvite,
@@ -33,43 +31,19 @@ const MyCharacterCard = lazy(() => import('./MyCharacterCard'))
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const { data: campaign, isPending } = useCampaign(campaignId)
   const { data: members } = useCampaignMembers(campaignId)
   const myRole = members?.find((m) => m.userId === user?.id)?.role
   const isDm = myRole === 'dm'
   const removeMember = useRemoveMember(campaignId ?? '')
-  const deleteCampaign = useDeleteCampaign(campaignId ?? '')
 
   if (isPending) return <FullPageSpinner />
   // Kampaň neexistuje, nebo k ní nemáme přístup (RLS ji nevrátí).
   if (!campaign) return <Navigate to="/" replace />
 
-  function leave() {
-    if (!user || !window.confirm('Opravdu chceš z kampaně odejít? Své postavy v ní už neuvidíš.')) return
-    removeMember.mutate(user.id, {
-      // Nejdřív se obnoví seznam kampaní, jinak by úvodní stránka poslala uživatele zpátky do kampaně, kterou právě opustil.
-      onSuccess: async () => {
-        queryClient.removeQueries({ queryKey: ['campaign', campaignId] })
-        await queryClient.refetchQueries({ queryKey: ['campaigns'] })
-        void navigate('/')
-      },
-      onError: () => toast.error('Z kampaně se nepodařilo odejít'),
-    })
-  }
-
   function removePlayer(userId: string, name: string) {
     if (!window.confirm(`Odebrat hráče ${name} z kampaně?`)) return
     removeMember.mutate(userId, { onError: () => toast.error('Hráče se nepodařilo odebrat') })
-  }
-
-  function remove() {
-    if (!window.confirm(`Smazat kampaň „${campaign?.name}“ včetně všech dat? Tohle nejde vrátit.`)) return
-    deleteCampaign.mutate(undefined, {
-      onSuccess: () => void navigate('/'),
-      onError: () => toast.error('Kampaň se nepodařilo smazat'),
-    })
   }
 
   return (
@@ -145,22 +119,6 @@ export function CampaignPage() {
           </Card>
         )}
 
-        <Card className="lg:col-start-1">
-          <CardHeader>
-            <CardTitle>Nebezpečná zóna</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isDm ? (
-              <Button variant="destructive" className="w-full sm:w-auto" onClick={remove} disabled={deleteCampaign.isPending}>
-                Smazat kampaň
-              </Button>
-            ) : (
-              <Button variant="destructive" className="w-full sm:w-auto" onClick={leave} disabled={removeMember.isPending}>
-                Odejít z kampaně
-              </Button>
-            )}
-          </CardContent>
-        </Card>
       </div>
       {campaignId && <DiceDock campaignId={campaignId} />}
     </>
