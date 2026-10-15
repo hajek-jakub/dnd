@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
 use Dnd\Items;
+use Dnd\Money;
 use Dnd\Notifications;
 use Dnd\Request;
 use Dnd\Response;
@@ -234,6 +235,60 @@ final class InventoryController
             'items' => $items,
             'currency' => self::wallet((string) Db::value('SELECT currency FROM characters WHERE id = ?', [$params['id']])),
         ];
+    }
+
+    /**
+     * Utratí peníze (např. pivo u barmana, úplatek pro NPC): částka v mincích, zaplatí se s rozměněním a vrácením drobných.
+     * Celé v transakci se zámkem postavy, takže se souběžná změna peněz (třeba od DM) neztratí.
+     * @param array{id:string} $user
+     */
+    public static function spend(Request $req, array $params, array $user): array
+    {
+        Sheets::loadMutable($params['id'], $user);
+        $in = $req->json();
+        $cost = is_array($in['currency'] ?? null) ? $in['currency'] : null;
+        if ($cost === null) {
+            throw HttpError::validation('Zadej částku.', 'currency');
+        }
+        $costCp = 0;
+        foreach (self::COINS as $c) {
+            $v = $cost[$c] ?? 0;
+            if (!is_int($v) || $v < 0 || $v > 1_000_000_000) {
+                throw HttpError::validation("Mince $c musí být celé číslo od 0.", 'currency');
+            }
+            $costCp += $v * Money::VALUE[$c];
+        }
+        if ($costCp <= 0) {
+            throw HttpError::validation('Zadej, kolik chceš utratit.', 'currency');
+        }
+        $note = Input::optionalString($in, 'note', 100, 'Poznámka') ?? '';
+
+        $result = Db::transaction(static function () use ($params, $costCp): array {
+            $row = Db::one('SELECT currency FROM characters WHERE id = ? FOR UPDATE', [$params['id']]) ?? throw HttpError::notFound();
+            $before = self::wallet((string) $row['currency']);
+            $after = Money::pay($before, $costCp);
+            if ($after === null) {
+                $have = Money::totalCp($before);
+                throw HttpError::validation('Nemáš dost peněz: potřebuješ ' . self::formatCp($costCp) . ', máš ' . self::formatCp($have) . '.', 'currency');
+            }
+            Db::exec('UPDATE characters SET currency = ?, rev = rev + 1, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($after), $params['id']]);
+            return ['currency' => $after, 'spentCp' => $costCp, 'note' => ''];
+        });
+        $result['note'] = $note;
+        return $result;
+    }
+
+    /** "5 gp 3 sp" z mědáků (jen pro hlášky). */
+    private static function formatCp(int $cp): string
+    {
+        $parts = [];
+        foreach (['gp' => 100, 'sp' => 10, 'cp' => 1] as $c => $v) {
+            if (intdiv($cp, $v) > 0) {
+                $parts[] = intdiv($cp, $v) . " $c";
+                $cp %= $v;
+            }
+        }
+        return $parts === [] ? '0 cp' : implode(' ', $parts);
     }
 
     // ------------------------------------------------------------------ kouzla

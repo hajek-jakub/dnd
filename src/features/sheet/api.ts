@@ -315,6 +315,19 @@ export function useTransfer(characterId: string) {
   })
 }
 
+/** Utratí peníze (pivo, úplatek pro NPC): server zaplatí s rozměněním a vrácením drobných. */
+export function useSpend(characterId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { currency: Partial<Currency>; note?: string }) =>
+      api.post<{ currency: Currency; spentCp: number; note: string }>(`/characters/${characterId}/spend`, input),
+    onSuccess: (res) => {
+      queryClient.setQueryData<CharacterFull>(['character', characterId], (old) => (old ? { ...old, currency: res.currency, rev: old.rev + 1 } : old))
+      void queryClient.invalidateQueries({ queryKey: ['characters'] })
+    },
+  })
+}
+
 // ---------------------------------------------------------------- kouzla
 
 export function useAddSpell(characterId: string) {

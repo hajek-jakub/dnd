@@ -88,6 +88,7 @@ final class App
         $r->add('PATCH', '/characters/{id}/items/{itemId}', [InventoryController::class, 'updateItem']);
         $r->add('DELETE', '/characters/{id}/items/{itemId}', [InventoryController::class, 'deleteItem']);
         $r->add('POST', '/characters/{id}/transfer', [InventoryController::class, 'transfer']);
+        $r->add('POST', '/characters/{id}/spend', [InventoryController::class, 'spend']);
         $r->add('POST', '/characters/{id}/spells', [InventoryController::class, 'addSpell']);
         $r->add('PATCH', '/characters/{id}/spells/{spellId}', [InventoryController::class, 'updateSpell']);
         $r->add('DELETE', '/characters/{id}/spells/{spellId}', [InventoryController::class, 'deleteSpell']);

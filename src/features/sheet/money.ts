@@ -34,3 +34,20 @@ export function totalGold(wallet: Currency): number {
   const cp = COINS.reduce((n, c) => n + wallet[c] * COIN_VALUE[c], 0)
   return Math.round(cp) / 100
 }
+
+/** Částka v mědácích jako text: 345 -> "3 gp 4 sp 5 cp" (jen gp, sp a cp, ať je to čitelné). */
+export function formatCp(cp: number): string {
+  const parts: string[] = []
+  let left = Math.max(0, Math.round(cp))
+  for (const [coin, value] of [['gp', 100], ['sp', 10], ['cp', 1]] as const) {
+    const n = Math.floor(left / value)
+    if (n > 0) parts.push(`${n} ${coin}`)
+    left -= n * value
+  }
+  return parts.length > 0 ? parts.join(' ') : '0 cp'
+}
+
+/** Celková hodnota peněz v mědácích. */
+export function totalCp(wallet: Currency): number {
+  return COINS.reduce((n, c) => n + wallet[c] * COIN_VALUE[c], 0)
+}

@@ -201,6 +201,9 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Aplikace cíle nesleduje. Seznam kouzel je v `features/sheet/riders.ts`. Jinak se Hex dá hodit i jako volný hod `1d6` v panelu kostek.
 - Seed: položka může mít `damageDice` (kostka jiná než u základní zbraně); Demonic Spear má d8 místo d6 u Spear.
 
+- **Utrácení peněz** (`POST /characters/{id}/spend`, `Money::pay`): v inventáři tlačítko „Utratit“ (částka v mincích + nepovinně za co, např. pivo u barmana nebo úplatek pro NPC). Platí se nejdřív přesnými mincemi od nejmenších, když nestačí, rozmění se nejmenší mince, která zbytek pokryje, a vrátí se drobné v gp, sp a cp (ep a pp se nevrací).
+  Celé v transakci se zámkem postavy (nic se nezaplatí napůl, souběžná změna peněz se neztratí); nedostatek peněz je 422 s vysvětlením, platit smí majitel a DM. Součet se vždy zachová (testováno). Tlačítko „Předat peníze“ zůstává pro předání jiné postavě.
+
 ### Pravidla kampaně: 2014 / 2024
 - DM je nastaví na stránce kampaně („Nastavení kampaně“ → Pravidla kampaně); uloží se do `campaigns.settings.ruleset` (`'2014'` | `'2024'`, bez hodnoty = 2014, bez migrace), API: `PATCH /campaigns/{id}` `{settings: {ruleset}}` jen DM, jiná hodnota 422, ostatní nastavení se nepřepíše.
   Odznak „Pravidla 2014/2024“ je v hlavičce kampaně. Frontend skládá pravidla pro engine přes `engineRulesOf(settings)` (`src/features/campaigns/ruleset.ts`): sheet, panel DM i průvodce level upem.

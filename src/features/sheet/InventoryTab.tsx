@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftRightIcon, CoinsIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import { ArrowLeftRightIcon, CoinsIcon, HandCoinsIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,8 +15,8 @@ import { cn } from '@/lib/utils'
 import { effectLabel } from './effects'
 import { ItemForm } from './ItemForm'
 import { NotesText } from './NotesText'
-import { useAddItem, useCharacters, useDeleteItem, useTransfer, useUpdateItem, type ItemInput } from './api'
-import { COINS, COIN_LABELS, convertCoins, totalGold, type Coin } from './money'
+import { useAddItem, useCharacters, useDeleteItem, useSpend, useTransfer, useUpdateItem, type ItemInput } from './api'
+import { COINS, COIN_LABELS, convertCoins, formatCp, totalCp, totalGold, type Coin } from './money'
 import { useSheet } from './sheet-context'
 import type { CharacterItem } from './types'
 
@@ -405,6 +405,7 @@ function CurrencyCard() {
   const { character, canEdit, update } = useSheet()
   const [converting, setConverting] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [spending, setSpending] = useState(false)
   const wallet = character.currency
 
   return (
@@ -442,6 +443,9 @@ function CurrencyCard() {
         </ul>
         {canEdit && (
           <div className="grid grid-cols-2 gap-2">
+            <Button className="col-span-2" onClick={() => setSpending(true)}>
+              <HandCoinsIcon aria-hidden /> Utratit
+            </Button>
             <Button variant="secondary" onClick={() => setConverting(true)}>
               Převést mince
             </Button>
@@ -453,6 +457,7 @@ function CurrencyCard() {
       </CardContent>
       <ConvertDialog open={converting} onClose={() => setConverting(false)} />
       <PayDialog open={paying} onClose={() => setPaying(false)} />
+      <SpendDialog open={spending} onClose={() => setSpending(false)} />
     </Card>
   )
 }
@@ -510,6 +515,77 @@ function ConvertDialog({ open, onClose }: { open: boolean; onClose: () => void }
         <p className="text-xs text-muted-foreground">1 pp = 10 gp, 1 gp = 2 ep = 10 sp, 1 sp = 10 cp.</p>
         <Button type="submit" size="lg" className="w-full" disabled={!result}>
           Převést
+        </Button>
+      </form>
+    </Modal>
+  )
+}
+
+/** Utratit peníze: částka v mincích a (nepovinně) za co. Server rozmění větší mince a vrátí drobné. */
+function SpendDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { character } = useSheet()
+  const spend = useSpend(character.id)
+  const [amounts, setAmounts] = useState<Record<Coin, string>>({ pp: '', gp: '', ep: '', sp: '', cp: '' })
+  const [note, setNote] = useState('')
+  const cost = Object.fromEntries(COINS.map((c) => [c, Math.max(0, Number.parseInt(amounts[c], 10) || 0)])) as Record<Coin, number>
+  const costCp = totalCp(cost)
+  const have = totalCp(character.currency)
+  const enough = costCp <= have
+
+  return (
+    <Modal open={open} onClose={onClose} title="Utratit peníze">
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          spend.mutate(
+            { currency: cost, note: note.trim() || undefined },
+            {
+              onSuccess: (res) => {
+                toast.success(`Utraceno ${formatCp(res.spentCp)}${res.note ? `: ${res.note}` : ''}`, { description: `Zbývá ${num(totalGold(res.currency))} gp` })
+                setAmounts({ pp: '', gp: '', ep: '', sp: '', cp: '' })
+                setNote('')
+                onClose()
+              },
+              onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Platba se nepodařila.'),
+            },
+          )
+        }}
+      >
+        <p className="text-sm text-muted-foreground">
+          Máš <strong className="text-foreground">{formatCp(have)}</strong>. Když nemáš přesné mince, rozmění se větší a vrátí se drobné.
+        </p>
+        <div className="grid grid-cols-5 gap-2">
+          {COINS.map((c) => (
+            <div key={c} className="space-y-1 text-center">
+              <Label htmlFor={`spend-${c}`} className="justify-center text-xs uppercase">
+                {c}
+              </Label>
+              <Input
+                id={`spend-${c}`}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                className="px-1 text-center"
+                aria-label={COIN_LABELS[c]}
+                value={amounts[c]}
+                onChange={(e) => setAmounts((a) => ({ ...a, [c]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="spend-note">Za co (nepovinné)</Label>
+          <Input id="spend-note" maxLength={100} placeholder="např. pivo u barmana, úplatek pro stráž" value={note} onChange={(e) => setNote(e.target.value)} />
+        </div>
+        {costCp > 0 && enough && <p className="text-sm">Zaplatíš <strong>{formatCp(costCp)}</strong>.</p>}
+        {!enough && (
+          <p role="alert" className="text-sm text-destructive">
+            Nemáš dost peněz: potřebuješ {formatCp(costCp)}, máš {formatCp(have)}.
+          </p>
+        )}
+        <Button type="submit" size="lg" className="w-full" disabled={costCp <= 0 || !enough || spend.isPending}>
+          Zaplatit
         </Button>
       </form>
     </Modal>

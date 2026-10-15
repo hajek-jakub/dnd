@@ -13,7 +13,7 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
 1. **Připojení**: otevři odkaz od DM, vymysli si jméno a heslo (aspoň 8 znaků). Rovnou se připojíš do kampaně.
 2. **Postava**: na stránce kampaně „Nová postava“ → jméno, rasa, třída (i multiclass přes level up), vlastnosti, dovednosti. Hodnoty (modifikátory, záchranné hody, AC, sloty, ki…) se počítají samy.
    Cokoli, co si myslíš, že je jinak, půjde **přepsat klepnutím na číslo**. Přepsaná hodnota má značku „ručně“ a jde vrátit k výpočtu.
-3. **Sheet** (záložky Přehled, Kouzla, Inventář, Featury, Postava): HP a dočasná HP, odpočinky (short a long rest), sloty a zdroje, útoky, kouzla (seslání ze slotu, koncentrace), inventář s nosností a attunementem, peníze, level up s historií.
+3. **Sheet** (záložky Přehled, Kouzla, Inventář, Featury, Postava): HP a dočasná HP, odpočinky (short a long rest), sloty a zdroje, útoky, kouzla (seslání ze slotu, koncentrace), inventář s nosností a attunementem, peníze (tlačítko **Utratit** zaplatí třeba pivo nebo úplatek a samo rozmění mince, **Předat peníze** je pro jinou postavu), level up s historií.
 4. **Kostky**: u dovedností, záchranných hodů, iniciativy, útoků a zranění je malá kostka. Hod losuje server: ukáže se animace kostek, pak hozená čísla a součet (tlačítko „Hodit znovu“ ho zopakuje) a výsledek vidí celá družina v logu (plovoucí tlačítko s kostkou). Nahoře přepneš **Výhodu / Nevýhodu**, „Krit“ zdvojí kostky zranění.
    **Skrytý hod** vidíš jen ty a DM. Volný hod napíšeš třeba jako `2d6+3`.
 5. **Zprávy**: Skupina (vidí všichni), soukromě s DM (nikdo jiný to nevidí) a Tajné zprávy od DM jen pro vybrané. Nepřečtené ukazuje odznak v horní liště a u vlákna.

@@ -270,3 +270,30 @@ test('záložky Kouzla a Inventář: dotykové prvky dost velké a žádný hori
     expect(small, `${tab}: prvky nižší než 44 px`).toEqual([])
   }
 })
+
+test('utratit peníze: rozmění zlatý na drobné, zapíše poznámku a nepustí platbu bez peněz', async ({ page }) => {
+  const { id } = await openCharacter(page, { ...wizard3, name: 'Hospodský host' }, 'spend')
+  await page.request.patch(`/api/characters/${id}`, { data: { currency: { cp: 0, sp: 0, ep: 0, gp: 3, pp: 0 } } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Inventář', exact: true }).click()
+  await expect(page.getByLabel('Zlaté (gp)')).toHaveValue('3')
+
+  await page.getByRole('button', { name: 'Utratit', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Utratit peníze' })
+  await dialog.getByLabel('Stříbrné (sp)').fill('5')
+  await dialog.getByLabel('Za co (nepovinné)').fill('Pivo u barmana')
+  await expect(dialog.getByText('Zaplatíš 5 sp.')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Zaplatit' }).click()
+  await expect(page.getByText('Utraceno 5 sp: Pivo u barmana')).toBeVisible()
+  // ze 3 gp zbyly 2 gp a 5 sp drobných
+  await expect(page.getByLabel('Zlaté (gp)')).toHaveValue('2')
+  await expect(page.getByLabel('Stříbrné (sp)')).toHaveValue('5')
+
+  // víc, než má: upozornění a tlačítko je neaktivní
+  await page.getByRole('button', { name: 'Utratit', exact: true }).click()
+  const again = page.getByRole('dialog', { name: 'Utratit peníze' })
+  await again.getByLabel('Zlaté (gp)').fill('10')
+  await expect(again.getByRole('alert')).toContainText('Nemáš dost peněz')
+  await expect(again.getByRole('button', { name: 'Zaplatit' })).toBeDisabled()
+  await expectNoHorizontalScroll(page)
+})

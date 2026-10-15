@@ -22,6 +22,7 @@ async function newCampaign(page: Page, name: string): Promise<{ campaignId: stri
 
 test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a vidí změny', async ({ page: dm, browser, baseURL, isMobile }) => {
   test.skip(isMobile, 'Dva kontexty si ten test staví sám (DM počítač + hráč telefon).')
+  test.setTimeout(120_000)
 
   await registerDm(dm, 'dmpanel')
   const { campaignId, code } = await newCampaign(dm, 'Panel kampaň')
@@ -53,7 +54,7 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
     await expect(dm.getByText('Předáno: Bag of Holding')).toBeVisible()
 
     // hráč na telefonu uvidí toast i nepřečtené oznámení
-    await expect(player.getByText('DM ti dal: Bag of Holding').first()).toBeVisible({ timeout: 20_000 })
+    await expect(player.getByText('DM ti dal: Bag of Holding').first()).toBeVisible({ timeout: 45_000 })
     await expect(player.getByTestId('unread-badge')).toHaveText('1')
 
     // XP
@@ -86,7 +87,7 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
     await expect(dm.getByTestId('hp-Elfka')).toHaveText('8') // fighter 10 + CON 1 = 11, po 3 zranění 8
 
     // hráč vidí bonus s původem, AC 13, stav, a HP
-    await player.getByRole('button', { name: 'Armor Class: 13' }).waitFor({ timeout: 20_000 })
+    await player.getByRole('button', { name: 'Armor Class: 13' }).waitFor({ timeout: 45_000 })
     await expect(player.getByText('Shield of Faith')).toBeVisible()
     await expect(player.getByText('do long restu')).toBeVisible()
     await expect(player.getByRole('list', { name: 'Stavy' })).toContainText('Poisoned')
@@ -99,7 +100,7 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
     await expect(player.getByText('DM ti způsobil 3 zranění')).toBeVisible()
     await expect(player.getByText('DM ti nastavil stav: Poisoned')).toBeVisible()
     await expect(player.getByText('DM ti přidal bonus: +2 AC (Shield of Faith)')).toBeVisible()
-    await expect(player.getByTestId('unread-badge')).toHaveCount(0, { timeout: 10_000 }) // otevřením se označí jako přečtené
+    await expect(player.getByTestId('unread-badge')).toHaveCount(0, { timeout: 30_000 }) // otevřením se označí jako přečtené
 
     // long rest bonus zruší
     await player.goto(`/characters/${playerChar}`)

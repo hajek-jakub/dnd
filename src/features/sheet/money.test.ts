@@ -34,3 +34,13 @@ describe('převod mincí', () => {
     expect(totalGold(wallet)).toBe(3 + 2.5 + 10 + 0.05)
   })
 })
+
+describe('částky v mědácích', () => {
+  it('formatCp a totalCp', async () => {
+    const { formatCp, totalCp } = await import('./money')
+    expect(formatCp(345)).toBe('3 gp 4 sp 5 cp')
+    expect(formatCp(50)).toBe('5 sp')
+    expect(formatCp(0)).toBe('0 cp')
+    expect(totalCp({ cp: 5, sp: 4, ep: 1, gp: 3, pp: 1 })).toBe(5 + 40 + 50 + 300 + 1000)
+  })
+})
