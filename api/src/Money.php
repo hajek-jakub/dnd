@@ -57,4 +57,40 @@ final class Money
         }
         return $remaining === 0 ? $wallet : null;
     }
+
+    /**
+     * Rozdělí mince rovným dílem mezi $n postav. Nejdřív se dělí každý druh mince zvlášť (10 gp mezi 3 = 3 gp každému),
+     * zbylé mince se přepočtou na mědáky a rozdělí se znovu (1 gp = 100 cp = 33 cp každému). Co se nedělí beze zbytku, zůstane DM.
+     * @param array<string, int> $coins
+     * @return array{0: array<string, int>, 1: int} díl jedné postavy (mince) a zbytek v mědácích
+     */
+    public static function splitCoins(array $coins, int $n): array
+    {
+        $share = array_fill_keys(self::COINS, 0);
+        $restCp = 0;
+        foreach (self::COINS as $c) {
+            $have = $coins[$c] ?? 0;
+            $share[$c] = intdiv($have, $n);
+            $restCp += ($have % $n) * self::VALUE[$c];
+        }
+        $eachCp = intdiv($restCp, $n);
+        foreach (self::fromCp($eachCp) as $c => $count) {
+            $share[$c] += $count;
+        }
+        return [$share, $restCp - $eachCp * $n];
+    }
+
+    /**
+     * Částka v mědácích jako mince (gp, sp, cp), ať je čitelná.
+     * @return array<string, int>
+     */
+    public static function fromCp(int $cp): array
+    {
+        $out = array_fill_keys(self::COINS, 0);
+        foreach (self::CHANGE as $c) {
+            $out[$c] = intdiv($cp, self::VALUE[$c]);
+            $cp -= $out[$c] * self::VALUE[$c];
+        }
+        return $out;
+    }
 }

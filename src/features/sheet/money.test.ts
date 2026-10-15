@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { convertCoins, totalGold } from './money'
+import { convertCoins, formatCoins, fromCp, splitCoins, totalGold } from './money'
 
 const wallet = { cp: 5, sp: 25, ep: 0, gp: 3, pp: 1 }
 
@@ -42,5 +42,23 @@ describe('částky v mědácích', () => {
     expect(formatCp(50)).toBe('5 sp')
     expect(formatCp(0)).toBe('0 cp')
     expect(totalCp({ cp: 5, sp: 4, ep: 1, gp: 3, pp: 1 })).toBe(5 + 40 + 50 + 300 + 1000)
+  })
+})
+
+describe('rozdělení peněz rovným dílem', () => {
+  it('mince po druzích, zbylé přes mědáky', () => {
+    const r = splitCoins({ gp: 11, sp: 1 }, 2)
+    expect(r.share).toEqual({ pp: 0, gp: 5, ep: 0, sp: 5, cp: 5 })
+    expect(r.eachCp).toBe(555)
+    expect(r.leftoverCp).toBe(0)
+  })
+  it('zbytek, který nejde rozdělit, zůstane DM', () => {
+    expect(splitCoins({ cp: 5 }, 2)).toMatchObject({ eachCp: 2, leftoverCp: 1 })
+    expect(splitCoins({ gp: 10 }, 3)).toMatchObject({ share: { gp: 3, sp: 3, cp: 3 }, leftoverCp: 1 })
+    expect(splitCoins({ cp: 1 }, 2).eachCp).toBe(0)
+  })
+  it('částka v mědácích jako mince a text', () => {
+    expect(fromCp(345)).toEqual({ pp: 0, gp: 3, ep: 0, sp: 4, cp: 5 })
+    expect(formatCoins({ gp: 5, sp: 5, cp: 0 })).toBe('5 gp, 5 sp')
   })
 })

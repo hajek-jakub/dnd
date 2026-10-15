@@ -28,7 +28,8 @@ export function useGiveItem(campaignId: string) {
 export function useGiveCurrency(campaignId: string) {
   const refresh = useRefreshCharacters(campaignId)
   return useMutation({
-    mutationFn: (input: { characterIds: string[]; currency: Partial<Currency> }) => api.post<{ given: number }>(`/campaigns/${campaignId}/dm/currency`, input),
+    mutationFn: (input: { characterIds: string[]; currency: Partial<Currency>; mode?: 'give' | 'take'; split?: boolean; reason?: string }) =>
+      api.post<{ given: number; mode: 'give' | 'take'; each: Currency; eachCp: number; leftoverCp: number }>(`/campaigns/${campaignId}/dm/currency`, input),
     onSuccess: refresh,
   })
 }

@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
 use Dnd\Items;
+use Dnd\Money;
 use Dnd\Notifications;
 use Dnd\Request;
 use Dnd\Response;
@@ -56,11 +57,22 @@ final class DmController
         return ['given' => count($names)];
     }
 
-    /** Přidá peníze. @param array{id:string} $user */
+    /**
+     * Peníze družiny. `mode`: `give` (výchozí) přidá, `take` odebere (pokuta, nákup za družinu). Bez `split` dostane nebo zaplatí
+     * každý celou částku, se `split: true` se částka rozdělí rovným dílem mezi vybrané. Volitelné `reason` jde do oznámení hráči.
+     * Odebírání je „vše, nebo nic“: když některá postava nemá na svůj díl, nezmění se nikomu nic.
+     * @param array{id:string} $user
+     */
     public static function giveCurrency(Request $req, array $params, array $user): array
     {
         Access::requireDm($user, $params['id']);
         $in = $req->json();
+        $mode = $in['mode'] ?? 'give';
+        if ($mode !== 'give' && $mode !== 'take') {
+            throw HttpError::validation('Režim musí být give nebo take.', 'mode');
+        }
+        $split = ($in['split'] ?? false) === true;
+        $reason = Input::optionalString($in, 'reason', 120, 'Důvod') ?? '';
         $coins = [];
         $c = $in['currency'] ?? null;
         if (!is_array($c)) {
@@ -78,24 +90,75 @@ final class DmController
         if ($coins === []) {
             throw HttpError::validation('Zadej aspoň jednu minci.', 'currency');
         }
-        // Od nejcennějších mincí k nejméně cenným (pp, gp, ep, sp, cp).
-        $ordered = array_reverse($coins, true);
-        $text = implode(', ', array_map(static fn (string $k, int $v): string => "$v $k", array_keys($ordered), $ordered));
 
-        $count = Db::transaction(static function () use ($params, $user, $in, $coins, $text): int {
+        $result = Db::transaction(static function () use ($params, $user, $in, $coins, $mode, $split, $reason): array {
             $chars = self::targets($params['id'], $in);
+            $n = count($chars);
+            $suffix = $reason !== '' ? " ($reason)" : '';
+            $leftoverCp = 0;
+            $share = $coins; // díl jedné postavy: mince (give) nebo částka v mědácích (take)
+            $eachCp = Money::totalCp($coins);
+            if ($split && $n > 1) {
+                if ($mode === 'give') {
+                    [$share, $leftoverCp] = Money::splitCoins($coins, $n);
+                    $eachCp = Money::totalCp($share);
+                } else {
+                    $eachCp = intdiv($eachCp, $n);
+                    $leftoverCp = Money::totalCp($coins) - $eachCp * $n;
+                }
+                if ($eachCp < 1) {
+                    throw HttpError::validation('Částka je na tolik postav příliš malá, na každého by nezbyl ani měďák.', 'currency');
+                }
+            }
+            $text = self::coinText($mode === 'give' ? $share : Money::fromCp($eachCp));
+
+            $broke = [];
+            $wallets = [];
             foreach ($chars as $char) {
                 $wallet = Sheets::json($char['currency'], []);
                 $wallet = is_array($wallet) ? $wallet : [];
                 foreach (self::COINS as $coin) {
-                    $wallet[$coin] = (int) ($wallet[$coin] ?? 0) + ($coins[$coin] ?? 0);
+                    $wallet[$coin] = (int) ($wallet[$coin] ?? 0);
                 }
-                Db::exec('UPDATE characters SET currency = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($wallet), $char['id']]);
-                Notifications::push((string) $char['owner_id'], $user['id'], $params['id'], (string) $char['id'], 'currency', "DM ti dal peníze: $text");
+                if ($mode === 'give') {
+                    foreach (self::COINS as $coin) {
+                        $wallet[$coin] += $share[$coin] ?? 0;
+                    }
+                } else {
+                    $paid = Money::pay($wallet, $eachCp);
+                    if ($paid === null) {
+                        $broke[] = (string) $char['name'];
+                        continue;
+                    }
+                    $wallet = $paid;
+                }
+                $wallets[$char['id']] = $wallet;
             }
-            return count($chars);
+            if ($broke !== []) {
+                throw HttpError::validation('Nemá dost peněz: ' . implode(', ', $broke) . '. Nikomu se nic neodebralo.', 'currency');
+            }
+            foreach ($chars as $char) {
+                Db::exec('UPDATE characters SET currency = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($wallets[$char['id']]), $char['id']]);
+                $msg = $mode === 'give'
+                    ? ($split && $n > 1 ? "DM ti dal tvůj díl peněz: $text$suffix" : "DM ti dal peníze: $text$suffix")
+                    : "DM ti vzal peníze: $text$suffix";
+                Notifications::push((string) $char['owner_id'], $user['id'], $params['id'], (string) $char['id'], 'currency', $msg);
+            }
+            return ['given' => $n, 'mode' => $mode, 'each' => $mode === 'give' ? $share : Money::fromCp($eachCp), 'eachCp' => $eachCp, 'leftoverCp' => $leftoverCp];
         });
-        return ['given' => $count];
+        return $result;
+    }
+
+    /** @param array<string, int> $coins */
+    private static function coinText(array $coins): string
+    {
+        $parts = [];
+        foreach (array_reverse(self::COINS) as $coin) {
+            if (($coins[$coin] ?? 0) > 0) {
+                $parts[] = $coins[$coin] . " $coin";
+            }
+        }
+        return implode(', ', $parts);
     }
 
     /** XP: každému celou částku, nebo rozdělit rovným dílem mezi vybrané. @param array{id:string} $user */

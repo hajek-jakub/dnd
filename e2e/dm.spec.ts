@@ -195,3 +195,52 @@ test('panel DM jde používat i na telefonu (bez posouvání do stran)', async (
     expect(c.currency.gp).toBeGreaterThanOrEqual(25)
   }
 })
+
+test('peníze v panelu DM: rozdělit rovným dílem, vzít a náhled částky', async ({ page }) => {
+  await registerDm(page, 'dmcoins')
+  const { campaignId } = await newCampaign(page, 'Pokladna')
+  for (const name of ['Aja', 'Bob', 'Cyra']) await page.request.post(`/api/campaigns/${campaignId}/characters`, { data: fighter(name) })
+  const wallets = async () => {
+    const list = await (await page.request.get(`/api/campaigns/${campaignId}/characters`)).json()
+    return Object.fromEntries(list.characters.map((c: { name: string; currency: Record<string, number> }) => [c.name, c.currency]))
+  }
+
+  await page.goto(`/campaigns/${campaignId}/dm`)
+  await page.getByRole('button', { name: 'Vybrat všechny' }).click()
+  await page.getByRole('button', { name: 'Peníze', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Dát peníze' })
+
+  // 10 gp mezi 3: po 3 gp, 3 sp a 3 cp, jeden měďák zůstane
+  await dialog.getByLabel('GP', { exact: true }).fill('10')
+  await expect(dialog.getByTestId('coin-preview')).toContainText('Každý dostane celou částku: 10 gp')
+  await dialog.getByLabel(/Rozdělit rovným dílem/).check()
+  await expect(dialog.getByTestId('coin-preview')).toContainText('Každý dostane: 3 gp, 3 sp, 3 cp')
+  await expect(dialog.getByTestId('coin-preview')).toContainText('Zbytek 1 cp')
+  await dialog.getByLabel('Důvod (nepovinné, uvidí ho hráč v oznámení)').fill('poklad ze sklepa')
+  await dialog.getByRole('button', { name: 'Dát peníze' }).click()
+  await expect(page.getByText(/Každý dostal 3 gp, 3 sp, 3 cp/)).toBeVisible()
+  expect((await wallets()).Bob).toMatchObject({ gp: 3, sp: 3, cp: 3 })
+
+  // vzít 6 gp rozdělených mezi 3 = po 2 gp, drobné se vrací
+  await page.getByRole('button', { name: 'Peníze', exact: true }).click()
+  const take = page.getByRole('dialog', { name: 'Dát peníze' })
+  await take.getByRole('button', { name: 'Vzít', exact: true }).click()
+  await take.getByLabel('GP', { exact: true }).fill('6')
+  await take.getByLabel(/Rozdělit rovným dílem/).check()
+  await expect(take.getByTestId('coin-preview')).toContainText('Každý zaplatí: 2 gp')
+  await take.getByRole('button', { name: 'Vzít peníze' }).click()
+  await expect(page.getByText(/Každý zaplatil 2 gp/)).toBeVisible()
+  expect((await wallets()).Cyra).toMatchObject({ gp: 1, sp: 3, cp: 3 })
+
+  // nikdo nemá dost: chyba a nikomu se nic neodebralo
+  await page.getByRole('button', { name: 'Peníze', exact: true }).click()
+  const broke = page.getByRole('dialog', { name: 'Dát peníze' })
+  await broke.getByRole('button', { name: 'Vzít', exact: true }).click()
+  await broke.getByLabel('PP', { exact: true }).fill('5')
+  await broke.getByRole('button', { name: 'Vzít peníze' }).click()
+  await expect(page.getByText(/Nemá dost peněz/)).toBeVisible()
+  expect((await wallets()).Aja).toMatchObject({ gp: 1, sp: 3, cp: 3 })
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(overflow, 'stránka nesmí jezdit do stran').toBeLessThanOrEqual(0)
+})

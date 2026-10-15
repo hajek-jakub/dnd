@@ -99,6 +99,58 @@ describe('DM panel a oznámení', () => {
       expect((await dmPost('currency', { characterIds: [bobChar], currency: {} })).status).toBe(422)
     })
 
+    it('peníze: rozdělit rovným dílem (mince po druzích, zbytek v mědácích), důvod v oznámení', async () => {
+      const cp = async (who: typeof bob, id: string) => {
+        const w = (await sheet(who, id)).currency
+        return w.cp + w.sp * 10 + w.ep * 50 + w.gp * 100 + w.pp * 1000
+      }
+      const [b0, c0] = [await cp(bob, bobChar), await cp(carol, carolChar)]
+      // 11 gp + 1 sp mezi 2: 5 gp každému, zbylý 1 gp a 1 sp (110 cp) = 55 cp každému
+      const res = await dmPost('currency', { characterIds: [bobChar, carolChar], currency: { gp: 11, sp: 1 }, split: true, reason: 'odměna' })
+      expectStatus(res, 200)
+      expect(res.body).toMatchObject({ given: 2, mode: 'give', each: { pp: 0, gp: 5, ep: 0, sp: 5, cp: 5 }, eachCp: 555, leftoverCp: 0 })
+      expect(await cp(bob, bobChar)).toBe(b0 + 555)
+      expect(await cp(carol, carolChar)).toBe(c0 + 555)
+      expect((await notes(bob)).notifications.map((x) => x.text)).toContain('DM ti dal tvůj díl peněz: 5 gp, 5 sp, 5 cp (odměna)')
+
+      // 5 cp mezi 2: po 2 cp, 1 cp zůstane DM
+      const odd = await dmPost('currency', { characterIds: [bobChar, carolChar], currency: { cp: 5 }, split: true })
+      expect(odd.body).toMatchObject({ eachCp: 2, leftoverCp: 1 })
+      expect(await cp(bob, bobChar)).toBe(b0 + 557)
+
+      // na tolik postav moc málo: nikdo nic nedostane
+      expect((await dmPost('currency', { characterIds: [bobChar, carolChar], currency: { cp: 1 }, split: true })).status).toBe(422)
+      expect(await cp(bob, bobChar)).toBe(b0 + 557)
+      // split s jednou postavou je celá částka
+      expect((await dmPost('currency', { characterIds: [bobChar], currency: { cp: 3 }, split: true })).body.eachCp).toBe(3)
+    })
+
+    it('peníze: odebrání (celé nebo rozdělené), vše nebo nic, drobné se vrací', async () => {
+      const cp = async (who: typeof bob, id: string) => {
+        const w = (await sheet(who, id)).currency
+        return w.cp + w.sp * 10 + w.ep * 50 + w.gp * 100 + w.pp * 1000
+      }
+      const [b0, c0] = [await cp(bob, bobChar), await cp(carol, carolChar)]
+      // každý zaplatí celou částku, rozměnění vrátí drobné
+      expectStatus(await dmPost('currency', { characterIds: [bobChar], currency: { gp: 1, cp: 1 }, mode: 'take', reason: 'pokuta' }), 200)
+      expect(await cp(bob, bobChar)).toBe(b0 - 101)
+      expect((await notes(bob)).notifications.map((x) => x.text)).toContain('DM ti vzal peníze: 1 gp, 1 cp (pokuta)')
+      // rozdělený účet: 20 gp mezi 2 = 10 gp každý
+      const split = await dmPost('currency', { characterIds: [bobChar, carolChar], currency: { gp: 20 }, mode: 'take', split: true })
+      expectStatus(split, 200)
+      expect(split.body).toMatchObject({ mode: 'take', eachCp: 1000 })
+      expect(await cp(bob, bobChar)).toBe(b0 - 101 - 1000)
+      expect(await cp(carol, carolChar)).toBe(c0 - 1000)
+      // nikdo nemá 1000 pp: neodebere se nikomu nic
+      const [b1, c1] = [await cp(bob, bobChar), await cp(carol, carolChar)]
+      const broke = await dmPost('currency', { characterIds: [bobChar, carolChar], currency: { pp: 1000 }, mode: 'take' })
+      expect(broke.status).toBe(422)
+      expect(JSON.stringify(broke.body)).toContain('Nemá dost peněz')
+      expect(await cp(bob, bobChar)).toBe(b1)
+      expect(await cp(carol, carolChar)).toBe(c1)
+      expect((await dmPost('currency', { characterIds: [bobChar], currency: { gp: 1 }, mode: 'steal' })).status).toBe(422)
+    })
+
     it('XP: každému celou částku, nebo rozdělit rovným dílem', async () => {
       expect((await dmPost('xp', { characterIds: [bobChar, carolChar], amount: 100 })).body.eachGets).toBe(100)
       expect((await sheet(bob, bobChar)).xp).toBe(100)

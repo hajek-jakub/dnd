@@ -51,3 +51,39 @@ export function formatCp(cp: number): string {
 export function totalCp(wallet: Currency): number {
   return COINS.reduce((n, c) => n + wallet[c] * COIN_VALUE[c], 0)
 }
+
+/** Částka v mědácích jako mince (gp, sp, cp); stejné pravidlo jako `Money::fromCp` na serveru. */
+export function fromCp(cp: number): Currency {
+  const out: Currency = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+  let left = Math.max(0, Math.floor(cp))
+  for (const coin of ['gp', 'sp', 'cp'] as const) {
+    out[coin] = Math.floor(left / COIN_VALUE[coin])
+    left -= out[coin] * COIN_VALUE[coin]
+  }
+  return out
+}
+
+/**
+ * Rovný díl mincí pro každou z `n` postav (stejné pravidlo jako `Money::splitCoins`): mince se dělí po druzích,
+ * zbylé se přepočtou na mědáky a rozdělí se znovu. `leftoverCp` je, co se nedělí beze zbytku a zůstává DM.
+ */
+export function splitCoins(coins: Partial<Currency>, n: number): { share: Currency; eachCp: number; leftoverCp: number } {
+  const share: Currency = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+  let restCp = 0
+  for (const c of COINS) {
+    const have = coins[c] ?? 0
+    share[c] = Math.floor(have / n)
+    restCp += (have % n) * COIN_VALUE[c]
+  }
+  const rest = Math.floor(restCp / n)
+  const extra = fromCp(rest)
+  for (const c of COINS) share[c] += extra[c]
+  return { share, eachCp: totalCp(share), leftoverCp: restCp - rest * n }
+}
+
+/** Mince jako text od nejcennějších: { gp: 5, sp: 5 } -> "5 gp, 5 sp". */
+export function formatCoins(coins: Partial<Currency>): string {
+  return COINS.filter((c) => (coins[c] ?? 0) > 0)
+    .map((c) => `${coins[c]} ${c}`)
+    .join(', ')
+}

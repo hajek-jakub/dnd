@@ -10,7 +10,7 @@ import { useRules } from '@/features/rules/api'
 import { metaLine } from '@/features/rules/labels'
 import { EFFECT_TARGETS } from '@/features/sheet/effects'
 import { ItemForm } from '@/features/sheet/ItemForm'
-import { COINS, COIN_LABELS, type Coin } from '@/features/sheet/money'
+import { COINS, COIN_LABELS, formatCoins, fromCp, splitCoins, totalCp, type Coin } from '@/features/sheet/money'
 import type { ItemInput } from '@/features/sheet/api'
 import {
   useAddEffect,
@@ -215,20 +215,45 @@ function XpForm({ campaignId, targets, onClose }: DialogProps) {
 
 function CurrencyForm({ campaignId, targets, onClose }: DialogProps) {
   const [values, setValues] = useState<Record<Coin, string>>({ cp: '', sp: '', ep: '', gp: '', pp: '' })
+  const [mode, setMode] = useState<'give' | 'take'>('give')
+  const [split, setSplit] = useState(false)
+  const [reason, setReason] = useState('')
   const mutation = useGiveCurrency(campaignId)
   const parsed = Object.fromEntries(COINS.map((c) => [c, Number.parseInt(values[c], 10) || 0])) as Record<Coin, number>
   const valid = COINS.some((c) => parsed[c] > 0) && COINS.every((c) => parsed[c] >= 0)
+  const many = targets.length > 1
+  const splitting = split && many
+  // Náhled toho, co dostane (nebo zaplatí) každý, stejným výpočtem jako server.
+  const total = totalCp(parsed)
+  const preview = !valid
+    ? null
+    : !splitting
+      ? { text: formatCoins(parsed), leftover: 0, tooSmall: false }
+      : mode === 'give'
+        ? (() => {
+            const r = splitCoins(parsed, targets.length)
+            return { text: formatCoins(r.share), leftover: r.leftoverCp, tooSmall: r.eachCp < 1 }
+          })()
+        : (() => {
+            const each = Math.floor(total / targets.length)
+            return { text: formatCoins(fromCp(each)), leftover: total - each * targets.length, tooSmall: each < 1 }
+          })()
 
   function submit() {
-    if (!valid) return
+    if (!valid || preview?.tooSmall) return
     mutation.mutate(
-      { characterIds: targets.map((t) => t.id), currency: parsed },
+      { characterIds: targets.map((t) => t.id), currency: parsed, mode, split: splitting, reason: reason.trim() || undefined },
       {
-        onSuccess: () => {
-          toast.success('Peníze předány')
+        onSuccess: (r) => {
+          const each = r.mode === 'give' ? formatCoins(r.each) : formatCoins(fromCp(r.eachCp))
+          toast.success(
+            r.mode === 'give'
+              ? many && splitting ? `Každý dostal ${each}${r.leftoverCp > 0 ? ` (zbytek ${r.leftoverCp} cp zůstal u tebe)` : ''}` : 'Peníze předány'
+              : many ? `Každý zaplatil ${each}` : `Odebráno ${each}`,
+          )
           onClose()
         },
-        onError: (e) => toast.error(errorText(e, 'Peníze se nepodařilo předat.')),
+        onError: (e) => toast.error(errorText(e, mode === 'give' ? 'Peníze se nepodařilo předat.' : 'Peníze se nepodařilo odebrat.')),
       },
     )
   }
@@ -236,7 +261,14 @@ function CurrencyForm({ campaignId, targets, onClose }: DialogProps) {
   return (
     <Form onSubmit={submit}>
       <Targets targets={targets} />
-      <p className="text-sm text-muted-foreground">Každý z vybraných dostane celou částku.</p>
+      <div role="group" aria-label="Druh změny" className="grid grid-cols-2 gap-2">
+        <Button type="button" aria-pressed={mode === 'give'} variant={mode === 'give' ? 'default' : 'outline'} onClick={() => setMode('give')}>
+          Dát
+        </Button>
+        <Button type="button" aria-pressed={mode === 'take'} variant={mode === 'take' ? 'default' : 'outline'} onClick={() => setMode('take')}>
+          Vzít
+        </Button>
+      </div>
       <div className="grid grid-cols-5 gap-2">
         {COINS.map((c) => (
           <div key={c} className="space-y-1">
@@ -255,8 +287,25 @@ function CurrencyForm({ campaignId, targets, onClose }: DialogProps) {
           </div>
         ))}
       </div>
-      <Button type="submit" size="lg" className="w-full" disabled={!valid || mutation.isPending}>
-        Dát peníze
+      {many && (
+        <label className="flex min-h-11 items-center gap-3">
+          <input type="checkbox" className="size-5" checked={split} onChange={(e) => setSplit(e.target.checked)} />
+          <span>Rozdělit rovným dílem mezi vybrané ({targets.length})</span>
+        </label>
+      )}
+      <div className="space-y-2">
+        <Label htmlFor="dm-coin-reason">Důvod (nepovinné, uvidí ho hráč v oznámení)</Label>
+        <Input id="dm-coin-reason" value={reason} maxLength={120} onChange={(e) => setReason(e.target.value)} placeholder="odměna od starosty, pokuta, účet v hospodě…" />
+      </div>
+      <p className="text-sm text-muted-foreground" aria-live="polite" data-testid="coin-preview">
+        {preview === null
+          ? mode === 'give' ? 'Zadej částku.' : 'Zadej částku. Drobné se vrací, když chybí přesné mince.'
+          : preview.tooSmall
+            ? 'Částka je na tolik postav příliš malá, na každého by nezbyl ani měďák.'
+            : `${mode === 'give' ? (many && !splitting ? 'Každý dostane celou částku' : 'Každý dostane') : many && !splitting ? 'Každý zaplatí celou částku' : 'Každý zaplatí'}: ${preview.text}${preview.leftover > 0 ? `. Zbytek ${preview.leftover} cp se nedělí beze zbytku a zůstane u tebe.` : ''}`}
+      </p>
+      <Button type="submit" size="lg" className="w-full" disabled={!valid || Boolean(preview?.tooSmall) || mutation.isPending}>
+        {mode === 'give' ? 'Dát peníze' : 'Vzít peníze'}
       </Button>
     </Form>
   )

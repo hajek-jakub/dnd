@@ -28,7 +28,7 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
 
 1. **Kampaň**: „Založit kampaň“, pak **Pozvánka** (odkaz nebo kód, platnost a počet použití nastavíš) a pošli ji hráčům. V nastavení kampaně vybereš **pravidla 2014 nebo 2024**
    (mění martial arts kostku mnicha, monk zbraně a pojmenování Ki / Focus Points) a zapneš sledování nosnosti.
-2. **Panel DM**: karty všech postav (HP, AC, pasivní vnímání, stavy, sloty, bonusy). Zaškrtni jednu, víc nebo všechny postavy a použij akci: zranění a léčení, XP (celé, nebo rozdělené rovným dílem), peníze, item (z pravidel i jednorázový), stav, inspirace,
+2. **Panel DM**: karty všech postav (HP, AC, pasivní vnímání, stavy, sloty, bonusy). Zaškrtni jednu, víc nebo všechny postavy a použij akci: zranění a léčení, XP (celé, nebo rozdělené rovným dílem), peníze (**Dát** nebo **Vzít**; zaškrtnutím „Rozdělit rovným dílem“ se částka rozdělí mezi vybrané místo toho, aby každý dostal celou, náhled ukáže díl každého a zbytek, který zůstane u tebe; u Vzít se drobné vrací a když někdo nemá dost, nikomu se nic neodebere; volitelný důvod uvidí hráč v oznámení), item (z pravidel i jednorázový), stav, inspirace,
    **dočasná HP** (platí nová hodnota) a **bonus s trváním** („do long restu“, „dokud nezruším“, trvalý), který se promítne do výpočtů s viditelným zdrojem. Hráč dostane oznámení. Stav jde zrušit klepnutím na štítek přímo na kartě postavy. Záporné hodnoty bonusu fungují jako debuff (třeba −2 AC). Poznámky DM vidíš jen ty.
 3. **Mapy**: nahraj obrázek (zmenší se na 4096 px), mapa je zprvu skrytá, „Zveřejnit“ ji ukáže hráčům. Na mapu přidáváš body s ikonou (hrad, město, nebezpečí, poklad…) a vybereš, kdo je uvidí:
    všichni, vybraní hráči, nebo jen ty. Body jdou tahem přesouvat.
