@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { BellIcon, LibraryBigIcon, UserRoundCogIcon } from 'lucide-react'
 import { Link, Outlet } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
+import { RollOverlayProvider } from '@/features/dice/RollOverlay'
 import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useActiveCampaign } from '@/features/campaigns/active-campaign'
 import { useNewMessageToasts, useUnreadMessages } from '@/features/messages/api'
@@ -46,9 +47,11 @@ export function AppLayout() {
       </header>
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 lg:max-w-6xl">
         <RollSettingsProvider>
-          <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
-            <Outlet />
-          </Suspense>
+          <RollOverlayProvider>
+            <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
+              <Outlet />
+            </Suspense>
+          </RollOverlayProvider>
         </RollSettingsProvider>
         <p className="pt-2">
           <Link to="/about" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">

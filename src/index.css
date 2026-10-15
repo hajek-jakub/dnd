@@ -162,3 +162,33 @@
 .map-pin--selected { border-color: #2563eb; }
 .map-pin--owner { border-color: #d97706; background: #fef3c7; }
 .map-pin--selected.map-pin--selected { box-shadow: 0 0 0 3px rgb(37 99 235 / 0.5); }
+
+/* Animace kostek (hod kostkou): točení během čekání na server, dosednutí a otřes při přirozené 1 */
+@keyframes dice-roll {
+  0% { transform: translateY(-34px) rotate(0deg) scale(0.82); }
+  22% { transform: translateY(0) rotate(170deg) scale(1.06); }
+  38% { transform: translateY(-20px) rotate(290deg) scale(0.98); }
+  58% { transform: translateY(0) rotate(470deg) scale(1.04); }
+  74% { transform: translateY(-8px) rotate(590deg) scale(1); }
+  100% { transform: translateY(0) rotate(720deg) scale(1); }
+}
+@keyframes dice-land {
+  0% { transform: translateY(-14px) rotate(-22deg) scale(1.35); opacity: 0.4; }
+  55% { transform: translateY(2px) rotate(5deg) scale(0.94); opacity: 1; }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+@keyframes dice-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px) rotate(-4deg); }
+  40% { transform: translateX(5px) rotate(4deg); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+@theme inline {
+  --animate-dice-roll: dice-roll 0.95s cubic-bezier(0.36, 0.1, 0.4, 1) infinite;
+  --animate-dice-land: dice-land 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-dice-shake: dice-shake 0.5s 0.45s ease-in-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dice-anim { animation: none !important; }
+}

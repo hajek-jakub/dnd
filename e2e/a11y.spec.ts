@@ -89,6 +89,17 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   await page.getByRole('button', { name: 'Kostky', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Kostky' })).toBeVisible()
   await audit(page, 'panel kostek')
+  await page.keyboard.press('Escape')
+
+  // okno s hodem kostkou (rolling i výsledek, výhoda se dvěma hody), světlý i tmavý režim
+  await page.getByRole('button', { name: 'Přehled', exact: true }).click()
+  await page.getByRole('button', { name: 'Výhoda', exact: true }).click()
+  await page.getByRole('button', { name: /^Hodit: Akrobacie/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Hod kostkou' }).getByTestId('roll-result-total')).toBeVisible()
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme)
+    await audit(page, `okno s hodem (${theme})`)
+  }
 })
 
 test('mapa: stránka s mapou je přístupná mimo vnitřní ovládání Leafletu', async ({ page }) => {

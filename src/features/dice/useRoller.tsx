@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { ApiError } from '@/lib/api'
 import { useRollMutation, type DiceRoll, type RollMode } from './api'
 import { describeRoll, naturalNote } from './format'
+import { useRollOverlay } from './roll-overlay-context'
 import { useRollSettings } from './roll-settings-context'
 
 export function showRoll(r: DiceRoll, who?: string) {
@@ -13,20 +14,31 @@ export function showRoll(r: DiceRoll, who?: string) {
   else toast(title, opts)
 }
 
-/** Hází kostky na serveru podle společného nastavení (výhoda / nevýhoda, skrytý hod) a ukáže výsledek. */
+/**
+ * Hází kostky na serveru podle společného nastavení (výhoda / nevýhoda, skrytý hod). Hned se otevře okno s točícími se kostkami
+ * a po odpovědi serveru ukáže hozená čísla a součet (`RollOverlay`).
+ */
 export function useRoller(campaignId: string, characterId?: string) {
   const settings = useRollSettings()
+  const overlay = useRollOverlay()
   const mutation = useRollMutation(campaignId)
-  return {
-    pending: mutation.isPending,
-    roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode } = {}) {
-      mutation.mutate(
-        { expression, label, mode: options.mode ?? settings.mode, crit: options.crit, hidden: settings.hidden, ...(characterId ? { characterId } : {}) },
-        {
-          onSuccess: (r) => showRoll(r),
-          onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Hod se nepodařil.'),
+
+  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode } = {}) {
+    const mode = options.mode ?? settings.mode
+    const hidden = settings.hidden
+    const crit = options.crit === true
+    const token = overlay.begin({ label, expression, mode, crit, hidden, again: () => roll(label, expression, options) })
+    mutation.mutate(
+      { expression, label, mode, crit: options.crit, hidden, ...(characterId ? { characterId } : {}) },
+      {
+        onSuccess: (r) => overlay.finish(token, r),
+        onError: (e) => {
+          overlay.fail(token)
+          toast.error(e instanceof ApiError ? e.message : 'Hod se nepodařil.')
         },
-      )
-    },
+      },
+    )
   }
+
+  return { pending: mutation.isPending, roll }
 }
