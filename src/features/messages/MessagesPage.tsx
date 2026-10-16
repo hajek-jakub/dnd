@@ -11,6 +11,7 @@ import { useAuth } from '@/features/auth/auth-context'
 import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { LANGUAGE_CATALOG, languageLabel } from '@/features/sheet/languages'
 import { useMarkThreadRead, useMessages, useSendMessage, type ChatMessage } from './api'
 import { usePageTitle } from '@/lib/page-title'
 
@@ -62,11 +63,11 @@ export function MessagesPage() {
       for (const l of languages) {
         if (l.speakers.length === 0 && !messages.some((m) => m.thread === `lang:${l.slug}`)) continue
         shown.add(l.slug)
-        list.push({ id: `lang:${l.slug}`, label: l.name, hint: `Jen hráči, kteří umí tento jazyk (${l.speakers.map((s) => s.name).join(', ') || 'nikdo další'}). DM to nevidí.`, icon: 'language', language: l.name })
+        list.push({ id: `lang:${l.slug}`, label: languageLabel(l.name), hint: `Jen hráči, kteří umí tento jazyk (${l.speakers.map((s) => s.name).join(', ') || 'nikdo další'}). DM to nevidí.`, icon: 'language', language: l.name })
       }
       for (const t of new Set(messages.filter((m) => m.thread.startsWith('lang:')).map((m) => m.thread))) {
         if (shown.has(t.slice(5))) continue
-        const name = t.slice(5).replace(/^./u, (c) => c.toUpperCase())
+        const name = languageLabel(LANGUAGE_CATALOG.find((l) => l.name.toLowerCase().replace(/[^a-z]+/g, '-') === t.slice(5))?.name ?? t.slice(5).replace(/^./u, (c) => c.toUpperCase()))
         list.push({ id: t, label: name, hint: 'Jazyk, který už nemáš na postavě (staré zprávy zůstávají)', icon: 'language' })
       }
     }

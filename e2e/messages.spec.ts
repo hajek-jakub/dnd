@@ -147,9 +147,9 @@ test('společný jazyk: hráči si píšou tak, že to DM ani jiný hráč nevid
     // jazyk si přidá na sheetu (Postava → Jazyky)
     await bob!.goto(`/characters/${bobChar}`)
     await bob!.getByRole('button', { name: 'Postava', exact: true }).click()
-    await bob!.getByLabel('Přidat jazyk').fill('Orc')
+    await bob!.getByLabel('Přidat jazyk').selectOption('Orc')
     await bob!.getByRole('button', { name: 'Přidat', exact: true }).click()
-    await expect(bob!.getByRole('list', { name: 'Znám jazyky' }).getByText('Orc')).toBeVisible()
+    await expect(bob!.getByRole('list', { name: 'Znám jazyky' }).getByText('Skřetí (Orc)')).toBeVisible()
     await expect(bob!.getByRole('button', { name: 'Odebrat jazyk Orc' })).toBeVisible()
 
     // vlákno v jazyce Orc je jen u Boba a Carol; Dan (jiný jazyk) a DM ho nemají
@@ -157,17 +157,17 @@ test('společný jazyk: hráči si píšou tak, že to DM ani jiný hráč nevid
     await carol!.goto(`/campaigns/${campaignId}/messages`)
     await dan!.goto(`/campaigns/${campaignId}/messages`)
     await dm.goto(`/campaigns/${campaignId}/messages`)
-    await bob!.getByRole('button', { name: /^Orc/ }).click()
+    await bob!.getByRole('button', { name: /Orc/ }).click()
     await write(bob!, 'Dnes večer přepadneme karavanu')
     await expectNoHorizontalScroll(bob!)
 
-    await carol!.getByRole('button', { name: /^Orc/ }).click({ timeout: 15_000 })
+    await carol!.getByRole('button', { name: /Orc/ }).click({ timeout: 15_000 })
     await expect(carol!.getByRole('log', { name: 'Zprávy' }).getByText('Dnes večer přepadneme karavanu')).toBeVisible({ timeout: 15_000 })
     await write(carol!, 'Rozumím, jdu s tebou')
     await expect(bob!.getByRole('log', { name: 'Zprávy' }).getByText('Rozumím, jdu s tebou')).toBeVisible({ timeout: 15_000 })
 
     for (const outsider of [dan!, dm]) {
-      await expect(outsider.getByRole('button', { name: /^Orc/ })).toHaveCount(0)
+      await expect(outsider.getByRole('button', { name: /Orc/ })).toHaveCount(0)
       await expect(outsider.getByText('Dnes večer přepadneme karavanu')).toHaveCount(0)
       const res = await outsider.request.get(`/api/campaigns/${campaignId}/messages`)
       expect(await res.text()).not.toContain('přepadneme karavanu')

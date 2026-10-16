@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Images;
 use Dnd\Input;
+use Dnd\Languages;
 use Dnd\Request;
 use Dnd\Response;
 use Dnd\Sheets;
@@ -106,7 +107,7 @@ final class CharacterController
                     $baseSpeed, $state['hpCurrent'],
                     Sheets::enc(Sheets::skills($data)),
                     Sheets::enc(Sheets::saveProficiencies($data)),
-                    Sheets::enc(Sheets::stringList($data, 'extraProficiencies')),
+                    Sheets::enc(Languages::normalizeProficiencies(Sheets::stringList($data, 'extraProficiencies'))),
                     Sheets::enc($lv['subclasses']),
                     Sheets::enc(Sheets::personality($data)),
                     Input::optionalString($data, 'description', 20000, 'Popis') ?? '',
@@ -197,7 +198,7 @@ final class CharacterController
             $set('extra_save_proficiencies', Sheets::enc(Sheets::saveProficiencies($data)));
         }
         if (array_key_exists('extraProficiencies', $data)) {
-            $set('extra_proficiencies', Sheets::enc(Sheets::stringList($data, 'extraProficiencies')));
+            $set('extra_proficiencies', Sheets::enc(Languages::normalizeProficiencies(Sheets::stringList($data, 'extraProficiencies'))));
         }
         if (array_key_exists('overrides', $data)) {
             $set('overrides', Sheets::enc(Sheets::overrides($data)));

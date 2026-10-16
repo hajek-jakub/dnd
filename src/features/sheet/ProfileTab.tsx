@@ -14,7 +14,7 @@ import { PhotoCropper } from './PhotoCropper'
 import { useDeleteCharacter, useDeletePhoto, useRevertLevel, useUploadPhoto } from './api'
 import { useSheet } from './sheet-context'
 import { ALIGNMENTS } from './labels'
-import { COMMON_LANGUAGES, MAX_LANGUAGE_LENGTH, languagesOf, withLanguage, withoutLanguage } from './languages'
+import { LANGUAGE_CATALOG, languageLabel, languagesOf, withLanguage, withoutLanguage } from './languages'
 
 export function ProfileTab() {
   const { character, canEdit, isDm, update } = useSheet()
@@ -57,6 +57,7 @@ function LanguagesCard() {
   const { character, update } = useSheet()
   const [name, setName] = useState('')
   const languages = languagesOf(character.extraProficiencies)
+  const available = LANGUAGE_CATALOG.filter((l) => !languages.some((x) => x.toLowerCase() === l.name.toLowerCase()))
 
   function add(e: FormEvent) {
     e.preventDefault()
@@ -77,7 +78,7 @@ function LanguagesCard() {
           <ul aria-label="Znám jazyky" className="flex flex-wrap gap-2">
             {languages.map((l) => (
               <li key={l} className="flex items-center rounded-full border pl-3">
-                {l}
+                {languageLabel(l)}
                 <button
                   type="button"
                   aria-label={`Odebrat jazyk ${l}`}
@@ -90,21 +91,25 @@ function LanguagesCard() {
             ))}
           </ul>
         )}
-        <form onSubmit={add} className="flex gap-2">
-          <Label htmlFor="pf-language" className="sr-only">
-            Přidat jazyk
-          </Label>
-          <Input id="pf-language" list="pf-language-options" maxLength={MAX_LANGUAGE_LENGTH} placeholder="Přidat jazyk (např. Orc)" value={name} onChange={(e) => setName(e.target.value)} />
-          <datalist id="pf-language-options">
-            {COMMON_LANGUAGES.filter((l) => !languages.some((x) => x.toLowerCase() === l.toLowerCase())).map((l) => (
-              <option key={l} value={l} />
-            ))}
-          </datalist>
-          <Button type="submit" variant="secondary" disabled={name.trim() === ''}>
-            <PlusIcon aria-hidden /> Přidat
-          </Button>
-        </form>
-        <p className="text-xs text-muted-foreground">Když stejný jazyk umí i jiný hráč, můžete si v Zprávách psát tak, že to nikdo jiný (ani DM) neuvidí.</p>
+        {available.length > 0 && (
+          <form onSubmit={add} className="flex gap-2">
+            <Label htmlFor="pf-language" className="sr-only">
+              Přidat jazyk
+            </Label>
+            <NativeSelect id="pf-language" value={name} onChange={(e) => setName(e.target.value)}>
+              <option value="">Vyber jazyk…</option>
+              {available.map((l) => (
+                <option key={l.name} value={l.name}>
+                  {l.label}
+                </option>
+              ))}
+            </NativeSelect>
+            <Button type="submit" variant="secondary" disabled={name === ''}>
+              <PlusIcon aria-hidden /> Přidat
+            </Button>
+          </form>
+        )}
+        <p className="text-xs text-muted-foreground">Jazyky se vybírají ze seznamu, aby se hráči ve Zprávách spolehlivě shodli. Když stejný jazyk umí i jiný hráč, můžete si psát tak, že to nikdo jiný (ani DM) neuvidí.</p>
       </CardContent>
     </Card>
   )

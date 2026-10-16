@@ -263,10 +263,44 @@ describe('zprávy v kampani', () => {
       expectStatus(await p2.client.post(`/campaigns/${cid}/messages/read`, { thread: 'lang:' }), 422)
     })
 
+    it('číselník: zápis s diakritikou, česky nebo malými písmeny se uloží jako jazyk z číselníku a v chatu se shoduje', async () => {
+      const pe = await joinAsPlayer(gm, cid, 'pe')
+      const pf = await joinAsPlayer(gm, cid, 'pf')
+      const stored = await character(pe, 'Eda', ['Skřetština', 'ELVISH'])
+      expectStatus(stored, 201)
+      expect(stored.body.character.extraProficiencies).toEqual(['Language: Orc', 'Language: Elvish'])
+      expectStatus(await character(pf, 'Fík', ['skretstina']), 201)
+      expect((await character(pe, 'Eda2', ['Hluboká řeč'])).status).toBe(201)
+      // oba se v Orc potkají, i když jeden psal s diakritikou a druhý bez, a hráč smí jazyk zadat i česky
+      const res = await say(pe, 'Skřetština', 'Šeptem česky')
+      expectStatus(res, 201)
+      expect(res.body.message.thread).toBe('lang:orc')
+      expect(res.body.message.recipients.map((r: any) => r.id)).toContain(pf.id)
+      expect((await read(pf)).messages.map((m) => m.body)).toContain('Šeptem česky')
+    })
+
+    it('jazyk mimo číselník se při uložení odmítne a seznam ostatních proficiencies zůstane', async () => {
+      const res = await p4.client.patch(`/characters/${(await p4.client.get(`/campaigns/${cid}/characters`)).body.characters.find((c: any) => c.ownerId === p4.id).id}`, { extraProficiencies: ['Language: Klingon'] })
+      expectStatus(res, 422)
+      expect(res.body.error.message).toContain('Klingon')
+      expect(res.body.error.field).toBe('extraProficiencies')
+      const ok = await p4.client.patch(`/characters/${(await p4.client.get(`/campaigns/${cid}/characters`)).body.characters.find((c: any) => c.ownerId === p4.id).id}`, { extraProficiencies: ['Simple weapons', 'Language: Thieves Cant', 'Language: hantýrka'] })
+      expectStatus(ok, 200)
+      expect((await p4.client.get(`/campaigns/${cid}/characters`)).body.characters.find((c: any) => c.ownerId === p4.id).extraProficiencies).toEqual(['Simple weapons', "Language: Thieves' Cant"])
+    })
+
     it('jazyk, který nikdo další neumí, nejde použít', async () => {
       expectStatus(await character(p4, 'Dan2', ['Sylvan']), 201)
       expectStatus(await say(p4, 'Sylvan'), 422)
       expect(JSON.stringify((await read(p4)).languages)).toContain('"speakers":[]')
+    })
+
+    it('každý jazyk z číselníku v UI server přijme a uloží pod stejným názvem', async () => {
+      const { LANGUAGE_CATALOG } = await import('../src/features/sheet/languages')
+      const px = await joinAsPlayer(gm, cid, 'px')
+      const created = await character(px, 'Všejazyk', LANGUAGE_CATALOG.map((l) => l.name))
+      expectStatus(created, 201)
+      expect(created.body.character.extraProficiencies).toEqual(LANGUAGE_CATALOG.map((l) => `Language: ${l.name}`))
     })
   })
 

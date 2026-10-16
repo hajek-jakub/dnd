@@ -189,7 +189,8 @@ final class MessageController
         if ($role !== 'player') {
             throw HttpError::forbidden('Zprávy v jazyce píšou jen hráči.');
         }
-        $slug = is_string($language) ? Languages::slug($language) : '';
+        // Jazyk se bere přes číselník: „Skřetština“, „skretstina“ i „Orc“ je totéž.
+        $slug = is_string($language) ? Languages::slug(Languages::canonical($language) ?? $language) : '';
         if ($slug === '') {
             throw HttpError::validation('Zadej jazyk.', 'to');
         }
