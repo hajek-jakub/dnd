@@ -90,7 +90,6 @@ export interface HomebrewInput {
   damageDice?: string
   damageType?: string
   properties?: string[]
-  weight?: number
   magicBonus?: number
   extraDamage?: { dice: string; type: string }[]
   versatileDice?: string | null

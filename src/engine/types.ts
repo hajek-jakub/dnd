@@ -52,7 +52,6 @@ export interface InventoryItem {
   name: string
   kind: 'armor' | 'shield' | 'weapon' | 'item'
   quantity: number
-  weight: number
   equipped: boolean
   attuned: boolean
   requiresAttunement: boolean
@@ -100,8 +99,8 @@ export interface CharacterInput {
   customResources: CustomResource[]
   state: CharacterState
   /** Pravidla kampaně, která ovlivňují výpočty. */
-  /** Pravidla kampaně: nosnost a sada pravidel (výchozí 2014 = SRD 5.1). */
-  rules?: { encumbrance?: boolean; ruleset?: Ruleset }
+  /** Pravidla kampaně: sada pravidel (výchozí 2014 = SRD 5.1). */
+  rules?: { ruleset?: Ruleset }
 }
 
 export type Recharge = 'short' | 'long' | 'dawn' | 'manual'
@@ -180,8 +179,5 @@ export interface ComputedSheet {
   features: { name: string; className: string; level: number; source: 'class' | 'subclass' }[]
   martialArtsDie: string | null
   attunement: { used: number; max: number }
-  carryingCapacity: number
-  weightCarried: number
-  encumbrance: { enabled: boolean; status: 'ok' | 'encumbered' | 'heavy' | 'over'; capacity: number; weight: number; encumberedAt: number; heavyAt: number }
   proficiencies: string[]
 }

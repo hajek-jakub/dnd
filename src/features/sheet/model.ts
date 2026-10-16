@@ -7,7 +7,6 @@ function toInventoryItem(i: CharacterItem): InventoryItem {
     name: i.name,
     kind: i.kind,
     quantity: i.quantity,
-    weight: i.weight,
     equipped: i.equipped,
     attuned: i.attuned,
     requiresAttunement: i.requiresAttunement,
@@ -57,8 +56,8 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 export function applyOps(
   state: CharacterState,
   ops: AdjustOp[],
-  extras: { xp: number | null; inspiration: boolean },
-): { state: CharacterState; xp: number | null; inspiration: boolean } {
+  extras: { inspiration: boolean },
+): { state: CharacterState; inspiration: boolean } {
   let s: CharacterState = {
     ...state,
     hitDiceUsed: { ...state.hitDiceUsed },
@@ -66,7 +65,7 @@ export function applyOps(
     resources: { ...state.resources },
     conditions: [...state.conditions],
   }
-  let { xp, inspiration } = extras
+  let { inspiration } = extras
   for (const op of ops) {
     switch (op.op) {
       case 'hp': {
@@ -108,9 +107,6 @@ export function applyOps(
       case 'inspiration':
         inspiration = op.set
         break
-      case 'xp':
-        xp = Math.max(0, (xp ?? 0) + op.delta)
-        break
       case 'condition':
         s = { ...s, conditions: s.conditions.filter((c) => c !== op.name) }
         if (op.set) s.conditions = [...s.conditions, op.name]
@@ -120,5 +116,5 @@ export function applyOps(
         break
     }
   }
-  return { state: s, xp, inspiration }
+  return { state: s, inspiration }
 }

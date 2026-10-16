@@ -15,7 +15,6 @@ interface FormState {
   name: string
   kind: CharacterItem['kind']
   quantity: string
-  weight: string
   requiresAttunement: boolean
   consumable: boolean
   rarity: string
@@ -40,7 +39,6 @@ function initial(item?: CharacterItem): FormState {
     name: item?.name ?? '',
     kind: item?.kind ?? 'item',
     quantity: String(item?.quantity ?? 1),
-    weight: String(item?.weight ?? 0),
     requiresAttunement: item?.requiresAttunement ?? false,
     consumable: item?.consumable ?? false,
     rarity: item?.rarity ?? '',
@@ -82,7 +80,6 @@ export function ItemForm({
       name: s.name.trim(),
       kind: s.kind,
       quantity: Number.isFinite(Number.parseInt(s.quantity, 10)) ? Math.max(0, Number.parseInt(s.quantity, 10)) : 1,
-      weight: Math.max(0, Number(s.weight.replace(',', '.')) || 0),
       requiresAttunement: s.requiresAttunement,
       consumable: s.consumable,
       rarity: s.rarity === '' ? null : s.rarity,
@@ -156,18 +153,6 @@ export function ItemForm({
             max={9999}
             value={s.quantity}
             onChange={(e) => set('quantity', e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="it-weight">Váha jednoho kusu (lb)</Label>
-          <Input
-            id="it-weight"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="any"
-            value={s.weight}
-            onChange={(e) => set('weight', e.target.value)}
           />
         </div>
       </div>

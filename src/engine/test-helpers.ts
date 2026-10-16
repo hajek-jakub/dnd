@@ -51,7 +51,6 @@ export function makeInput(partial: Partial<CharacterInput> & { scores?: Partial<
 export function item(partial: Partial<InventoryItem> & Pick<InventoryItem, 'id' | 'name' | 'kind'>): InventoryItem {
   return {
     quantity: 1,
-    weight: 1,
     equipped: true,
     attuned: false,
     requiresAttunement: false,

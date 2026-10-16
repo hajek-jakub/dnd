@@ -34,11 +34,11 @@ describe('inventář, peníze, předávání a kouzla', () => {
   })
 
   describe('položky z pravidel', () => {
-    it('zbraň z SRD přenese kostku zranění, kategorii, dosah, vlastnosti a váhu', async () => {
+    it('zbraň z SRD přenese kostku zranění, kategorii, dosah a vlastnosti', async () => {
       const res = await addItem(bob, bobChar, { ruleId: await ruleId(bob, 'weapon', 'Longsword') })
       expectStatus(res, 201)
       expect(res.body.item).toMatchObject({
-        name: 'Longsword', kind: 'weapon', quantity: 1, weight: 3, equipped: false, attuned: false, requiresAttunement: false,
+        name: 'Longsword', kind: 'weapon', quantity: 1, equipped: false, attuned: false, requiresAttunement: false,
         weapon: { damageDice: '1d8', damageType: 'Slashing', category: 'martial', range: 'melee', magicBonus: 0 },
       })
       expect(res.body.item.weapon.properties).toContain('Versatile')
@@ -92,8 +92,9 @@ describe('inventář, peníze, předávání a kouzla', () => {
 
   describe('vlastní item a validace', () => {
     it('vytvoří vlastní item včetně zbroje, zbraně a efektů', async () => {
-      const armor = await addItem(bob, bobChar, { name: 'Moje zbroj', kind: 'armor', armor: { base: 14, dexBonus: true, maxDexBonus: 2, magicBonus: 1 }, weight: 20, quantity: 1 })
-      expect(armor.body.item).toMatchObject({ name: 'Moje zbroj', kind: 'armor', armor: { base: 14, maxDexBonus: 2, magicBonus: 1 }, weight: 20 })
+      const armor = await addItem(bob, bobChar, { name: 'Moje zbroj', kind: 'armor', armor: { base: 14, dexBonus: true, maxDexBonus: 2, magicBonus: 1 }, quantity: 1 })
+      expect(armor.body.item).toMatchObject({ name: 'Moje zbroj', kind: 'armor', armor: { base: 14, maxDexBonus: 2, magicBonus: 1 } })
+      expect(armor.body.item.weight).toBeUndefined() // váha se nesleduje
       const cloak = await addItem(bob, bobChar, { name: 'Plášť', requiresAttunement: true, effects: [{ target: 'skill.stealth', value: 2, source: 'Plášť' }, { target: 'speed', value: 10, source: '' }] })
       expect(cloak.body.item.effects).toHaveLength(2)
     })
@@ -102,7 +103,6 @@ describe('inventář, peníze, předávání a kouzla', () => {
       const bad = (body: Record<string, unknown>) => addItem(bob, bobChar, { name: 'x', ...body })
       expect((await addItem(bob, bobChar, { kind: 'item' })).status).toBe(422) // chybí název
       expect((await bad({ kind: 'sword' })).status).toBe(422)
-      expect((await bad({ weight: -1 })).status).toBe(422)
       expect((await bad({ quantity: 0 })).status).toBe(422)
       expect((await bad({ quantity: 'tři' })).status).toBe(422)
       expect((await bad({ rarity: 'mythic' })).status).toBe(422)
@@ -354,15 +354,11 @@ describe('inventář, peníze, předávání a kouzla', () => {
     })
   })
 
-  describe('nastavení kampaně: nosnost', () => {
-    it('DM zapne a vypne nosnost, hráč ne, neznámá nastavení se odmítnou', async () => {
-      expect((await bob.client.patch(`/campaigns/${campaignId}`, { settings: { encumbrance: true } })).status).toBe(403)
-      const on = await dm.client.patch(`/campaigns/${campaignId}`, { settings: { encumbrance: true } })
-      expect(on.body.campaign.settings).toEqual({ encumbrance: true })
-      expect((await bob.client.get(`/campaigns/${campaignId}`)).body.campaign.settings).toEqual({ encumbrance: true })
+  describe('nastavení kampaně', () => {
+    it('hráč nastavení nezmění, neznámá nastavení (i dřívější nosnost) se odmítnou', async () => {
+      expect((await bob.client.patch(`/campaigns/${campaignId}`, { settings: { ruleset: '2024' } })).status).toBe(403)
       expect((await dm.client.patch(`/campaigns/${campaignId}`, { settings: { hack: 1 } })).status).toBe(422)
-      expect((await dm.client.patch(`/campaigns/${campaignId}`, { settings: { encumbrance: 'ano' } })).status).toBe(422)
-      expect((await dm.client.patch(`/campaigns/${campaignId}`, { settings: { encumbrance: false } })).body.campaign.settings).toEqual({ encumbrance: false })
+      expect((await dm.client.patch(`/campaigns/${campaignId}`, { settings: { encumbrance: true } })).status).toBe(422)
     })
   })
 

@@ -27,7 +27,7 @@ final class CharacterSeeder
     public const TEST_CAMPAIGN_NAME = 'Testovací kampaň (seed)';
 
     private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'tactics', 'openQuestions'];
-    private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'xp', 'notes', 'description'];
+    private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'notes', 'description'];
     private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
     private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'consumable', 'description', 'note'];
     private const ALIASES = ['light crossbow' => 'Crossbow, light', 'heavy crossbow' => 'Crossbow, heavy', 'hand crossbow' => 'Crossbow, hand'];
@@ -35,7 +35,7 @@ final class CharacterSeeder
     private const HOMEBREW_DEFAULTS = [
         // Kostku a typ zranění vezme seed z řádku v sekci attacks (homebrew zbraň s d8), kategorie a vlastnosti jsou odhad (monk zbraň: simple, melee).
         'nunchaku' => [
-            'weapon' => ['damageDice' => '1d6', 'damageType' => 'Bludgeoning', 'category' => 'simple', 'range' => 'melee', 'properties' => ['Light'], 'weight' => 1],
+            'weapon' => ['damageDice' => '1d6', 'damageType' => 'Bludgeoning', 'category' => 'simple', 'range' => 'melee', 'properties' => ['Light']],
         ],
     ];
 
@@ -385,7 +385,7 @@ final class CharacterSeeder
                     $weapon = [
                         'damageDice' => (string) ($d['damage']['dice'] ?? '1d6'), 'damageType' => (string) ($d['damage']['type'] ?? 'Bludgeoning'),
                         'category' => strtolower((string) ($d['weapon_category'] ?? 'simple')), 'range' => strtolower((string) ($d['weapon_range'] ?? 'melee')),
-                        'properties' => array_values(array_map('strval', $d['properties'] ?? [])), 'weight' => $d['weight'] ?? 0,
+                        'properties' => array_values(array_map('strval', $d['properties'] ?? [])),
                         'versatileDice' => $d['two_handed_damage']['dice'] ?? null,
                     ];
                 }
@@ -467,7 +467,6 @@ final class CharacterSeeder
             throw new SeedStop($problems);
         }
 
-        $xp = $char['xp'] ?? null;
         return [
             'owner' => $owner,
             'campaignId' => $resolvedCampaign,
@@ -483,7 +482,6 @@ final class CharacterSeeder
                 'background' => (string) ($char['background'] ?? ''),
                 'alignment' => (string) ($char['alignment'] ?? ''),
                 'description' => (string) ($char['description'] ?? ''),
-                'xp' => is_int($xp) ? $xp : null,
                 'notes' => implode("\n", $notes),
                 'abilityScores' => $scores,
                 'levels' => $levels,

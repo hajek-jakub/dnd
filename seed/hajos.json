@@ -6,7 +6,6 @@
     "race": "Human",
     "background": "Hermit",
     "alignment": null,
-    "xp": null,
     "notes": "Na sheetu je pod nadpisem připsáno „Heroic“, význam zatím neznámý.",
     "description": "Obalatomi je ze sirotčince v hlavním městě, ale brzy odešel do kláštera v Kupika Desert, ve městě Devreach."
   },
@@ -273,7 +272,7 @@
   },
   "openQuestions": [
     "Co znamená „Heroic“ pod nadpisem sheetu?",
-    "Alignment, XP (na levelu 6 minimum 14 000) a fotka",
+    "Alignment a fotka",
     "Demonic Spear: na kartě je „Melee weapon (martial), Trident +1“, v seedu je základ Spear (simple, proficiency +8). Přepnout na martial trident?"
   ],
   "tactics": {

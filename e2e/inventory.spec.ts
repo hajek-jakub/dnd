@@ -76,12 +76,8 @@ test('inventář: itemy z pravidel se promítnou do AC, equip, attunement a efek
   await expectNoHorizontalScroll(page)
 })
 
-test('inventář: vlastní item s efektem, množství, smazání a nosnost se zapnutým pravidlem kampaně', async ({ page }) => {
-  const { campaignId, id } = await openCharacter(page, wizard3, 'cust')
-  await page.goto(`/campaigns/${campaignId}`)
-  await page.getByLabel('Sledovat nosnost a přetížení').check()
-  await expect(page.getByLabel('Sledovat nosnost a přetížení')).toBeChecked()
-  await page.goto(`/characters/${id}`)
+test('inventář: vlastní item s efektem, množství a smazání', async ({ page }) => {
+  await openCharacter(page, wizard3, 'cust')
   await expect(page.getByRole('button', { name: /^Rychlost: 30 ft/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
@@ -89,7 +85,6 @@ test('inventář: vlastní item s efektem, množství, smazání a nosnost se za
   const dialog = page.getByRole('dialog', { name: 'Přidat item' })
   await dialog.getByRole('tab', { name: 'Vlastní' }).click()
   await dialog.getByLabel('Název').fill('Boty rychlosti')
-  await dialog.getByLabel('Váha jednoho kusu (lb)').fill('4')
   await dialog.getByRole('button', { name: 'Přidat efekt' }).click()
   await dialog.getByLabel('Efekt 1: cíl').selectOption('speed')
   await dialog.getByLabel('Efekt 1: hodnota').fill('10')
@@ -101,20 +96,18 @@ test('inventář: vlastní item s efektem, množství, smazání a nosnost se za
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Rychlost: 40 ft/ })).toBeVisible()
 
-  // těžký náklad: 10 x STR 10 = 100 lb -> přetížení -10 ft
+  // další item bez efektu rychlost nemění
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   await page.getByRole('button', { name: 'Přidat item' }).click()
   const second = page.getByRole('dialog', { name: 'Přidat item' })
   await second.getByRole('tab', { name: 'Vlastní' }).click()
   await second.getByLabel('Název').fill('Kámen')
-  await second.getByLabel('Váha jednoho kusu (lb)').fill('60')
   await second.getByRole('button', { name: 'Přidat item' }).last().click()
   await expect(page.getByText('Item přidán')).toBeVisible()
-  await expect(page.getByText(/přetížený \(−10 ft\)/)).toBeVisible()
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
-  await expect(page.getByRole('button', { name: /^Rychlost: 30 ft/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Rychlost: 40 ft/ })).toBeVisible()
 
-  // smazání kamene vrátí rychlost
+  // smazání itemu
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   const stone = page.getByRole('listitem').filter({ hasText: 'Kámen' }).first()
   await stone.getByText('Podrobnosti').click()

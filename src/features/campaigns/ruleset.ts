@@ -9,7 +9,7 @@ export function rulesetOf(settings: Record<string, unknown> | undefined): Rulese
   return settings?.ruleset === '2024' ? '2024' : '2014'
 }
 
-/** Pravidla kampaně pro engine (nosnost a sada pravidel). Kampaně bez nastavení hrají podle 2014. */
-export function engineRulesOf(settings: Record<string, unknown> | undefined): { encumbrance: boolean; ruleset: Ruleset } {
-  return { encumbrance: settings?.encumbrance === true, ruleset: rulesetOf(settings) }
+/** Pravidla kampaně pro engine (sada pravidel). Kampaně bez nastavení hrají podle 2014. */
+export function engineRulesOf(settings: Record<string, unknown> | undefined): { ruleset: Ruleset } {
+  return { ruleset: rulesetOf(settings) }
 }

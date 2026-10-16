@@ -69,7 +69,6 @@ function inventoryFromSeed(): InventoryItem[] {
     name,
     kind: 'weapon',
     quantity: seed.inventory.find((i) => i.item === name)?.qty ?? 1,
-    weight: stats.weight,
     equipped: true, // zbraně s řádkem v sekci attacks se nosí v ruce
     attuned: false,
     requiresAttunement: false,

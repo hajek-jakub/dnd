@@ -95,7 +95,6 @@ final class Sheets
                 'subrace' => $r['subrace'],
                 'background' => $r['background'],
                 'alignment' => $r['alignment'],
-                'xp' => $r['xp'] === null ? null : (int) $r['xp'],
                 'inspiration' => (bool) $r['inspiration'],
                 'description' => (string) ($r['description'] ?? ''),
                 'personality' => self::json($r['personality'], ['traits' => '', 'ideals' => '', 'bonds' => '', 'flaws' => '']),

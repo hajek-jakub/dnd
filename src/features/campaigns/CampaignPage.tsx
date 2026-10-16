@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { CopyIcon, UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -202,9 +202,6 @@ function InvitesCard({ campaignId, className }: { campaignId: string; className?
 
 function SettingsForm({ campaignId, settings }: { campaignId: string; settings: Record<string, unknown> | undefined }) {
   const update = useUpdateCampaignSettings(campaignId)
-  // Přepínač se přepne okamžitě (synchronně), server se dozví změnu na pozadí; při chybě se vrátí.
-  const [optimistic, setOptimistic] = useState<boolean | null>(null)
-  const checked = optimistic ?? settings?.encumbrance === true
   const ruleset = rulesetOf(settings)
   return (
     <div className="space-y-4">
@@ -231,27 +228,6 @@ function SettingsForm({ campaignId, settings }: { campaignId: string; settings: 
           Data pravidel (itemy, kouzla, třídy) jsou zatím jen ze SRD 5.1.
         </p>
       </div>
-      <label className="flex min-h-11 cursor-pointer items-start gap-3">
-        <input
-          type="checkbox"
-          className="mt-1 size-5 shrink-0 accent-primary"
-          checked={checked}
-          onChange={(e) => {
-            setOptimistic(e.target.checked)
-            update.mutate(
-              { encumbrance: e.target.checked },
-              {
-                onError: () => toast.error('Nastavení se nepodařilo uložit'),
-                onSettled: () => setOptimistic(null),
-              },
-            )
-          }}
-        />
-        <span>
-          Sledovat nosnost a přetížení
-          <span className="block text-sm text-muted-foreground">Nad 5× STR liber −10 ft rychlosti, nad 10× STR −20 ft (volitelné pravidlo z PHB).</span>
-        </span>
-      </label>
     </div>
   )
 }

@@ -138,7 +138,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Pravidla pro engine dodává `GET /rules/engine` (třídy + tabulky levelů ze SRD); `buildRulesBundle` je jediná implementace (app i testy). Popisy featur: `GET /rules/class-features`.
 - **Datový model postavy** (migrace 003): `characters` rozšířeno (vlastnosti, HP, death saves, sloty, skilly, přepisy, osobnost, peníze, `rev`), `character_levels` (každý získaný level = řádek, základ pro level up),
   `character_resources`. Class/level shrnutí a `level` se přepočítávají (`Sheets::syncDerived`).
-- **API**: `POST/GET/PATCH/DELETE /characters/...`; `PATCH` s `rev` (409 při souběhu), `POST /characters/{id}/adjust` = atomické změny o hodnotu (HP, temp HP, sloty, pact, zdroje, hit dice, death saves, XP, inspirace, stavy),
+- **API**: `POST/GET/PATCH/DELETE /characters/...`; `PATCH` s `rev` (409 při souběhu), `POST /characters/{id}/adjust` = atomické změny o hodnotu (HP, temp HP, sloty, pact, zdroje, hit dice, death saves, inspirace, stavy),
   aby se kliknutí hráče a DM nepřepisovala; `POST/GET/DELETE /characters/{id}/photo` (fotka: klient ořízne na čtverec, server přegeneruje přes GD na 512 px JPEG, soubory v `api/storage`, vidí je členové kampaně).
 - **UI** (`src/features/sheet`): vytvoření postavy, sheet s přehledem (AC, iniciativa, rychlost, proficiency, passive perception, HP s velkými tlačítky, sloty a zdroje se steppery, útoky, vlastnosti, savy, skilly,
   sesílání), klepnutím na hodnotu se ukáže rozpis a jde ji přepsat (značka „ručně“, tlačítko vrácení), short a long rest (včetně hodu hit dice), featury s popisy, záložka Postava (údaje, osobnost, poznámky, fotka s ořezem, viditelnost pro DM).
@@ -155,7 +155,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Efekty itemů (bonusy k AC, savům, skillům, rychlosti, ...) se započítají jen u nošeného (a u attunement itemů attunovaného) itemu a s původem se ukážou v rozpisu hodnoty.
 - **Peníze**: cp/sp/ep/gp/pp, převod mincí (`money.ts`, jen celé násobky), celková hodnota. **Předávání** (`POST /characters/{id}/transfer`): item (i část stacku) a/nebo peníze jiné postavě ve stejné kampani, v transakci s zámkem obou postav
   (souběžné předání stejného itemu projde jen jednou). Předaný item se odequipuje a ztratí attunement.
-- **Nosnost/přetížení**: volitelné pravidlo kampaně (`campaigns.settings.encumbrance`, přepíná DM v kampani), engine: nad 5× STR −10 ft, nad 10× STR −20 ft, váha a limity vždy vidět.
+- **Nosnost a váha se nesledují** (odstraněno, migrace 015 smazala `character_items.weight`; stejně tak `characters.xp`): žádná váha itemů, žádná nosnost ani přetížení, nastavení kampaně má jen `ruleset`.
 - API: `POST/PATCH/DELETE /characters/{id}/items[/{itemId}]`, `POST /characters/{id}/transfer`, `POST/PATCH/DELETE /characters/{id}/spells[/{spellId}]`, `PATCH /campaigns/{id}` s `settings`.
 - Testy: 58 unit testů enginu, 129 API testů (inventář, attunement, souběhy, předávání, kouzla, oprávnění), 46 E2E (desktop + mobil) včetně warlocka z pact slotu a předání mezi DM na počítači a hráčem na telefonu.
 
@@ -171,13 +171,13 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 
 ### Fáze 6 – Panel DM: HOTOVO
 - **Panel** (`/campaigns/:id/dm`, `src/features/dm/`; odkaz „Panel DM“ na stránce kampaně vidí jen DM, hráč je z URL přesměrován): karty všech postav (HP s rychlými −5/−1/+1/+5, AC, pasivní vnímání, rychlost, stavy, sloty a zdroje, bonusy s tlačítkem Zrušit), výběr jedné/více/všech postav a akce pro výběr:
-  zranění/léčení (i skupinově), XP (každý dostane celou částku, nebo rozdělit rovným dílem), peníze, item (z pravidel s počtem kusů, nebo jednorázový přes `ItemForm`), stav (nastavit/zrušit), inspirace, bonus/efekt. Poznámky DM (`NotesPanel`, obecné i k postavě).
-- **API** (`DmController`, vše `POST /campaigns/{id}/dm/{items|currency|xp|inspiration|hp|conditions|effects}`, jen DM; cílové postavy se zamknou `FOR UPDATE` a musí patřit do kampaně, jinak 422; vše v jedné transakci),
+  zranění/léčení (i skupinově), peníze, item (z pravidel s počtem kusů, nebo jednorázový přes `ItemForm`), stav (nastavit/zrušit), inspirace, bonus/efekt. Poznámky DM (`NotesPanel`, obecné i k postavě).
+- **API** (`DmController`, vše `POST /campaigns/{id}/dm/{items|currency|inspiration|hp|conditions|effects}`, jen DM; cílové postavy se zamknou `FOR UPDATE` a musí patřit do kampaně, jinak 422; vše v jedné transakci),
   `DELETE /effects/{id}` (DM) a `DELETE /characters/{id}/effects/long-rest` (majitel/DM, maže jen efekty „do long restu“).
 - **Efekty** (`character_effects`: cíl, hodnota, zdroj, trvání `permanent|long_rest|manual`) vstupují do enginu přes `toEngineInput` a ve výpočtu mají viditelný zdroj (tooltip hodnoty). Na sheetu je karta „Bonusy od DM“ (hráč vidí, zrušit jen DM). Long rest efekty „do long restu“ smaže.
 - **Oznámení** (`notifications`, `NotificationController`): každá změna od DM pošle hráči (majiteli postavy) oznámení („DM ti dal: Bag of Holding“); neposílá se sám sobě. Klient se ptá každých 5 s (`useNotifications`, žádný websocket – Endora), nové ukáže jako toast,
   zvonek v hlavičce má odznak nepřečtených, `/notifications` je seznam a po otevření se označí jako přečtené. Při předávání itemů mezi hráči se oznámení posílá také.
-- Testy: 174 API testů (26 v `dm.test.ts`: autorizace všech akcí, cizí kampaň, atomicita, notifikace), E2E `dm.spec.ts` (DM počítač + hráč telefon: item, XP, bonus, stav, zranění, oznámení, long rest, soukromí poznámek; panel na telefonu bez horizontálního scrollu).
+- Testy: 174 API testů (26 v `dm.test.ts`: autorizace všech akcí, cizí kampaň, atomicita, notifikace), E2E `dm.spec.ts` (DM počítač + hráč telefon: item, bonus, stav, zranění, oznámení, long rest, soukromí poznámek; panel na telefonu bez horizontálního scrollu).
 
 ### Seed postavy Hajoš (`seed/hajos.json`, `api/src/CharacterSeeder.php`, `api/bin/seed-hajos.php`)
 - Spuštění: `SEED_OWNER_USERNAME=<tvé přihlašovací jméno> npm run seed:hajos` (proměnné jdou i z `.env`, viz `.env.example`; aplikace nemá e-maily, účet se hledá podle jména).
@@ -189,7 +189,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - **Mapování na SRD**: itemy podle názvu (alias `Light Crossbow` → `Crossbow, light`), kouzla podle názvu. Co v SRD není, vznikne jako homebrew kampaně: Nunchaku a Demonic Spear (zbraně; Spear je základ Demonic Spear, `attunement: true` nastaví `requires_attunement` i `attuned`). Kouzla mimo SRD se berou z katalogu kouzel (`ruleset 'ref'`, viz níže), ne z homebrew.
   Zbraně s řádkem v sekci `attacks` se nosí v ruce (`equipped`), aby se jejich útoky ukázaly na sheetu.
 - **Zastavení před zápisem** (`SeedStop`, exit 3): neznámá sekce nebo pole, neznámý item, kouzlo, zdroj nebo dovednost, nečitelné `extraDamage`, neexistující majitel nebo kampaň. Seed nejdřív celé ověří (`plan()`), teprve pak zapisuje. Když model něco neumí uložit, nejdřív se zeptat, schéma neměnit bez dohody.
-- **null a TO_CONFIRM**: `null` zůstane prázdné (XP = NULL v DB, background a alignment prázdný text), UI to ukáže jako „nedoplněno“ (`MissingInfo` na sheetu, „XP nedoplněno“ v hlavičce). Texty začínající `TO_CONFIRM` se uloží do poznámek postavy a itemů tak, jak jsou,
+- **null a TO_CONFIRM**: `null` zůstane prázdné (background a alignment prázdný text), UI to ukáže jako „nedoplněno“ (`MissingInfo` na sheetu). Texty začínající `TO_CONFIRM` se uloží do poznámek postavy a itemů tak, jak jsou,
   a UI je ukáže ve výpisu „Ke ověření“ a se štítkem „ke ověření“ u poznámek itemů (`unconfirmed.ts`, `NotesText`). `openQuestions` se na konci seedu vypíšou do konzole (do DB se neukládají).
 - **Aktuální podoba papíru** (druhá verze seedu): pravidla 2014 jsou rozhodnutá, Warlock má cantripy Eldritch Blast a Minor Illusion (SRD) a čtyři kouzla 1. úrovně: Hex a Armor of Agathys (katalog kouzel, viz níže) a Command a Burning Hands (SRD; DM povolil všechna čtyři, dvě má z výběru a dvě od fienda); seed bere kouzla z `cantrips` a `known` (nebo `leveled`).
   Nunchaku jsou homebrew zbraň s kostkou d8 (kostku a typ zranění seed bere z řádku útoku v `attacks`, kategorie simple melee je odhad), Unarmed Strike (martial arts d6) vychází z enginu sám. Heroic Inspiration z první verze už v seedu není (inspirace je vypnutá).
@@ -220,9 +220,9 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Testy: engine (`engine.test.ts` blok „Pravidla kampaně“, `hajos-sheet.test.ts`: s 2024 vychází Nunchaku 1d8+4 přesně podle papíru), API (`campaigns.test.ts`), E2E (`hajos.spec.ts`: přepnutí 2024 a zpět, počítač i telefon).
 
 ### Změny datového modelu při seedu Hajoše (domluvené)
-- **Migrace 006**: `characters.xp` je nepovinné, `NULL` = nedoplněno. Změna XP (DM, `adjust`, level up) bere NULL jako 0; běžné úpravy (HP apod.) NULL zachovají. `PATCH {xp: null}` XP zase „odnastaví“.
+- **XP se nesledují** (migrace 015 sloupec `characters.xp` smazala, zrušena trasa `dm/xp` i operace `xp` v `adjust`).
 - **Doplňková zranění zbraně**: ve `stats` zbraně (JSON, bez migrace) je volitelné `extraDamage: [{dice, type}]` (nejvýš 3, např. `1d4` + `Fire`). Engine ho vrací v `AttackInfo.extraDamage`, sheet ukazuje „+ 1d4 fire“ (bonus k útoku se k němu nepřidává). Formulář itemu má pole „Doplňková zranění“.
-- **Homebrew druh `weapon`** (`POST /campaigns/{id}/homebrew`, formulář „Nová zbraň“ ve skupině Vybavení): data mají tvar SRD zbraní (`damage`, `weapon_category`, `weapon_range`, `properties`, `weight`, `two_handed_damage`) plus `magic_bonus` a `extra_damage`;
+- **Homebrew druh `weapon`** (`POST /campaigns/{id}/homebrew`, formulář „Nová zbraň“ ve skupině Vybavení): data mají tvar SRD zbraní (`damage`, `weapon_category`, `weapon_range`, `properties`, `two_handed_damage`) plus `magic_bonus` a `extra_damage`;
   inventář z ní vyrobí zbraň včetně magického bonusu a doplňkových zranění.
 
 ### Fáze 7 – Zprávy: HOTOVO

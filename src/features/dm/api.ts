@@ -34,14 +34,6 @@ export function useGiveCurrency(campaignId: string) {
   })
 }
 
-export function useGiveXp(campaignId: string) {
-  const refresh = useRefreshCharacters(campaignId)
-  return useMutation({
-    mutationFn: (input: { characterIds: string[]; amount: number; split: boolean }) => api.post<{ eachGets: number }>(`/campaigns/${campaignId}/dm/xp`, input),
-    onSuccess: refresh,
-  })
-}
-
 export function useSetInspiration(campaignId: string) {
   const refresh = useRefreshCharacters(campaignId)
   return useMutation({

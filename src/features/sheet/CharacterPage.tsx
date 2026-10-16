@@ -19,7 +19,6 @@ import { DiceDock } from '@/features/dice/DiceDock'
 import { RollModeSwitch } from '@/features/dice/RollModeSwitch'
 import { EffectsCard } from './EffectsCard'
 import { MissingInfo } from './MissingInfo'
-import { NotFilled } from './NotesText'
 import { ResourcesCard } from './ResourcesCard'
 import { SheetProvider } from './SheetContext'
 import { useSheet } from './sheet-context'
@@ -84,7 +83,7 @@ function SheetView() {
           )}
           <p className="text-muted-foreground">{[character.race, sheet.classSummary].filter(Boolean).join(' · ')}</p>
           <p className="text-sm text-muted-foreground">
-            Level {sheet.totalLevel} · {character.xp === null ? <NotFilled>XP nedoplněno</NotFilled> : `${character.xp} XP`}
+            Level {sheet.totalLevel}
           </p>
         </div>
         {canEdit && sheet.totalLevel < 20 && (

@@ -50,7 +50,6 @@ export function factsFor(e: RuleDetail): Fact[] {
       const range = d.range as { normal?: number; long?: number } | undefined
       add('Dostřel', range?.normal ? (range.long ? `${range.normal}/${range.long} ft` : `${range.normal} ft`) : null)
       add('Vlastnosti', names(d.properties).join(', '))
-      add('Váha', num(d.weight) !== null ? `${d.weight} lb` : null)
       add('Cena', formatPrice(e.priceGp, e.priceNote))
       break
     }
@@ -62,13 +61,11 @@ export function factsFor(e: RuleDetail): Fact[] {
       }
       add('Min. síla', num(d.str_minimum) ? String(d.str_minimum) : null)
       add('Stealth', d.stealth_disadvantage === true ? 'nevýhoda' : null)
-      add('Váha', num(d.weight) !== null ? `${d.weight} lb` : null)
       add('Cena', formatPrice(e.priceGp, e.priceNote))
       break
     }
     case 'equipment': {
       add('Kategorie', e.category)
-      add('Váha', num(d.weight) !== null ? `${d.weight} lb` : null)
       add('Cena', formatPrice(e.priceGp, e.priceNote))
       break
     }

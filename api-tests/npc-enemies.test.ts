@@ -69,11 +69,10 @@ describe('NPC (postavy DM bez majitele)', () => {
     expect((await dm.client.get(`/characters/${npc.id}`)).body.character.currency.gp).toBe(12)
   })
 
-  it('akce DM na NPC (peníze, XP, léčení) nespadnou a NPC nikdo neoznamuje', async () => {
+  it('akce DM na NPC (peníze, inspirace, léčení) nespadnou a NPC nikdo neoznamuje', async () => {
     const npc = await makeNpc('Cíl DM')
     for (const [path, payload] of [
       ['currency', { characterIds: [npc.id], currency: { gp: 5 } }],
-      ['xp', { characterIds: [npc.id], amount: 100 }],
       ['inspiration', { characterIds: [npc.id], set: true }],
       ['hp', { delta: -3, targets: [{ characterId: npc.id, max: 12 }] }],
     ] as const) {

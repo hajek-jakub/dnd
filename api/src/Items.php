@@ -69,7 +69,6 @@ final class Items
             'description' => (string) $rule['desc_text'],
             'kind' => $kind,
             'quantity' => 1,
-            'weight' => isset($data['weight']) ? (float) $data['weight'] : 0.0,
             'requiresAttunement' => $requires,
             // munice, lektvary a svitky se používáním spotřebují
             'consumable' => preg_match('/^(arrow|crossbow bolt|blowgun needle|sling bullet|potion|scroll|oil|elixir|antitoxin|holy water|acid|rations|torch)/i', (string) $rule['name']) === 1,
@@ -169,13 +168,6 @@ final class Items
                 throw HttpError::validation('Množství je povinné.', 'quantity');
             }
             $out['quantity'] = $q;
-        }
-        if ($has('weight')) {
-            $w = $in['weight'];
-            if ((!is_int($w) && !is_float($w)) || $w < 0 || $w > 100000) {
-                throw HttpError::validation('Váha musí být číslo od 0 do 100 000.', 'weight');
-            }
-            $out['weight'] = round((float) $w, 2);
         }
         foreach (['equipped' => 'equipped', 'attuned' => 'attuned', 'requiresAttunement' => 'requires_attunement', 'consumable' => 'consumable'] as $key => $column) {
             if ($has($key)) {
@@ -308,7 +300,6 @@ final class Items
                 'description' => $r['description'],
                 'kind' => $r['kind'],
                 'quantity' => (int) $r['quantity'],
-                'weight' => (float) $r['weight'],
                 'equipped' => (bool) $r['equipped'],
                 'attuned' => (bool) $r['attuned'],
                 'requiresAttunement' => (bool) $r['requires_attunement'],

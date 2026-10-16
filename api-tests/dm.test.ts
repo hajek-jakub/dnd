@@ -34,7 +34,6 @@ describe('DM panel a oznámení', () => {
     const endpoints: [string, unknown][] = [
       ['items', { item: { name: 'Dar' } }],
       ['currency', { currency: { gp: 1 } }],
-      ['xp', { amount: 10 }],
       ['inspiration', { set: true }],
       ['hp', { delta: -1, targets: [] }],
       ['conditions', { name: 'Poisoned', set: true }],
@@ -48,19 +47,19 @@ describe('DM panel a oznámení', () => {
     })
 
     it('DM nemůže zasáhnout postavy z jiné kampaně ani neexistující', async () => {
-      expect((await dmPost('xp', { characterIds: [foreignChar], amount: 10 })).status).toBe(422)
-      expect((await dmPost('xp', { characterIds: [bobChar, foreignChar], amount: 10 })).status).toBe(422)
-      expect((await dmPost('xp', { characterIds: ['00000000-0000-0000-0000-000000000000'], amount: 10 })).status).toBe(422)
-      expect((await dmPost('xp', { characterIds: [], amount: 10 })).status).toBe(422)
-      expect((await dmPost('xp', { characterIds: ['x'], amount: 10 })).status).toBe(422)
-      expect((await sheet(dm, bobChar)).xp).toBe(0) // nic se nezměnilo ani u platné postavy ve smíšeném výběru
+      expect((await dmPost('inspiration', { characterIds: [foreignChar], set: true })).status).toBe(422)
+      expect((await dmPost('inspiration', { characterIds: [bobChar, foreignChar], set: true })).status).toBe(422)
+      expect((await dmPost('inspiration', { characterIds: ['00000000-0000-0000-0000-000000000000'], set: true })).status).toBe(422)
+      expect((await dmPost('inspiration', { characterIds: [], set: true })).status).toBe(422)
+      expect((await dmPost('inspiration', { characterIds: ['x'], set: true })).status).toBe(422)
+      expect((await sheet(dm, bobChar)).inspiration).toBe(false) // nic se nezměnilo ani u platné postavy ve smíšeném výběru
     })
 
     it('DM jiné kampaně nemůže zasahovat do cizí kampaně', async () => {
       const otherDm = await registerUser('dm2')
       const otherCampaign = await createCampaign(otherDm, 'Cizí')
-      expect((await dmPost('xp', { characterIds: [bobChar], amount: 10 }, otherDm, campaignId)).status).toBe(404)
-      expect((await dmPost('xp', { characterIds: [bobChar], amount: 10 }, otherDm, otherCampaign)).status).toBe(422) // postava není v jeho kampani
+      expect((await dmPost('inspiration', { characterIds: [bobChar], set: true }, otherDm, campaignId)).status).toBe(404)
+      expect((await dmPost('inspiration', { characterIds: [bobChar], set: true }, otherDm, otherCampaign)).status).toBe(422) // postava není v jeho kampani
     })
   })
 
@@ -71,7 +70,7 @@ describe('DM panel a oznámení', () => {
       expect((await sheet(bob, bobChar)).items.map((i: { name: string }) => i.name)).toContain('Bag of Holding')
       expect((await sheet(carol, carolChar)).items.map((i: { name: string }) => i.name)).toContain('Bag of Holding')
 
-      expectStatus(await dmPost('items', { characterIds: [bobChar], item: { name: 'Zlatý klíč', quantity: 3, weight: 0.1 } }), 200)
+      expectStatus(await dmPost('items', { characterIds: [bobChar], item: { name: 'Zlatý klíč', quantity: 3 } }), 200)
       const key = (await sheet(bob, bobChar)).items.find((i: { name: string }) => i.name === 'Zlatý klíč')
       expect(key).toMatchObject({ quantity: 3 })
 
@@ -149,16 +148,6 @@ describe('DM panel a oznámení', () => {
       expect(await cp(bob, bobChar)).toBe(b1)
       expect(await cp(carol, carolChar)).toBe(c1)
       expect((await dmPost('currency', { characterIds: [bobChar], currency: { gp: 1 }, mode: 'steal' })).status).toBe(422)
-    })
-
-    it('XP: každému celou částku, nebo rozdělit rovným dílem', async () => {
-      expect((await dmPost('xp', { characterIds: [bobChar, carolChar], amount: 100 })).body.eachGets).toBe(100)
-      expect((await sheet(bob, bobChar)).xp).toBe(100)
-      const split = await dmPost('xp', { characterIds: [bobChar, carolChar], amount: 301, split: true })
-      expect(split.body.eachGets).toBe(150) // zbytek propadá
-      expect((await sheet(carol, carolChar)).xp).toBe(250)
-      expect((await dmPost('xp', { characterIds: [bobChar], amount: 0 })).status).toBe(422)
-      expect((await notes(carol)).notifications.map((x) => x.text)).toContain('DM ti dal 150 XP')
     })
 
     it('inspirace', async () => {
@@ -292,7 +281,7 @@ describe('DM panel a oznámení', () => {
 
     it('DM si sám nenotifikuje a anonym je odmítnut', async () => {
       const own = (await dm.client.post(`/campaigns/${campaignId}/characters`, { ...BASE, name: 'DM postava' })).body.character.id
-      await dmPost('xp', { characterIds: [own], amount: 50 })
+      await dmPost('inspiration', { characterIds: [own], set: true })
       expect((await notes(dm)).notifications).toEqual([])
       expect((await new Client().get('/notifications')).status).toBe(401)
     })

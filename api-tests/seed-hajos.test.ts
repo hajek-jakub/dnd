@@ -90,8 +90,9 @@ describe('seed postavy Hajoš', () => {
     expect(character.race).toBe('Human')
   })
 
-  it('null zůstane null: XP a alignment nedoplněno; background a příběh jsou vyplněné', () => {
-    expect(character.xp).toBeNull()
+  it('alignment zůstane prázdný (nedoplněno); background a příběh jsou vyplněné', () => {
+    expect(character.xp).toBeUndefined() // XP se v aplikaci nesledují
+    expect(character.weight).toBeUndefined()
     expect(character.alignment).toBe('')
     expect(character.background).toBe('Hermit')
     expect(character.description).toContain('sirotčince')
@@ -323,19 +324,6 @@ describe('seed postavy Hajoš', () => {
     expect((await characters()).length).toBe(before)
   })
 
-  it('XP "nedoplněno" přežije běžné změny a DM ho umí zvednout', async () => {
-    const dmCampaign = (await owner.client.get(`/characters/${characterId}`)).body.character.campaignId
-    expect(dmCampaign).toBe(campaignId)
-    expectStatus(await owner.client.post(`/characters/${characterId}/adjust`, { ops: [{ op: 'hp', delta: -5, max: 39 }] }), 200)
-    expect((await owner.client.get(`/characters/${characterId}`)).body.character.xp).toBeNull()
-    const res = await owner.client.post(`/campaigns/${campaignId}/dm/xp`, { characterIds: [characterId], amount: 150, split: false })
-    expectStatus(res, 200)
-    expect((await owner.client.get(`/characters/${characterId}`)).body.character.xp).toBe(150)
-    const patch = await owner.client.patch(`/characters/${characterId}`, { xp: null })
-    expectStatus(patch, 200)
-    expect(patch.body.character.xp).toBeNull()
-  })
-
   it('cizinec ani jiný hráč kampaně nevidí víc než veřejný náhled Hajoše', async () => {
     const player = await joinAsPlayer(owner, campaignId, 'hrac')
     const asPlayer = (await characters(player)).find((c) => c.name === 'Hajoš')
@@ -355,7 +343,7 @@ describe('homebrew zbraň přes API', () => {
   let dm: TestUser
   let player: TestUser
   let campaignId: string
-  const weapon = { kind: 'weapon', name: 'Ohnivý kyj', damageDice: '1d8', damageType: 'Bludgeoning', category: 'martial', range: 'melee', properties: ['Heavy'], weight: 5, magicBonus: 2, extraDamage: [{ dice: '2d6', type: 'Fire' }] }
+  const weapon = { kind: 'weapon', name: 'Ohnivý kyj', damageDice: '1d8', damageType: 'Bludgeoning', category: 'martial', range: 'melee', properties: ['Heavy'], magicBonus: 2, extraDamage: [{ dice: '2d6', type: 'Fire' }] }
 
   beforeAll(async () => {
     dm = await registerUser('hbdm')

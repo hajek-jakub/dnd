@@ -9,7 +9,6 @@ import {
   PackagePlusIcon,
   ShieldPlusIcon,
   SparklesIcon,
-  StarIcon,
   SwordsIcon,
   ZapIcon,
 } from 'lucide-react'
@@ -40,7 +39,6 @@ import { usePageTitle } from '@/lib/page-title'
 const ACTIONS: { id: DmAction; label: string; icon: typeof ZapIcon }[] = [
   { id: 'hp', label: 'Zranění / léčení', icon: HeartPulseIcon },
   { id: 'temp', label: 'Dočasná HP', icon: ShieldPlusIcon },
-  { id: 'xp', label: 'XP', icon: StarIcon },
   { id: 'currency', label: 'Peníze', icon: CoinsIcon },
   { id: 'item', label: 'Item', icon: PackagePlusIcon },
   { id: 'condition', label: 'Stav', icon: ZapIcon },
@@ -219,7 +217,7 @@ function CharacterOverview({
             {[character.race, sheet.classSummary].filter(Boolean).join(' · ')} · level {sheet.totalLevel}
           </p>
           <p className="text-xs text-muted-foreground">
-            {character.xp === null ? 'XP nedoplněno' : `${character.xp} XP`}{character.inspiration && <span className="ml-2 font-medium text-amber-600">★ inspirace</span>}
+            {character.inspiration && <span className="ml-2 font-medium text-amber-600">★ inspirace</span>}
           </p>
         </div>
       </div>

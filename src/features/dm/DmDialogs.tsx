@@ -17,7 +17,6 @@ import {
   useDmHp,
   useGiveCurrency,
   useGiveItem,
-  useGiveXp,
   useSetCondition,
   useSetInspiration,
   useSetTempHp,
@@ -29,7 +28,7 @@ export interface DmTarget {
   hpMax: number
 }
 
-export type DmAction = 'hp' | 'temp' | 'xp' | 'currency' | 'item' | 'condition' | 'inspiration' | 'effect'
+export type DmAction = 'hp' | 'temp' | 'currency' | 'item' | 'condition' | 'inspiration' | 'effect'
 
 interface DialogProps {
   campaignId: string
@@ -70,9 +69,6 @@ export function DmDialogs({ action, campaignId, targets, onClose }: { action: Dm
       </Modal>
       <Modal open={action === 'temp'} onClose={onClose} title="Dočasná HP">
         {action === 'temp' && <TempHpForm {...common} />}
-      </Modal>
-      <Modal open={action === 'xp'} onClose={onClose} title="Dát XP">
-        {action === 'xp' && <XpForm {...common} />}
       </Modal>
       <Modal open={action === 'currency'} onClose={onClose} title="Dát peníze">
         {action === 'currency' && <CurrencyForm {...common} />}
@@ -167,47 +163,6 @@ function TempHpForm({ campaignId, targets, onClose }: DialogProps) {
       <p className="text-xs text-muted-foreground">Dočasná HP se nesčítají, platí nová hodnota. Nula je zruší.</p>
       <Button type="submit" size="lg" className="w-full" disabled={!valid || mutation.isPending}>
         Nastavit dočasná HP
-      </Button>
-    </Form>
-  )
-}
-
-function XpForm({ campaignId, targets, onClose }: DialogProps) {
-  const [amount, setAmount] = useState('')
-  const [split, setSplit] = useState(false)
-  const mutation = useGiveXp(campaignId)
-  const value = Number.parseInt(amount, 10)
-  const valid = Number.isInteger(value) && value > 0
-
-  function submit() {
-    if (!valid) return
-    mutation.mutate(
-      { characterIds: targets.map((t) => t.id), amount: value, split },
-      {
-        onSuccess: (r) => {
-          toast.success(targets.length > 1 ? `Každý dostal ${r.eachGets} XP` : `Přidáno ${r.eachGets} XP`)
-          onClose()
-        },
-        onError: (e) => toast.error(errorText(e, 'XP se nepodařilo přidat.')),
-      },
-    )
-  }
-
-  return (
-    <Form onSubmit={submit}>
-      <Targets targets={targets} />
-      <div className="space-y-2">
-        <Label htmlFor="dm-xp-amount">Kolik XP</Label>
-        <Input id="dm-xp-amount" type="number" inputMode="numeric" min={1} autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} />
-      </div>
-      {targets.length > 1 && (
-        <label className="flex min-h-11 items-center gap-3">
-          <input type="checkbox" className="size-5" checked={split} onChange={(e) => setSplit(e.target.checked)} />
-          <span>Rozdělit rovným dílem mezi vybrané (zaokrouhleno dolů)</span>
-        </label>
-      )}
-      <Button type="submit" size="lg" className="w-full" disabled={!valid || mutation.isPending}>
-        Dát XP
       </Button>
     </Form>
   )

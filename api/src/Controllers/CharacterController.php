@@ -85,16 +85,14 @@ final class CharacterController
         $state = Sheets::state($data['state'] ?? []);
         $name = Input::string($data, 'name', 1, 100, 'Jméno postavy');
         $baseSpeed = Input::optionalInt($data, 'baseSpeed', 0, 200, 'Rychlost') ?? 30;
-        // XP: chybí = 0, výslovné null = "nedoplněno" (NULL v DB)
-        $xp = array_key_exists('xp', $data) ? Input::optionalInt($data, 'xp', 0, 10000000, 'XP') : 0;
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $params, $ownerId, $kind, $name, $data, $scores, $lv, $state, $visibility, $baseSpeed, $xp): void {
+        Db::transaction(static function () use ($id, $params, $ownerId, $kind, $name, $data, $scores, $lv, $state, $visibility, $baseSpeed): void {
             Db::exec(
                 'INSERT INTO characters (id, campaign_id, owner_id, kind, name, race, subrace, background, alignment, class_summary, level, notes, visibility,
                     abil_str, abil_dex, abil_con, abil_int, abil_wis, abil_cha, base_speed, hp_current, hp_temp, skill_proficiencies,
-                    extra_save_proficiencies, extra_proficiencies, subclasses, personality, description, xp, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'\', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                    extra_save_proficiencies, extra_proficiencies, subclasses, personality, description, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'\', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
                 [
                     $id, $params['id'], $ownerId, $kind, $name,
                     Input::optionalString($data, 'race', 100, 'Rasa') ?? '',
@@ -111,7 +109,6 @@ final class CharacterController
                     Sheets::enc($lv['subclasses']),
                     Sheets::enc(Sheets::personality($data)),
                     Input::optionalString($data, 'description', 20000, 'Popis') ?? '',
-                    $xp,
                 ],
             );
             Sheets::saveLevels($id, $lv['levels']);
@@ -181,9 +178,6 @@ final class CharacterController
         }
         if (array_key_exists('baseSpeed', $data)) {
             $set('base_speed', Input::optionalInt($data, 'baseSpeed', 0, 200, 'Rychlost') ?? 30);
-        }
-        if (array_key_exists('xp', $data)) {
-            $set('xp', Input::optionalInt($data, 'xp', 0, 10000000, 'XP')); // null = nedoplněno
         }
         if (array_key_exists('inspiration', $data)) {
             if (!is_bool($data['inspiration'])) {
@@ -273,7 +267,7 @@ final class CharacterController
     }
 
     /**
-     * Rychlé úpravy stavu (HP, sloty, zdroje, XP, ...) jako změny o hodnotu (delta). Díky tomu se souběžné změny hráče a DM
+     * Rychlé úpravy stavu (HP, sloty, zdroje, ...) jako změny o hodnotu (delta). Díky tomu se souběžné změny hráče a DM
      * nepřepisují: server čte a zapisuje v jedné transakci. Max hodnoty posílá klient (server pravidla nepočítá).
      * @param array{id:string} $user
      */
@@ -301,7 +295,6 @@ final class CharacterController
             $pact = (int) $r['pact_slots_used'];
             $ds = (int) $r['death_successes'];
             $df = (int) $r['death_failures'];
-            $xp = $r['xp'] === null ? null : (int) $r['xp']; // NULL = nedoplněno; zůstane, dokud se XP výslovně nezmění
             $insp = (int) $r['inspiration'];
             $concentration = $r['concentration'] ?? null;
             $resources = [];
@@ -387,9 +380,6 @@ final class CharacterController
                         }
                         $concentration = $set === '' ? null : $set;
                         break;
-                    case 'xp':
-                        $xp = max(0, min(10000000, ($xp ?? 0) + $intField($op, 'delta', -10000000, 10000000)));
-                        break;
                     case 'condition':
                         $name = $op['name'] ?? null;
                         if (!is_string($name) || $name === '' || mb_strlen($name) > 40) {
@@ -407,12 +397,12 @@ final class CharacterController
 
             Db::exec(
                 'UPDATE characters SET hp_current = ?, hp_temp = ?, slots_used = ?, hit_dice_used = ?, conditions = ?, pact_slots_used = ?,
-                    death_successes = ?, death_failures = ?, xp = ?, inspiration = ?, concentration = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
-                [$hp, $temp, Sheets::enc($slots), Sheets::enc($dice), Sheets::enc($conditions), $pact, $ds, $df, $xp, $insp, $concentration, $params['id']],
+                    death_successes = ?, death_failures = ?, inspiration = ?, concentration = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+                [$hp, $temp, Sheets::enc($slots), Sheets::enc($dice), Sheets::enc($conditions), $pact, $ds, $df, $insp, $concentration, $params['id']],
             );
         });
         $sheet = self::loadFull($params['id']);
-        return ['state' => $sheet['state'], 'xp' => $sheet['xp'], 'inspiration' => $sheet['inspiration']];
+        return ['state' => $sheet['state'], 'inspiration' => $sheet['inspiration']];
     }
 
     /** @param array{id:string} $user */

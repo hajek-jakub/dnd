@@ -517,13 +517,6 @@ final class RulesController
                         return trim($p);
                     }, $props);
                 }
-                if ($has('weight')) {
-                    $w = $in['weight'];
-                    if ((!is_int($w) && !is_float($w)) || $w < 0 || $w > 100000) {
-                        throw HttpError::validation('Váha musí být číslo od 0 do 100 000.', 'weight');
-                    }
-                    $extra['weight'] = $w;
-                }
                 if ($has('magicBonus')) {
                     $m = $in['magicBonus'];
                     if (!is_int($m) || $m < 0 || $m > 5) {

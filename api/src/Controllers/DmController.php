@@ -17,7 +17,7 @@ use Dnd\Response;
 use Dnd\Sheets;
 
 /**
- * Akce DM nad postavami v kampani: rozdávání itemů, peněz, XP a inspirace, zranění a léčení (i skupinově),
+ * Akce DM nad postavami v kampani: rozdávání itemů, peněz a inspirace, zranění a léčení (i skupinově),
  * stavy (conditions) a bonusy/efekty. Všechno je jen pro DM a každá změna pošle hráči oznámení.
  */
 final class DmController
@@ -159,26 +159,6 @@ final class DmController
             }
         }
         return implode(', ', $parts);
-    }
-
-    /** XP: každému celou částku, nebo rozdělit rovným dílem mezi vybrané. @param array{id:string} $user */
-    public static function giveXp(Request $req, array $params, array $user): array
-    {
-        Access::requireDm($user, $params['id']);
-        $in = $req->json();
-        $amount = Input::optionalInt($in, 'amount', 1, 10_000_000, 'XP') ?? throw HttpError::validation('Zadej počet XP.', 'amount');
-        $split = ($in['split'] ?? false) === true;
-
-        $each = Db::transaction(static function () use ($params, $user, $in, $amount, $split): int {
-            $chars = self::targets($params['id'], $in);
-            $each = $split ? intdiv($amount, max(1, count($chars))) : $amount;
-            foreach ($chars as $char) {
-                Db::exec('UPDATE characters SET xp = LEAST(10000000, COALESCE(xp, 0) + ?), updated_at = UTC_TIMESTAMP() WHERE id = ?', [$each, $char['id']]);
-                Notifications::push((string) $char['owner_id'], $user['id'], $params['id'], (string) $char['id'], 'xp', "DM ti dal $each XP");
-            }
-            return $each;
-        });
-        return ['eachGets' => $each];
     }
 
     /** Inspirace. @param array{id:string} $user */

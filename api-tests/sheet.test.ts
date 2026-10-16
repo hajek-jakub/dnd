@@ -29,7 +29,7 @@ describe('character sheet', () => {
       const res = await create(bob, { levels: monk5warlock1, subclasses: { monk: 'open-hand', warlock: 'fiend' }, race: 'Human', skillProficiencies: { stealth: 2, perception: 1 } })
       expectStatus(res, 201)
       const c = res.body.character
-      expect(c).toMatchObject({ name: 'Hajoš', level: 6, classSummary: 'Monk 5 / Warlock 1', access: 'full', rev: 0, xp: 0, inspiration: false, baseSpeed: 30 })
+      expect(c).toMatchObject({ name: 'Hajoš', level: 6, classSummary: 'Monk 5 / Warlock 1', access: 'full', rev: 0, inspiration: false, baseSpeed: 30 })
       expect(c.levels).toHaveLength(6)
       expect(c.levels[0]).toEqual({ classIndex: 'monk', hpRoll: null, choices: {} })
       expect(c.subclasses).toEqual({ monk: 'open-hand', warlock: 'fiend' })
@@ -78,11 +78,11 @@ describe('character sheet', () => {
         skillProficiencies: { stealth: 2 }, extraSaveProficiencies: ['wis'], extraProficiencies: ['Light Armor'],
         overrides: { ac: 17, 'save.wis': 5 },
         personality: { traits: 'Klidný', ideals: 'Řád', bonds: 'Klášter', flaws: 'Pyšný' },
-        xp: 1500, inspiration: true, currency: { cp: 1, sp: 2, ep: 0, gp: 30, pp: 1 },
+        inspiration: true, currency: { cp: 1, sp: 2, ep: 0, gp: 30, pp: 1 },
       })
       expectStatus(res, 200)
       expect(res.body.character).toMatchObject({
-        name: 'Hajoš II', race: 'Elf', background: 'Hermit', baseSpeed: 35, xp: 1500, inspiration: true,
+        name: 'Hajoš II', race: 'Elf', background: 'Hermit', baseSpeed: 35, inspiration: true,
         skillProficiencies: { stealth: 2 }, extraSaveProficiencies: ['wis'], extraProficiencies: ['Light Armor'],
         overrides: { ac: 17, 'save.wis': 5 }, currency: { cp: 1, sp: 2, ep: 0, gp: 30, pp: 1 },
         personality: { traits: 'Klidný', ideals: 'Řád', bonds: 'Klášter', flaws: 'Pyšný' },
@@ -159,7 +159,7 @@ describe('character sheet', () => {
       const list = (await carol.client.get(`/campaigns/${campaignId}/characters`)).body.characters
       const preview = list.find((c: { id: string }) => c.id === id)
       expect(preview.access).toBe('public')
-      for (const secret of ['abilityScores', 'state', 'overrides', 'currency', 'personality', 'notes', 'levels', 'customResources', 'description', 'xp']) {
+      for (const secret of ['abilityScores', 'state', 'overrides', 'currency', 'personality', 'notes', 'levels', 'customResources', 'description']) {
         expect(preview, secret).not.toHaveProperty(secret)
       }
       expect((await carol.client.get(`/characters/${id}`)).status).toBe(403)
@@ -193,7 +193,7 @@ describe('character sheet', () => {
       expect((await bob.client.get(`/characters/${id}`)).body.character.state.hpCurrent).toBe(35)
     })
 
-    it('sloty, pact sloty, zdroje, hit dice, death saves, inspirace, XP a stavy', async () => {
+    it('sloty, pact sloty, zdroje, hit dice, death saves, inspirace a stavy', async () => {
       let res = await adjust(bob, [
         { op: 'slot', level: 1, delta: 1, max: 4 },
         { op: 'slot', level: 1, delta: 5, max: 4 },
@@ -203,17 +203,17 @@ describe('character sheet', () => {
         { op: 'deathSave', kind: 'failure', delta: 1 },
         { op: 'deathSave', kind: 'success', delta: 3 },
         { op: 'inspiration', set: true },
-        { op: 'xp', delta: 300 },
         { op: 'condition', name: 'Poisoned', set: true },
         { op: 'condition', name: 'Prone', set: true },
         { op: 'condition', name: 'Prone', set: false },
       ])
       expect(res.body.state).toMatchObject({ slotsUsed: { '1': 4 }, pactSlotsUsed: 1, resources: { 'monk.ki': 3 }, hitDiceUsed: { d8: 2 }, deathFailures: 1, deathSuccesses: 3, conditions: ['Poisoned'] })
-      expect(res.body).toMatchObject({ xp: 300, inspiration: true })
-      res = await adjust(bob, [{ op: 'slot', level: 1, delta: -9, max: 4 }, { op: 'resource', key: 'monk.ki', delta: 99, max: 5 }, { op: 'xp', delta: -1000 }])
+      expect(res.body).toMatchObject({ inspiration: true })
+      res = await adjust(bob, [{ op: 'slot', level: 1, delta: -9, max: 4 }, { op: 'resource', key: 'monk.ki', delta: 99, max: 5 }])
       expect(res.body.state.slotsUsed['1']).toBe(0)
       expect(res.body.state.resources['monk.ki']).toBe(5)
-      expect(res.body.xp).toBe(0)
+      expect(res.body.xp).toBeUndefined() // XP se nesledují
+      expect((await adjust(bob, [{ op: 'xp', delta: 5 }])).status).toBe(422)
     })
 
     it('neplatné operace se odmítnou a nic se nezmění', async () => {

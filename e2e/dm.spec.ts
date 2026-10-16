@@ -20,7 +20,7 @@ async function newCampaign(page: Page, name: string): Promise<{ campaignId: stri
   return { campaignId, code }
 }
 
-test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a vidí změny', async ({ page: dm, browser, baseURL, isMobile }) => {
+test('DM rozdá item, bonus a stav; hráč na telefonu dostane oznámení a vidí změny', async ({ page: dm, browser, baseURL, isMobile }) => {
   test.skip(isMobile, 'Dva kontexty si ten test staví sám (DM počítač + hráč telefon).')
   test.setTimeout(120_000)
 
@@ -57,13 +57,6 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
     await expect(player.getByText('DM ti dal: Bag of Holding').first()).toBeVisible({ timeout: 45_000 })
     await expect(player.getByTestId('unread-badge')).toHaveText('1')
 
-    // XP
-    await dm.getByRole('button', { name: 'XP', exact: true }).click()
-    await dm.getByLabel('Kolik XP').fill('150')
-    await dm.getByRole('button', { name: 'Dát XP' }).click()
-    await expect(dm.getByText('Přidáno 150 XP')).toBeVisible()
-    await expect(elfka).toContainText('150 XP')
-
     // bonus +2 AC do long restu
     await dm.getByRole('button', { name: 'Bonus', exact: true }).click()
     const effect = dm.getByRole('dialog', { name: 'Bonus nebo efekt' })
@@ -97,7 +90,6 @@ test('DM rozdá item, XP, bonus a stav; hráč na telefonu dostane oznámení a 
     // oznámení v seznamu
     await player.getByRole('link', { name: /Oznámení/ }).click()
     await expect(player.getByRole('heading', { name: 'Oznámení' })).toBeVisible()
-    await expect(player.getByText('DM ti dal 150 XP')).toBeVisible()
     await expect(player.getByText('DM ti způsobil 3 zranění')).toBeVisible()
     await expect(player.getByText('DM ti nastavil stav: Poisoned')).toBeVisible()
     await expect(player.getByText('DM ti přidal bonus: +2 AC (Shield of Faith)')).toBeVisible()

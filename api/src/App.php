@@ -118,7 +118,6 @@ final class App
         $r->add('POST', '/enemies/{id}/duplicate', [EnemyController::class, 'duplicate']);
         $r->add('POST', '/campaigns/{id}/dm/items', [DmController::class, 'giveItem']);
         $r->add('POST', '/campaigns/{id}/dm/currency', [DmController::class, 'giveCurrency']);
-        $r->add('POST', '/campaigns/{id}/dm/xp', [DmController::class, 'giveXp']);
         $r->add('POST', '/campaigns/{id}/dm/inspiration', [DmController::class, 'setInspiration']);
         $r->add('POST', '/campaigns/{id}/dm/hp', [DmController::class, 'hp']);
         $r->add('POST', '/campaigns/{id}/dm/conditions', [DmController::class, 'condition']);

@@ -97,8 +97,6 @@ describe('postavy a DM poznámky: oprávnění', () => {
     expect(all.body.characters).toHaveLength(2)
     expect(all.body.characters.every((c: { access: string }) => c.access === 'full')).toBe(true)
 
-    expect((await dm.client.patch(`/characters/${bobChar}`, { xp: 7000 })).body.character.xp).toBe(7000)
-
     expect((await dm.client.patch(`/characters/${bobChar}`, { visibility: 'full' })).status).toBe(200)
     const carolView = await carol.client.get(`/characters/${bobChar}`)
     expect(carolView.status).toBe(200)

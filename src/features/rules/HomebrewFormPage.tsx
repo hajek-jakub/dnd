@@ -70,7 +70,6 @@ interface FormState {
   weaponRange: 'melee' | 'ranged'
   properties: string
   versatileDice: string
-  weight: string
   magicBonus: string
   extraDamage: string
 }
@@ -101,7 +100,6 @@ const EMPTY: FormState = {
   weaponRange: 'melee',
   properties: '',
   versatileDice: '',
-  weight: '',
   magicBonus: '0',
   extraDamage: '',
 }
@@ -145,7 +143,6 @@ function weaponFromData(d: Record<string, unknown>): Partial<FormState> {
     weaponRange: String(d.weapon_range).toLowerCase() === 'ranged' ? 'ranged' : 'melee',
     properties: Array.isArray(d.properties) ? d.properties.join(', ') : '',
     versatileDice: two?.dice ?? '',
-    weight: typeof d.weight === 'number' ? String(d.weight) : '',
     magicBonus: String(typeof d.magic_bonus === 'number' ? d.magic_bonus : 0),
     extraDamage: formatExtraDamage(extra),
   }
@@ -184,7 +181,6 @@ function toInput(kind: HomebrewKind, s: FormState, create: boolean): HomebrewInp
         .map((p) => p.trim())
         .filter(Boolean)
       input.versatileDice = s.versatileDice.trim() === '' ? null : s.versatileDice.trim()
-      if (s.weight.trim() !== '') input.weight = Number(s.weight.replace(',', '.'))
       input.magicBonus = Number.parseInt(s.magicBonus, 10) || 0
       input.extraDamage = parseExtraDamage(s.extraDamage)
       input.rarity = s.rarity === '' ? null : s.rarity
@@ -449,9 +445,6 @@ function FormBody({
               </Field>
               <Field id="hb-versatile" label="Kostka oběma rukama (Versatile)" error={invalid('versatileDice')}>
                 <Input id="hb-versatile" value={s.versatileDice} placeholder="1d8" onChange={(e) => set('versatileDice', e.target.value)} />
-              </Field>
-              <Field id="hb-weight" label="Váha (lb)" error={invalid('weight')}>
-                <Input id="hb-weight" type="number" inputMode="decimal" min={0} step="any" value={s.weight} onChange={(e) => set('weight', e.target.value)} />
               </Field>
               <Field id="hb-magic" label="Magický bonus (k útoku i zranění)" error={invalid('magicBonus')}>
                 <Input id="hb-magic" type="number" inputMode="numeric" min={0} max={5} value={s.magicBonus} onChange={(e) => set('magicBonus', e.target.value)} />

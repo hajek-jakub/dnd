@@ -9,7 +9,6 @@ export function MissingInfo() {
   const missing = [
     character.background.trim() === '' ? 'background' : null,
     character.alignment.trim() === '' ? 'alignment' : null,
-    character.xp === null ? 'XP' : null,
   ].filter((x): x is string => x !== null)
   const toConfirm = [
     ...unconfirmedLines(character.notes).map((t) => ({ where: 'Postava', text: t })),

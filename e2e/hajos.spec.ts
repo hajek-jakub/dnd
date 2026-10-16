@@ -39,9 +39,8 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
   await expect(page.getByRole('button', { name: /^Proficiency bonus: \+3/ })).toBeVisible()
   await expect(page.getByRole('status', { name: 'Životy: 39 z 39' })).toBeVisible()
 
-  // XP a alignment jsou prázdné, UI říká "nedoplněno" (background je Hermit a nic už nečeká na potvrzení)
-  await expect(page.getByText('XP nedoplněno')).toBeVisible()
-  await expect(page.getByTestId('missing-info')).toContainText('alignment, XP')
+  // alignment je prázdný, UI říká "nedoplněno" (background je Hermit a nic už nečeká na potvrzení)
+  await expect(page.getByTestId('missing-info')).toContainText('alignment')
   await expect(page.getByTestId('missing-info')).not.toContainText('background')
   await expect(page.getByText(/Ke ověření/)).toHaveCount(0)
 

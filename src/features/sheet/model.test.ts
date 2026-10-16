@@ -14,7 +14,7 @@ const base: CharacterState = {
   conditions: [],
   concentration: null,
 }
-const extras = { xp: 100, inspiration: false }
+const extras = { inspiration: false }
 
 describe('applyOps (optimistická verze serverových úprav)', () => {
   it('HP startují z maxima, jsou oříznuté na 0 a max', () => {
@@ -49,21 +49,20 @@ describe('applyOps (optimistická verze serverových úprav)', () => {
     expect(r.state.pactSlotsUsed).toBe(1)
   })
 
-  it('death saves, inspirace, XP a stavy', () => {
+  it('death saves, inspirace a stavy', () => {
     const r = applyOps(
       base,
       [
         { op: 'deathSave', kind: 'failure', delta: 2 },
         { op: 'deathSave', kind: 'success', delta: 3 },
         { op: 'inspiration', set: true },
-        { op: 'xp', delta: -500 },
         { op: 'condition', name: 'Prone', set: true },
         { op: 'condition', name: 'Prone', set: true },
       ],
       extras,
     )
     expect(r.state).toMatchObject({ deathFailures: 2, deathSuccesses: 3, conditions: ['Prone'] })
-    expect(r).toMatchObject({ inspiration: true, xp: 0 })
+    expect(r).toMatchObject({ inspiration: true })
   })
 
   it('koncentrace se nastaví a zruší', () => {

@@ -89,7 +89,6 @@ type Patch = Partial<
     | 'extraProficiencies'
     | 'overrides'
     | 'customResources'
-    | 'xp'
     | 'inspiration'
     | 'currency'
     | 'state'
@@ -139,13 +138,13 @@ export function useAdjust(id: string) {
   const key = ['character', id]
   return useMutation({
     mutationKey: ['adjust', id],
-    mutationFn: (ops: AdjustOp[]) => api.post<{ state: CharacterState; xp: number | null; inspiration: boolean }>(`/characters/${id}/adjust`, { ops }),
+    mutationFn: (ops: AdjustOp[]) => api.post<{ state: CharacterState; inspiration: boolean }>(`/characters/${id}/adjust`, { ops }),
     onMutate: async (ops) => {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<CharacterFull>(key)
       if (previous) {
-        const next = applyOps(previous.state, ops, { xp: previous.xp, inspiration: previous.inspiration })
-        queryClient.setQueryData<CharacterFull>(key, { ...previous, state: next.state, xp: next.xp, inspiration: next.inspiration })
+        const next = applyOps(previous.state, ops, { inspiration: previous.inspiration })
+        queryClient.setQueryData<CharacterFull>(key, { ...previous, state: next.state, inspiration: next.inspiration })
       }
       return { previous }
     },
@@ -156,7 +155,7 @@ export function useAdjust(id: string) {
     onSuccess: (res, ops) => {
       // Při rychlém klikání platí jen odpověď poslední změny, ostatní by přepsaly novější lokální stav.
       if (queryClient.isMutating({ mutationKey: ['adjust', id] }) <= 1) {
-        queryClient.setQueryData<CharacterFull>(key, (old) => (old ? { ...old, state: res.state, xp: res.xp, inspiration: res.inspiration } : old))
+        queryClient.setQueryData<CharacterFull>(key, (old) => (old ? { ...old, state: res.state, inspiration: res.inspiration } : old))
       }
       // Změna množství itemů (munice) se v odpovědi nevrací, načte se znovu.
       if (ops.some((o) => o.op === 'item')) void queryClient.invalidateQueries({ queryKey: key })
@@ -237,7 +236,6 @@ export type ItemInput = Partial<
     | 'description'
     | 'kind'
     | 'quantity'
-    | 'weight'
     | 'equipped'
     | 'attuned'
     | 'requiresAttunement'

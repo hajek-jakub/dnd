@@ -34,8 +34,6 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   subrace: string
   background: string
   alignment: string
-  /** null = nedoplněno */
-  xp: number | null
   inspiration: boolean
   description: string
   personality: { traits: string; ideals: string; bonds: string; flaws: string }
@@ -81,7 +79,6 @@ export interface CharacterItem {
   description: string
   kind: 'armor' | 'shield' | 'weapon' | 'item'
   quantity: number
-  weight: number
   equipped: boolean
   attuned: boolean
   requiresAttunement: boolean
@@ -141,7 +138,6 @@ export type AdjustOp =
   | { op: 'deathSave'; kind: 'success' | 'failure'; delta: number }
   | { op: 'item'; itemId: string; delta: number }
   | { op: 'inspiration'; set: boolean }
-  | { op: 'xp'; delta: number }
   | { op: 'condition'; name: string; set: boolean }
   | { op: 'concentration'; set: string | null }
 

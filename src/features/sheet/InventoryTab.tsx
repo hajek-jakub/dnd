@@ -11,7 +11,6 @@ import { ApiError } from '@/lib/api'
 import { DescriptionText } from '@/features/rules/DescriptionText'
 import { useRules } from '@/features/rules/api'
 import { metaLine } from '@/features/rules/labels'
-import { cn } from '@/lib/utils'
 import { effectLabel } from './effects'
 import { ItemForm } from './ItemForm'
 import { NotesText } from './NotesText'
@@ -27,8 +26,6 @@ export function InventoryTab() {
   const [adding, setAdding] = useState(false)
   const worn = character.items.filter((i) => i.equipped)
   const carried = character.items.filter((i) => !i.equipped)
-  const enc = sheet.encumbrance
-  const percent = Math.min(100, Math.round((enc.weight / enc.capacity) * 100))
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
@@ -43,31 +40,6 @@ export function InventoryTab() {
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            <section aria-label="Nosnost" className="space-y-1">
-              <p className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                <span>
-                  Váha: <strong>{num(enc.weight)}</strong> / {num(enc.capacity)} lb
-                </span>
-                <span className="text-muted-foreground">
-                  {enc.enabled
-                    ? enc.status === 'ok'
-                      ? 'bez přetížení'
-                      : enc.status === 'encumbered'
-                        ? 'přetížený (−10 ft)'
-                        : enc.status === 'heavy'
-                          ? 'těžce přetížený (−20 ft)'
-                          : 'víc, než unesu'
-                    : 'sledování přetížení je vypnuté'}
-                </span>
-              </p>
-              <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
-                <div
-                  className={cn('h-full', !enc.enabled ? 'bg-primary/50' : enc.status === 'ok' ? 'bg-green-500' : enc.status === 'encumbered' ? 'bg-amber-500' : 'bg-red-500')}
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
-            </section>
-
             {character.items.length === 0 && <p className="text-muted-foreground">Postava zatím nic nemá. Přidej item z pravidel nebo vlastní.</p>}
             {worn.length > 0 && <ItemGroup title="Nosím" items={worn} />}
             {carried.length > 0 && <ItemGroup title={worn.length > 0 ? 'V batohu' : 'Itemy'} items={carried} />}
@@ -128,7 +100,6 @@ function ItemRow({ item }: { item: CharacterItem }) {
             {[
               item.kind === 'weapon' ? 'Zbraň' : item.kind === 'armor' ? 'Zbroj' : item.kind === 'shield' ? 'Štít' : null,
               item.rarity,
-              item.weight > 0 ? `${num(item.weight * item.quantity)} lb` : null,
               item.requiresAttunement ? 'attunement' : null,
               item.consumable ? 'spotřebuje se' : null,
             ]
