@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CopyIcon, DicesIcon, EyeOffIcon, PencilIcon, ShieldIcon, SkullIcon, Trash2Icon } from 'lucide-react'
+import { CopyIcon, DicesIcon, EyeOffIcon, PencilIcon, PlusIcon, ShieldIcon, SkullIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import { useDeleteEnemy, useDuplicateEnemy, useEnemyHp, useRollEnemyInitiative, 
  * Nepřátelé přímo v Panelu DM (vidí je jen DM): karty s červeným akcentem, HP, hody útoku, zranění a iniciativy.
  * Přidání a úpravu řeší rodič (tlačítka v hlavičce stránky, „Upravit“ na kartě).
  */
-export function EnemiesSection({ campaignId, enemies, onEdit }: { campaignId: string; enemies: Enemy[]; onEdit: (enemy: Enemy) => void }) {
+export function EnemiesSection({ campaignId, enemies, onAdd, onEdit }: { campaignId: string; enemies: Enemy[]; onAdd: () => void; onEdit: (enemy: Enemy) => void }) {
   const [hideRolls, setHideRolls] = useState(true)
   return (
     <section aria-label="Nepřátelé" className="space-y-3">
@@ -25,12 +25,17 @@ export function EnemiesSection({ campaignId, enemies, onEdit }: { campaignId: st
           </span>
         }
         actions={
-          <Button type="button" variant={hideRolls ? 'default' : 'outline'} aria-pressed={hideRolls} onClick={() => setHideRolls((v) => !v)}>
-            <EyeOffIcon aria-hidden /> {hideRolls ? 'Hody skryté před hráči' : 'Hody vidí všichni'}
-          </Button>
+          <>
+            <Button type="button" variant={hideRolls ? 'default' : 'outline'} aria-pressed={hideRolls} onClick={() => setHideRolls((v) => !v)}>
+              <EyeOffIcon aria-hidden /> {hideRolls ? 'Hody skryté před hráči' : 'Hody vidí všichni'}
+            </Button>
+            <Button variant="secondary" onClick={onAdd}>
+              <PlusIcon aria-hidden /> Nový nepřítel
+            </Button>
+          </>
         }
       />
-      {enemies.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nikdo není. „Nový nepřítel“ nahoře přidá třeba goblina s životy, útoky a iniciativou. Vidíš je jen ty.</p>}
+      {enemies.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nikdo není. „Nový nepřítel“ přidá třeba goblina s životy, útoky a iniciativou. Vidíš je jen ty.</p>}
       <ul aria-label="Seznam nepřátel" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
         {enemies.map((e) => (
           <EnemyCard key={e.id} campaignId={campaignId} enemy={e} hideRolls={hideRolls} onEdit={() => onEdit(e)} />

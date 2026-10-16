@@ -4,7 +4,6 @@ import {
   ArrowLeftIcon,
   CoinsIcon,
   PlusIcon,
-  SkullIcon,
   HeartPulseIcon,
   PackagePlusIcon,
   ShieldPlusIcon,
@@ -90,20 +89,7 @@ export function DmPage() {
         <Link to={`/campaigns/${campaignId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon aria-hidden className="size-4" /> {campaign.name}
         </Link>
-        <SectionHeader
-          level={1}
-          title="Panel DM"
-          actions={
-            <>
-              <Button variant="secondary" onClick={() => setEnemyForm({})}>
-                <SkullIcon aria-hidden /> Nový nepřítel
-              </Button>
-              <Link to={`/campaigns/${campaignId}/characters/new?npc=1`} className={buttonVariants({ variant: 'secondary' })}>
-                <PlusIcon aria-hidden /> Nové NPC
-              </Link>
-            </>
-          }
-        />
+        <SectionHeader level={1} title="Panel DM" />
       </div>
 
       <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
@@ -138,7 +124,14 @@ export function DmPage() {
         enemies={enemies ?? []}
       />
 
-      <SectionHeader title="Postavy a NPC" />
+      <SectionHeader
+        title="Postavy a NPC"
+        actions={
+          <Link to={`/campaigns/${campaignId}/characters/new?npc=1`} className={buttonVariants({ variant: 'secondary' })}>
+            <PlusIcon aria-hidden /> Nové NPC
+          </Link>
+        }
+      />
       {!list || !bundle ? (
         <p className="text-muted-foreground">Načítám postavy…</p>
       ) : rows.length === 0 ? (
@@ -159,7 +152,7 @@ export function DmPage() {
         </ul>
       )}
 
-      <EnemiesSection campaignId={campaignId} enemies={enemies ?? []} onEdit={(enemy) => setEnemyForm({ enemy })} />
+      <EnemiesSection campaignId={campaignId} enemies={enemies ?? []} onAdd={() => setEnemyForm({})} onEdit={(enemy) => setEnemyForm({ enemy })} />
 
       <NotesPanel campaignId={campaignId} characters={rows.map((r) => ({ id: r.character.id, name: r.character.name }))} />
 
