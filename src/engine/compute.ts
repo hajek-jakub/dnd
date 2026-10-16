@@ -141,25 +141,33 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     ov,
   )
 
-  // --- vybavení pro AC a rychlost
+  // --- vybavení pro AC, rychlost a martial arts
+  // Zbroj a štít se počítají jen nošené a s hodnotami (stejně pro AC, Unarmored Defense, rychlost i martial arts); z víc nošených ten nejlepší.
+  // Magický bonus itemu s attunementem platí až po attunementu (Demon Armor, Sun Blade), základní AC zbroje platí vždy.
+  const dex = mod('dex')
+  const attunementOk = (i: InventoryItem) => !i.requiresAttunement || i.attuned
+  const magicOf = (i: InventoryItem, bonus: number | undefined) => (attunementOk(i) ? (bonus ?? 0) : 0)
+  const armorDex = (a: NonNullable<InventoryItem['armor']>) => (a.dexBonus ? (a.maxDexBonus == null ? dex : Math.min(dex, a.maxDexBonus)) : 0)
+  const armorAc = (i: InventoryItem) => (i.armor ? i.armor.base + armorDex(i.armor) + magicOf(i, i.armor.magicBonus) : 0)
+  const bestOf = (list: InventoryItem[]) => list.reduce<InventoryItem | undefined>((b, i) => (b === undefined || armorAc(i) > armorAc(b) ? i : b), undefined)
   const equipped = input.items.filter((i) => i.equipped)
-  const armor = equipped.find((i) => i.kind === 'armor')
-  const shield = equipped.find((i) => i.kind === 'shield')
+  const armor = bestOf(equipped.filter((i) => i.kind === 'armor' && i.armor))
+  const shield = bestOf(equipped.filter((i) => i.kind === 'shield' && i.armor))
   const heavyArmor = !!armor?.armor && !armor.armor.dexBonus
 
   // --- AC
   const acSources: Source[] = []
   let acBase: number
-  const dex = mod('dex')
   if (armor?.armor) {
     const a = armor.armor
-    const dexPart = a.dexBonus ? (a.maxDexBonus === null ? dex : Math.min(dex, a.maxDexBonus)) : 0
-    acBase = a.base + dexPart + (a.magicBonus ?? 0)
+    const dexPart = armorDex(a)
+    const magic = magicOf(armor, a.magicBonus)
+    acBase = a.base + dexPart + magic
     acSources.push({ label: armor.name, value: a.base })
-    if (a.dexBonus) acSources.push({ label: `DEX${a.maxDexBonus !== null ? ` (max ${a.maxDexBonus})` : ''}`, value: signed(dexPart) })
-    if (a.magicBonus) acSources.push({ label: `${armor.name}: magický bonus`, value: signed(a.magicBonus) })
+    if (a.dexBonus) acSources.push({ label: `DEX${a.maxDexBonus != null ? ` (max ${a.maxDexBonus})` : ''}`, value: signed(dexPart) })
+    if (magic) acSources.push({ label: `${armor.name}: magický bonus`, value: signed(magic) })
   } else {
-    // Bez zbroje: základ 10 + DEX; barbar a mnich mají vlastní vzorec (bere se nejvýhodnější).
+    // Bez zbroje: základ 10 + DEX; barbar, mnich a draconic sorcerer mají vlastní vzorec (bere se nejvýhodnější).
     const options: { label: string; value: number; parts: Source[] }[] = [
       {
         label: 'Bez zbroje',
@@ -192,18 +200,48 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
         ],
       })
     }
+    // Draconic Resilience (sorcerer, Draconic Bloodline): 2014 13 + DEX, 2024 (od 3. levelu) 10 + DEX + CHA; štít smí.
+    const draconic = classes.find((c) => c.classIndex === 'sorcerer' && c.subclassIndex === 'draconic')
+    if (draconic && ruleset !== '2024') {
+      options.push({
+        label: 'Draconic Resilience',
+        value: 13 + dex,
+        parts: [
+          { label: 'Draconic Resilience: základ', value: 13 },
+          { label: 'DEX', value: signed(dex) },
+        ],
+      })
+    } else if (draconic && draconic.level >= 3) {
+      options.push({
+        label: 'Draconic Resilience',
+        value: 10 + dex + mod('cha'),
+        parts: [
+          { label: 'Draconic Resilience: základ', value: 10 },
+          { label: 'DEX', value: signed(dex) },
+          { label: 'CHA', value: signed(mod('cha')) },
+        ],
+      })
+    }
     const best = options.reduce((a, b) => (b.value > a.value ? b : a))
     acBase = best.value
     acSources.push(...best.parts)
   }
   if (shield?.armor) {
-    const bonus = shield.armor.base + (shield.armor.magicBonus ?? 0)
+    const bonus = shield.armor.base + magicOf(shield, shield.armor.magicBonus)
     acBase += bonus
     acSources.push({ label: shield.name, value: signed(bonus) })
   }
-  const acEffects = sumEffects('ac')
-  acBase += acEffects
-  acSources.push(...effectSources('ac'))
+  // Ať je v rozpisu vidět, proč se něco nepočítá.
+  for (const i of [armor, shield]) {
+    if (i?.armor?.magicBonus && !attunementOk(i)) acSources.push({ label: `${i.name}: magický bonus až po attunementu`, value: 'neplatí' })
+  }
+  for (const i of equipped) {
+    if ((i.kind === 'armor' || i.kind === 'shield') && !i.armor) acSources.push({ label: `${i.name}: chybí hodnoty zbroje`, value: 'nepočítá se' })
+  }
+  // Podmíněné bonusy: ac.armored jen ve zbroji (Fighting Style: Defense), ac.unarmored jen bez zbroje a štítu (Bracers of Defense).
+  const acTargets = ['ac', ...(armor ? ['ac.armored'] : []), ...(!armor && !shield ? ['ac.unarmored'] : [])]
+  acBase += sumEffects(...acTargets)
+  acSources.push(...effectSources(...acTargets))
   const ac = makeComputed('ac', acBase, acSources, ov)
 
   // --- rychlost
@@ -237,6 +275,13 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   })
   const hpSources: Source[] = [{ label: `Hit dice a CON (${signed(conMod)} za level)`, value: hpBase }]
   if (perLevelBonus) hpSources.push({ label: 'Bonus za level', value: signed(perLevelBonus * totalLevel) })
+  // Draconic Resilience: +1 HP za každý level sorcerera (2024 od 3. levelu, kdy je to celkem také +1 za level).
+  const draconicSorcerer = classes.find((c) => c.classIndex === 'sorcerer' && c.subclassIndex === 'draconic')
+  const draconicHp = !draconicSorcerer ? 0 : ruleset === '2024' && draconicSorcerer.level < 3 ? 0 : draconicSorcerer.level
+  if (draconicHp) {
+    hpBase += draconicHp
+    hpSources.push({ label: 'Draconic Resilience', value: signed(draconicHp) })
+  }
   const hpFlat = sumEffects('hp.max')
   hpBase += hpFlat
   hpSources.push(...effectSources('hp.max'))
@@ -302,8 +347,11 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     const stats = w?.weapon
     const props = (stats?.properties ?? []).map((p) => p.toLowerCase())
     const ranged = stats?.range === 'ranged'
+    // Martial Arts platí jen bez zbroje a bez štítu.
     const monkWeapon =
       !!monk &&
+      !armor &&
+      !shield &&
       (w === null ||
         (stats?.range === 'melee' &&
           !props.includes('two-handed') &&
@@ -313,7 +361,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     const candidates: AbilityKey[] = ranged ? ['dex'] : props.includes('finesse') || monkWeapon ? ['str', 'dex'] : ['str']
     const ability = candidates.reduce((best, a) => (mod(a) > mod(best) ? a : best))
     const proficient = w === null ? true : isProficientWith(w)
-    const magic = stats?.magicBonus ?? 0
+    const magic = w ? magicOf(w, stats?.magicBonus) : 0
     const notes: string[] = []
     let dice = stats?.damageDice ?? '1'
     if (monkWeapon && martialArtsDie) {

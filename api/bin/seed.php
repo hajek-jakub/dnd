@@ -11,9 +11,14 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__ . '/../src/bootstrap_cli.php';
 
+use Dnd\Items;
 use Dnd\Seeder;
 
 $result = Seeder::run(in_array('--force', $argv, true));
+$repaired = Items::repairMagicGear();
+if ($repaired !== []) {
+    fwrite(STDOUT, 'Opravené itemy postav: ' . implode(', ', $repaired) . "\n");
+}
 if ($result['skipped']) {
     fwrite(STDOUT, "Data pravidel jsou aktuální, nic se nenačítalo.\n");
     exit(0);

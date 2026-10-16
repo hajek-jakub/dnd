@@ -16,10 +16,11 @@ const PROTECTED = routes.filter((r) => !r.pub)
 const UUID = '00000000-0000-4000-8000-000000000000'
 const fill = (pattern: string, ids: Record<string, string> = {}) => pattern.replace(/\{(\w+)\}/g, (_, name: string) => ids[name] ?? UUID)
 
+// Testy procházejí celou tabulku tras po jedné; pod zátěží (jednovláknový php -S a paralelní soubory) potřebují delší limit.
 describe('audit tras API', () => {
   let owner: TestUser
   let outsider: TestUser
-  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string; tactic: string; enemy: string }
+  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string; tactic: string; enemy: string; folder: string; lootEntry: string }
 
   beforeAll(async () => {
     owner = await registerUser('auditdm')
@@ -33,12 +34,14 @@ describe('audit tras API', () => {
     const entry = (await owner.client.post(`/campaigns/${campaign}/journal`, { title: 'Zápis' })).body.entry.id
     const tactic = (await owner.client.post(`/characters/${character}/tactics`, { kind: 'rule', title: 'Poučka', text: 'x' })).body.tactic.id
     const enemy = (await owner.client.post(`/campaigns/${campaign}/enemies`, { name: 'Goblin', hpMax: 7 })).body.enemy.id
-    ids = { campaign, character, map, pin, note, entry, tactic, enemy }
+    const folder = (await owner.client.post(`/campaigns/${campaign}/loot/folders`, { name: 'Dungeon' })).body.folder.id
+    const lootEntry = (await owner.client.post(`/campaigns/${campaign}/loot/entries`, { folderId: folder, kind: 'gold', currency: { gp: 1 } })).body.entry.id
+    ids = { campaign, character, map, pin, note, entry, tactic, enemy, folder, lootEntry }
   })
 
   it('tabulka tras se načetla (a obsahuje všechny moduly)', () => {
     expect(routes.length).toBeGreaterThan(60)
-    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative']) {
+    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative', '/campaigns/{id}/loot', '/loot/folders/{id}', '/loot/entries/{id}']) {
       expect(routes.some((r) => r.pattern === p), p).toBe(true)
     }
     expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/health'])
@@ -52,7 +55,7 @@ describe('audit tras API', () => {
       if (res.status !== 401) failures.push(`${r.method} ${r.pattern} -> ${res.status}`)
     }
     expect(failures).toEqual([])
-  })
+  }, 60_000)
 
   it('veřejné administrátorské trasy bez klíče nic neprovedou', async () => {
     const anon = new Client()
@@ -63,19 +66,19 @@ describe('audit tras API', () => {
   })
 
   it('cizinec dostane u cizí kampaně a jejích věcí 404 (nikdy 2xx), na žádné trase 5xx', async () => {
-    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry, tactic: ids.tactic, enemy: ids.enemy }
+    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry, tactic: ids.tactic, enemy: ids.enemy, folder: ids.folder, lootEntry: ids.lootEntry }
     const failures: string[] = []
     for (const r of PROTECTED) {
       if (!r.pattern.includes('{')) continue
       // které id patří do které trasy
-      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : r.pattern.startsWith('/tactics/') ? 'tactic' : r.pattern.startsWith('/enemies/') ? 'enemy' : null
+      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : r.pattern.startsWith('/tactics/') ? 'tactic' : r.pattern.startsWith('/enemies/') ? 'enemy' : r.pattern.startsWith('/loot/folders/') ? 'folder' : r.pattern.startsWith('/loot/entries/') ? 'lootEntry' : null
       if (kind === null) continue
       const url = fill(r.pattern, { id: real[kind]! })
       const res = await outsider.client.request(r.method, url, r.method === 'GET' || r.method === 'DELETE' ? undefined : {})
       if (res.status !== 404) failures.push(`${r.method} ${url} -> ${res.status}`)
     }
     expect(failures).toEqual([])
-  })
+  }, 60_000)
 
   it('žádná trasa nespadne na 500, ani když dostane neexistující id nebo prázdné či nesmyslné tělo', async () => {
     const failures: string[] = []
@@ -91,5 +94,5 @@ describe('audit tras API', () => {
       }
     }
     expect(failures).toEqual([])
-  })
+  }, 60_000)
 })

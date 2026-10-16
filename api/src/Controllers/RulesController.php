@@ -669,6 +669,22 @@ final class RulesController
             'tags' => $r['tags'] === '' ? [] : explode('|', trim((string) $r['tags'], '|')),
             'data' => is_array($data) && $data !== [] ? $data : new \stdClass(),
             'canEdit' => $canEdit,
+            'itemBase' => self::itemBase($r),
         ];
+    }
+
+    /**
+     * U magické zbroje, štítu a zbraně: typ a základ, který se nabídne při přidání do inventáře (Dwarven Plate → Plate Armor, Armor +1 → vybrat).
+     * @param array<string, mixed> $r
+     * @return array{type: string, baseRuleId: ?string}|null
+     */
+    private static function itemBase(array $r): ?array
+    {
+        $gear = Items::magicGear($r);
+        if ($gear === null || $gear['type'] === 'ammunition') {
+            return null;
+        }
+        $base = Items::baseRuleFor($gear);
+        return ['type' => $gear['type'], 'baseRuleId' => $base === null ? null : (string) $base['id']];
     }
 }

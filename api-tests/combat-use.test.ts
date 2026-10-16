@@ -30,7 +30,7 @@ describe('použití taktik: počet útoků, munice, kombo, spotřebitelné itemy
 
   describe('spotřebovatelné itemy', () => {
     it('příznak consumable jde nastavit, množství může klesnout na 0 a vrátit se', async () => {
-      const bolts = await addItem(bob, bobChar, { name: 'Šípy', kind: 'item', quantity: 20, consumable: true })
+      const bolts = await addItem(bob, bobChar, { name: 'Šípy', kind: 'other', quantity: 20, consumable: true })
       expect(bolts).toMatchObject({ quantity: 20, consumable: true })
       const zero = await bob.client.patch(`/characters/${bobChar}/items/${bolts.id}`, { quantity: 0 })
       expectStatus(zero, 200)
@@ -48,7 +48,7 @@ describe('použití taktik: počet útoků, munice, kombo, spotřebitelné itemy
     })
 
     it('operace item v adjust ubírá a přidává kusy, drží meze a cizí item nejde', async () => {
-      const arrows = await addItem(bob, bobChar, { name: 'Šipky', kind: 'item', quantity: 3, consumable: true })
+      const arrows = await addItem(bob, bobChar, { name: 'Šipky', kind: 'other', quantity: 3, consumable: true })
       const q = async () => (await bob.client.get(`/characters/${bobChar}`)).body.character.items.find((i: any) => i.id === arrows.id).quantity
       expectStatus(await bob.client.post(`/characters/${bobChar}/adjust`, { ops: [{ op: 'item', itemId: arrows.id, delta: -2 }] }), 200)
       expect(await q()).toBe(1)
@@ -56,7 +56,7 @@ describe('použití taktik: počet útoků, munice, kombo, spotřebitelné itemy
       expect(await q()).toBe(0)
       await bob.client.post(`/characters/${bobChar}/adjust`, { ops: [{ op: 'item', itemId: arrows.id, delta: 4 }] })
       expect(await q()).toBe(4)
-      const foreign = await addItem(carol, carolChar, { name: 'Cizí', kind: 'item', quantity: 5 })
+      const foreign = await addItem(carol, carolChar, { name: 'Cizí', kind: 'other', quantity: 5 })
       expectStatus(await bob.client.post(`/characters/${bobChar}/adjust`, { ops: [{ op: 'item', itemId: foreign.id, delta: -1 }] }), 404)
       expectStatus(await bob.client.post(`/characters/${bobChar}/adjust`, { ops: [{ op: 'item', itemId: 'neni-uuid', delta: -1 }] }), 404)
       expectStatus(await bob.client.post(`/characters/${bobChar}/adjust`, { ops: [{ op: 'item', itemId: arrows.id, delta: 1.5 }] }), 422)
@@ -77,8 +77,8 @@ describe('použití taktik: počet útoků, munice, kombo, spotřebitelné itemy
     })
 
     it('munice musí být item téže postavy', async () => {
-      const mine = await addItem(bob, bobChar, { name: 'Bolty', kind: 'item', quantity: 9, consumable: true })
-      const theirs = await addItem(carol, carolChar, { name: 'Cizí bolty', kind: 'item', quantity: 9 })
+      const mine = await addItem(bob, bobChar, { name: 'Bolty', kind: 'other', quantity: 9, consumable: true })
+      const theirs = await addItem(carol, carolChar, { name: 'Cizí bolty', kind: 'other', quantity: 9 })
       const ok = await tactic(bob, bobChar, { kind: 'attack', title: 'Kuše', ammo: mine.id })
       expectStatus(ok, 201)
       expect(ok.body.tactic.data.ammo).toBe(mine.id)

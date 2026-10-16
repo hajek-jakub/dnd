@@ -64,10 +64,27 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   await page.request.post(`/api/campaigns/${campaignId}/enemies`, { data: { name: 'Goblin', hpMax: 7, ac: 15, attacks: [{ name: 'Scimitar', toHit: 4, damage: '1d6+2' }] } })
   await page.request.post(`/api/campaigns/${campaignId}/characters`, { data: { name: 'Batan', kind: 'npc', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }] } })
 
+  const lootFolder = (await (await page.request.post(`/api/campaigns/${campaignId}/loot/folders`, { data: { name: 'Dungeon s hodně dlouhým názvem, aby se zalomil' } })).json()).folder.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/loot/folders`, { data: { name: 'Místnost 1', parentId: lootFolder } })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, {
+    data: { kind: 'item', item: { name: 'Démonické kopí s hodně dlouhým názvem, aby se zalomilo', kind: 'weapon', description: '**Ďábelský šepot**: slyší tě.', curse: 'Kletba', weapon: { damageDice: '1d8', damageType: 'Piercing', category: 'martial', range: 'melee' } } },
+  })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, { data: { kind: 'gold', name: 'Truhla', currency: { gp: 100, sp: 5 } } })
+
   const pages: [string, string, (p: Page) => Promise<void>][] = [
     ['kampaně', '/campaigns', async (p) => void (await expect(p.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible())],
     ['kampaň (DM)', `/campaigns/${campaignId}`, async (p) => void (await expect(p.getByRole('heading', { name: 'Přístupnost', level: 1 })).toBeVisible())],
     ['panel DM', `/campaigns/${campaignId}/dm`, async (p) => void (await expect(p.getByRole('heading', { name: 'Panel DM' })).toBeVisible())],
+    [
+      'loot a itemy',
+      `/campaigns/${campaignId}/dm/loot`,
+      async (p) => {
+        await expect(p.getByRole('heading', { name: 'Loot a itemy', level: 1 })).toBeVisible()
+        await p.getByLabel('Vybrat Truhla').check()
+        await p.getByRole('button', { name: /^Dát vybrané: Batan/ }).click() // ukáže i seznam „Připraveno k rozdání“
+        await p.getByRole('button', { name: /^Podrobnosti: Démonické kopí/ }).click()
+      },
+    ],
     ['deník', `/campaigns/${campaignId}/journal`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
     ['zprávy', `/campaigns/${campaignId}/messages`, async (p) => void (await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible())],
     ['mapy', `/campaigns/${campaignId}/maps`, async (p) => void (await expect(p.getByRole('heading', { name: 'Mapy', level: 1 })).toBeVisible())],

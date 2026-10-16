@@ -17,6 +17,7 @@ import { ProfilePage } from '@/features/profile/ProfilePage'
 // Po načtení se ty nejčastější stáhnou předem v době nečinnosti (preloadRoutes), takže přepnutí záložky pak nečeká na síť.
 const loaders = {
   dm: () => import('@/features/dm/DmPage').then((m) => ({ default: m.DmPage })),
+  loot: () => import('@/features/loot/LootPage').then((m) => ({ default: m.LootPage })),
   maps: () => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })),
   journal: () => import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
   mapView: () => import('@/features/maps/MapViewPage'),
@@ -31,6 +32,7 @@ const loaders = {
   levelUp: () => import('@/features/sheet/LevelUpWizard').then((m) => ({ default: m.LevelUpPage })),
 }
 const DmPage = lazy(loaders.dm)
+const LootPage = lazy(loaders.loot)
 const MapsPage = lazy(loaders.maps)
 const JournalPage = lazy(loaders.journal)
 const MapViewPage = lazy(loaders.mapView)
@@ -100,6 +102,7 @@ export default function App() {
             <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="campaigns/:campaignId/dm" element={<DmPage />} />
+            <Route path="campaigns/:campaignId/dm/loot" element={<LootPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
             <Route path="campaigns/:campaignId/journal" element={<JournalPage />} />
             <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />

@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
   CoinsIcon,
+  GemIcon,
   PlusIcon,
   HeartPulseIcon,
   PackagePlusIcon,
@@ -89,7 +90,15 @@ export function DmPage() {
         <Link to={`/campaigns/${campaignId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon aria-hidden className="size-4" /> {campaign.name}
         </Link>
-        <SectionHeader level={1} title="Panel DM" />
+        <SectionHeader
+          level={1}
+          title="Panel DM"
+          actions={
+            <Link to={`/campaigns/${campaignId}/dm/loot`} className={buttonVariants({ variant: 'secondary' })}>
+              <GemIcon aria-hidden /> Loot a itemy
+            </Link>
+          }
+        />
       </div>
 
       <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
@@ -218,7 +227,14 @@ function CharacterOverview({
       <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
         <div className="rounded-lg bg-muted/50 p-2">
           <dt className="text-xs text-muted-foreground">AC</dt>
-          <dd className="text-lg font-semibold">{sheet.ac.value}</dd>
+          <dd className="text-lg font-semibold">
+            {sheet.ac.value}
+            {sheet.ac.overridden && (
+              <span className="ml-1 rounded-full bg-amber-500 px-1.5 align-middle text-[10px] font-bold text-black" title="AC je na sheetu přepsané ručně, výbava ho nemění">
+                ručně
+              </span>
+            )}
+          </dd>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">
           <dt className="text-xs text-muted-foreground">Pas. vnímání</dt>

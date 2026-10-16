@@ -85,11 +85,19 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     data: { name: 'Goblin s hodně dlouhým jménem, aby se zalomilo', hpMax: 7, ac: 15, notes: 'Poznámka '.repeat(40), attacks: [{ name: 'Scimitar s dlouhým názvem', toHit: 4, damage: '1d6+2' }, { name: 'Luk', toHit: 4, damage: '1d6+2' }] },
   })
 
+  const lootFolder = (await (await page.request.post(`/api/campaigns/${campaignId}/loot/folders`, { data: { name: 'Dungeon s hodně dlouhým názvem, aby se zalomil' } })).json()).folder.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/loot/folders`, { data: { name: 'Místnost 1', parentId: lootFolder } })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, {
+    data: { kind: 'item', item: { name: 'Démonické kopí s hodně dlouhým názvem, aby se zalomilo', kind: 'weapon', description: '**Ďábelský šepot**: slyší tě.', curse: 'Kletba', weapon: { damageDice: '1d8', damageType: 'Piercing', category: 'martial', range: 'melee' } } },
+  })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, { data: { kind: 'gold', name: 'Truhla', currency: { gp: 100, sp: 5 } } })
+
   const pages: [string, string][] = [
     ['domů', '/'],
     ['kampaně', '/campaigns'],
     ['kampaň', `/campaigns/${campaignId}`],
     ['panel DM', `/campaigns/${campaignId}/dm`],
+    ['loot a itemy', `/campaigns/${campaignId}/dm/loot`],
     ['deník', `/campaigns/${campaignId}/journal`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
     ['mapy', `/campaigns/${campaignId}/maps`],

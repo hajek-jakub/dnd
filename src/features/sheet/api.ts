@@ -3,6 +3,7 @@ import { api, ApiError } from '@/lib/api'
 import { buildRulesBundle, type RawClass, type RawLevel, type RulesBundle } from '@/engine'
 import { applyOps } from './model'
 import type { AdjustOp, CharacterFull, CharacterItem, CharacterListItem, CharacterSpell, CharacterState, Currency } from './types'
+import { applyItemPatch } from './item-patch'
 
 export function characterPhotoUrl(id: string, version: string | null): string | null {
   if (!version) return null
@@ -246,7 +247,14 @@ export type ItemInput = Partial<
     | 'armor'
     | 'weapon'
   >
-> & { ruleId?: string }
+> & {
+  ruleId?: string
+  /** Základní zbroj nebo zbraň u magické výbavy z pravidel (Armor, +1 → Chain Mail). */
+  baseRuleId?: string
+  /** jen DM */
+  curse?: string | null
+  curseRevealed?: boolean
+}
 
 export function useAddItem(characterId: string) {
   const queryClient = useQueryClient()
@@ -274,7 +282,7 @@ export function useUpdateItem(characterId: string) {
         queryClient.setQueryData<CharacterFull>(key, {
           ...previous,
           items: previous.items.map((i) => {
-            if (i.id === itemId) return { ...i, ...patch } as CharacterItem
+            if (i.id === itemId) return applyItemPatch(i, patch)
             // Nosí se jen jedna zbroj a jeden štít (stejné pravidlo jako na serveru).
             if (patch.equipped && target && (target.kind === 'armor' || target.kind === 'shield') && i.kind === target.kind)
               return { ...i, equipped: false }

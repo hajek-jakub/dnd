@@ -109,6 +109,8 @@ export interface RuleDetail {
   tags: string[]
   data: Record<string, unknown>
   canEdit: boolean
+  /** Magická zbroj, štít nebo zbraň: typ a základ z SRD, který se nabídne při přidání itemu (null = vybrat). */
+  itemBase: { type: 'armor' | 'shield' | 'weapon'; baseRuleId: string | null } | null
 }
 
 export interface RuleFacets {

@@ -13,6 +13,7 @@ use Dnd\Controllers\EnemyController;
 use Dnd\Controllers\InitiativeController;
 use Dnd\Controllers\InventoryController;
 use Dnd\Controllers\JournalController;
+use Dnd\Controllers\LootController;
 use Dnd\Controllers\MapController;
 use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
@@ -102,6 +103,14 @@ final class App
         $r->add('DELETE', '/dm-notes/{id}', [CharacterController::class, 'deleteNote']);
 
         // DM panel: rozdávání, zranění, stavy, efekty; oznámení hráčům
+        $r->add('GET', '/campaigns/{id}/loot', [LootController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/loot/folders', [LootController::class, 'createFolder']);
+        $r->add('PATCH', '/loot/folders/{id}', [LootController::class, 'updateFolder']);
+        $r->add('DELETE', '/loot/folders/{id}', [LootController::class, 'deleteFolder']);
+        $r->add('POST', '/campaigns/{id}/loot/entries', [LootController::class, 'createEntry']);
+        $r->add('PATCH', '/loot/entries/{id}', [LootController::class, 'updateEntry']);
+        $r->add('DELETE', '/loot/entries/{id}', [LootController::class, 'deleteEntry']);
+        $r->add('POST', '/campaigns/{id}/loot/give', [LootController::class, 'give']);
         $r->add('GET', '/campaigns/{id}/initiative', [InitiativeController::class, 'index']);
         $r->add('POST', '/campaigns/{id}/initiative', [InitiativeController::class, 'set']);
         $r->add('POST', '/campaigns/{id}/initiative/order', [InitiativeController::class, 'reorder']);

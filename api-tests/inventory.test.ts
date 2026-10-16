@@ -56,7 +56,7 @@ describe('inventář, peníze, předávání a kouzla', () => {
 
     it('magický item: attunement z textu a známé efekty (Ring of Protection)', async () => {
       const ring = (await addItem(bob, bobChar, { ruleId: await ruleId(bob, 'magic_item', 'Ring of Protection') })).body.item
-      expect(ring).toMatchObject({ kind: 'item', requiresAttunement: true, rarity: 'rare' })
+      expect(ring).toMatchObject({ kind: 'wondrous', requiresAttunement: true, rarity: 'rare' })
       expect(ring.effects).toEqual([
         { target: 'ac', value: 1, source: 'Ring of Protection' },
         { target: 'save.all', value: 1, source: 'Ring of Protection' },
@@ -66,9 +66,15 @@ describe('inventář, peníze, předávání a kouzla', () => {
       expect(bag.description).toMatch(/interior space/)
     })
 
-    it('item mimo SRD (jen fakta) jde přidat bez popisu', async () => {
-      const gleaming = (await addItem(bob, bobChar, { ruleId: await ruleId(bob, 'magic_item', 'Armor of Gleaming') })).body.item
-      expect(gleaming).toMatchObject({ name: 'Armor of Gleaming', description: '', rarity: 'common' })
+    it('item mimo SRD (jen fakta) jde přidat bez popisu; obecná zbroj z katalogu potřebuje základ', async () => {
+      const gleamingId = await ruleId(bob, 'magic_item', 'Armor of Gleaming')
+      const missing = await addItem(bob, bobChar, { ruleId: gleamingId })
+      expectStatus(missing, 422)
+      expect(missing.body.error.field).toBe('baseRuleId')
+      const gleaming = (await addItem(bob, bobChar, { ruleId: gleamingId, baseRuleId: await ruleId(bob, 'armor', 'Scale Mail') })).body.item
+      expect(gleaming).toMatchObject({ name: 'Armor of Gleaming (Scale Mail)', description: '', rarity: 'common', kind: 'armor', armor: { base: 14, maxDexBonus: 2 } })
+      const tattoo = (await addItem(bob, bobChar, { ruleId: await ruleId(bob, 'magic_item', 'Absorbing Tattoo') })).body.item
+      expect(tattoo).toMatchObject({ kind: 'wondrous', description: '' })
     })
 
     it('hráč si při přidání může přepsat množství a vlastnosti', async () => {
@@ -78,7 +84,9 @@ describe('inventář, peníze, předávání a kouzla', () => {
 
     it('homebrew item z této kampaně jde přidat, z cizí kampaně ne', async () => {
       const own = (await bob.client.post(`/campaigns/${campaignId}/homebrew`, { kind: 'magic_item', name: 'Bobův prsten', description: 'x', rarity: 'rare', attunement: true })).body.entry.id
-      expectStatus(await addItem(bob, bobChar, { ruleId: own }), 201)
+      const ring = await addItem(bob, bobChar, { ruleId: own })
+      expectStatus(ring, 201)
+      expect(ring.body.item).toMatchObject({ kind: 'wondrous', requiresAttunement: true }) // attunement homebrew se dřív ztrácel
       const foreign = (await dm.client.post(`/campaigns/${otherCampaignId}/homebrew`, { kind: 'magic_item', name: 'Cizí item', description: 'x' })).body.entry.id
       expect([404, 422]).toContain((await addItem(bob, bobChar, { ruleId: foreign })).status)
       expect([404, 422]).toContain((await addItem(dm, bobChar, { ruleId: foreign })).status) // ani DM nevloží homebrew z jiné kampaně
@@ -101,7 +109,7 @@ describe('inventář, peníze, předávání a kouzla', () => {
 
     it('odmítá neplatná data', async () => {
       const bad = (body: Record<string, unknown>) => addItem(bob, bobChar, { name: 'x', ...body })
-      expect((await addItem(bob, bobChar, { kind: 'item' })).status).toBe(422) // chybí název
+      expect((await addItem(bob, bobChar, { kind: 'other' })).status).toBe(422) // chybí název
       expect((await bad({ kind: 'sword' })).status).toBe(422)
       expect((await bad({ quantity: 0 })).status).toBe(422)
       expect((await bad({ quantity: 'tři' })).status).toBe(422)
@@ -160,7 +168,7 @@ describe('inventář, peníze, předávání a kouzla', () => {
         armorB: { name: 'Zbroj B', kind: 'armor', armor: { base: 16, dexBonus: false } },
         shieldA: { name: 'Štít A', kind: 'shield', armor: { base: 2, dexBonus: false } },
         shieldB: { name: 'Štít B', kind: 'shield', armor: { base: 2, dexBonus: false } },
-        plain: { name: 'Kámen', kind: 'item' },
+        plain: { name: 'Kámen', kind: 'other' },
         m1: { name: 'Magie 1', requiresAttunement: true },
         m2: { name: 'Magie 2', requiresAttunement: true },
         m3: { name: 'Magie 3', requiresAttunement: true },

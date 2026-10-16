@@ -5,6 +5,8 @@ import type { CharacterEffect } from './types'
 /** Cíle efektů (bonusů) s českými popisy; stejné hodnoty akceptuje server i engine. */
 export const EFFECT_TARGETS: { value: string; label: string }[] = [
   { value: 'ac', label: 'AC' },
+  { value: 'ac.armored', label: 'AC jen ve zbroji (např. Fighting Style: Defense)' },
+  { value: 'ac.unarmored', label: 'AC jen bez zbroje a štítu (např. Bracers of Defense)' },
   { value: 'speed', label: 'Rychlost (ft)' },
   { value: 'initiative', label: 'Iniciativa' },
   { value: 'hp.max', label: 'Maximální HP' },

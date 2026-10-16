@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dnd\Controllers;
 
+use Dnd\Access;
 use Dnd\Db;
 use Dnd\HttpError;
 use Dnd\Ids;
@@ -191,7 +192,7 @@ final class LevelUpController
             return ['level' => $total + 1];
         });
 
-        return Response::json(['character' => self::sheet($params['id']), 'level' => $result['level']], 201);
+        return Response::json(['character' => self::sheet($params['id'], $user), 'level' => $result['level']], 201);
     }
 
     /** Vrátí poslední level (včetně změn vlastností, subclassu, kouzel a HP). @param array{id:string} $user */
@@ -249,7 +250,7 @@ final class LevelUpController
             Sheets::syncDerived($params['id']);
         });
 
-        return ['character' => self::sheet($params['id'])];
+        return ['character' => self::sheet($params['id'], $user)];
     }
 
     /** Dává tato třída na daném levelu zvýšení vlastností (ASI)? Podle tabulek tříd ze SRD, jinak podle obecných levelů. */
@@ -275,10 +276,11 @@ final class LevelUpController
     }
 
     /** @return array<string, mixed> */
-    private static function sheet(string $id): array
+    private static function sheet(string $id, array $user): array
     {
         $row = Db::one('SELECT * FROM characters WHERE id = ?', [$id]) ?? throw HttpError::notFound();
-        $sheet = Sheets::loadMany([$row])[$id];
+        // Neodhalené kletby na itemech vidí jen DM.
+        $sheet = Sheets::loadMany([$row], Access::role($user['id'], (string) $row['campaign_id']) === 'dm')[$id];
         return [
             'id' => $row['id'],
             'campaignId' => $row['campaign_id'],

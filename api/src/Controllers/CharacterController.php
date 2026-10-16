@@ -32,7 +32,7 @@ final class CharacterController
         $role = Access::requireMember($user, $params['id']);
         $rows = Db::all('SELECT ' . self::COLUMNS . ' FROM characters WHERE campaign_id = ? ORDER BY created_at', [$params['id']]);
         $full = array_values(array_filter($rows, static fn (array $r): bool => self::hasFullAccess($r, $user['id'], $role)));
-        $sheets = Sheets::loadMany($full);
+        $sheets = Sheets::loadMany($full, $role === 'dm');
         return ['characters' => array_map(
             static fn (array $r): array => self::hideDeathSaves(self::payload($r, $sheets[(string) $r['id']] ?? null), $r, $user['id'], $role),
             $rows,
@@ -113,7 +113,7 @@ final class CharacterController
             );
             Sheets::saveLevels($id, $lv['levels']);
         });
-        return Response::json(['character' => self::loadFull($id)], 201);
+        return Response::json(['character' => self::loadFull($id, $role === 'dm')], 201);
     }
 
     /** @param array{id:string} $user */
@@ -123,7 +123,7 @@ final class CharacterController
         if (!self::hasFullAccess($row, $user['id'], $role)) {
             throw HttpError::forbidden('Tuto postavu vidíš jen v omezeném náhledu.');
         }
-        return ['character' => self::hideDeathSaves(self::loadFull($params['id']), $row, $user['id'], $role)];
+        return ['character' => self::hideDeathSaves(self::loadFull($params['id'], $role === 'dm'), $row, $user['id'], $role)];
     }
 
     /**
@@ -154,7 +154,7 @@ final class CharacterController
         if (array_key_exists('rev', $data) && $data['rev'] !== (int) $row['rev']) {
             return Response::json([
                 'error' => ['code' => 'conflict', 'message' => 'Postavu mezitím někdo změnil. Načetla se aktuální verze.'],
-                'current' => self::loadFull($params['id']),
+                'current' => self::loadFull($params['id'], $role === 'dm'),
             ], 409);
         }
 
@@ -263,7 +263,7 @@ final class CharacterController
                 Sheets::saveResources($params['id'], $current, $customList);
             }
         });
-        return Response::json(['character' => self::loadFull($params['id'])]);
+        return Response::json(['character' => self::loadFull($params['id'], $role === 'dm')]);
     }
 
     /**
@@ -401,7 +401,7 @@ final class CharacterController
                 [$hp, $temp, Sheets::enc($slots), Sheets::enc($dice), Sheets::enc($conditions), $pact, $ds, $df, $insp, $concentration, $params['id']],
             );
         });
-        $sheet = self::loadFull($params['id']);
+        $sheet = self::loadFull($params['id'], false);
         return ['state' => $sheet['state'], 'inspiration' => $sheet['inspiration']];
     }
 
@@ -558,11 +558,14 @@ final class CharacterController
         return Db::one('SELECT ' . self::COLUMNS . ' FROM characters WHERE id = ?', [$id]);
     }
 
-    /** @return array<string, mixed> */
-    private static function loadFull(string $id): array
+    /**
+     * @param bool $revealCurses jen pro DM: neodhalené kletby na itemech nedostane nikdo jiný (ani majitel itemu)
+     * @return array<string, mixed>
+     */
+    private static function loadFull(string $id, bool $revealCurses): array
     {
         $row = self::find($id) ?? throw HttpError::notFound();
-        $sheet = Sheets::loadMany([$row])[$id] ?? throw HttpError::notFound();
+        $sheet = Sheets::loadMany([$row], $revealCurses)[$id] ?? throw HttpError::notFound();
         return self::payload($row, $sheet);
     }
 

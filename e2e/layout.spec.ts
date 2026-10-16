@@ -91,3 +91,36 @@ test('tmavý a světlý režim se přepíná', async ({ page }) => {
   await motiv.getByRole('button', { name: 'Podle systému' }).click()
   await expect(html).not.toHaveClass(/dark/) // systém je světlý
 })
+
+test('loot a itemy (DM): složky vedle položek na počítači, pod sebou na telefonu, bez scrollu do stran', async ({ page }) => {
+  await registerDm(page, 'lootlayout')
+  await page.getByLabel('Název kampaně').fill('Loot layout')
+  await page.getByRole('button', { name: 'Založit kampaň' }).click()
+  await expect(page).toHaveURL(/\/campaigns\//)
+  const campaignId = page.url().split('/campaigns/')[1]!
+  await page.request.post(`/api/campaigns/${campaignId}/characters`, {
+    data: { name: 'Batan s dlouhým jménem', kind: 'npc', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }] },
+  })
+  const folder = (await (await page.request.post(`/api/campaigns/${campaignId}/loot/folders`, { data: { name: 'Dungeon' } })).json()).folder.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/loot/folders`, { data: { name: 'Místnost s dlouhým názvem, aby se zalomila', parentId: folder } })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, { data: { kind: 'item', item: { name: 'Prsten s hodně dlouhým názvem, který se musí zalomit', kind: 'wondrous', curse: 'Kletba' } } })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, { data: { kind: 'gold', name: 'Truhla', currency: { gp: 100 } } })
+
+  await page.goto(`/campaigns/${campaignId}/dm/loot`)
+  await expect(page.getByRole('heading', { name: 'Loot a itemy', level: 1 })).toBeVisible()
+  await page.getByLabel('Vybrat Truhla').check()
+  await page.getByRole('button', { name: /^Dát vybrané: Batan/ }).click()
+  await page.getByRole('button', { name: /^Podrobnosti: Prsten/ }).click()
+  await expectNoHorizontalScroll(page)
+  await expectTouchFriendly(page)
+
+  const isDesktop = (page.viewportSize()?.width ?? 0) >= 1024
+  const tree = await page.getByRole('navigation', { name: 'Složky lootu' }).boundingBox()
+  const items = await page.getByRole('list', { name: 'Položky ve složce' }).boundingBox()
+  expect(tree && items).toBeTruthy()
+  if (isDesktop) {
+    expect(items!.x, 'na počítači jsou položky vedle stromu složek').toBeGreaterThan(tree!.x + 200)
+  } else {
+    expect(items!.y, 'na telefonu jsou položky pod složkami').toBeGreaterThan(tree!.y)
+  }
+})

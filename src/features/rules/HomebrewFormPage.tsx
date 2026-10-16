@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { FormattingTextarea } from '@/components/FormattingTextarea'
+import { DescriptionText } from './DescriptionText'
 import { ApiError } from '@/lib/api'
 import type { HomebrewKind, RuleDetail } from '@/lib/types'
 import { useCreateHomebrew, useRule, useUpdateHomebrew, type HomebrewInput } from './api'
@@ -500,13 +502,14 @@ function FormBody({
             </Field>
           )}
 
-          <Field id="hb-desc" label="Popis" error={invalid('description')}>
-            <Textarea
+          <Field id="hb-desc" label="Popis" hint="Názvy schopností můžeš psát tučně (tlačítko B), Náhled ukáže výsledek." error={invalid('description')}>
+            <FormattingTextarea
               id="hb-desc"
               rows={8}
               maxLength={20000}
               value={s.description}
-              onChange={(e) => set('description', e.target.value)}
+              onChange={(v) => set('description', v)}
+              renderPreview={(text) => <DescriptionText text={text} />}
             />
           </Field>
           {kind === 'spell' && (

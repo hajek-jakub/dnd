@@ -5,7 +5,8 @@ function toInventoryItem(i: CharacterItem): InventoryItem {
   return {
     id: i.id,
     name: i.name,
-    kind: i.kind,
+    // Engine zná jen zbraně, zbroje a štíty; ostatní druhy (hole, lektvary…) jsou pro něj běžný item.
+    kind: i.kind === 'weapon' || i.kind === 'armor' || i.kind === 'shield' ? i.kind : 'item',
     quantity: i.quantity,
     equipped: i.equipped,
     attuned: i.attuned,

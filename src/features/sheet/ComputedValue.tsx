@@ -18,6 +18,7 @@ export function ComputedValue({
   format = (n) => String(n),
   className,
   children,
+  hints = [],
 }: {
   title: string
   computed: Computed
@@ -26,6 +27,8 @@ export function ComputedValue({
   className?: string
   /** Vlastní obsah tlačítka místo samotné hodnoty. */
   children?: ReactNode
+  /** Upozornění v detailu (např. zbroj v batohu, kterou postava nenosí). */
+  hints?: string[]
 }) {
   const { canEdit, setOverride } = useSheet()
   const [open, setOpen] = useState(false)
@@ -63,6 +66,17 @@ export function ComputedValue({
               <span className="ml-2 rounded-full bg-amber-500 px-2 py-0.5 align-middle text-xs font-bold text-black">přepsáno ručně</span>
             )}
           </p>
+
+          {(computed.overridden || hints.length > 0) && (
+            <ul className="space-y-1 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm" data-testid="computed-hints">
+              {computed.overridden && (
+                <li>Hodnota je přepsaná ručně: změny výbavy ani bonusů se v ní neprojeví, dokud ji nevrátíš k výpočtu ({format(computed.base)}).</li>
+              )}
+              {hints.map((h) => (
+                <li key={h}>{h}</li>
+              ))}
+            </ul>
+          )}
 
           <section aria-label="Z čeho se hodnota skládá">
             <h3 className="mb-1 text-sm font-medium text-muted-foreground">Podle pravidel: {format(computed.base)}</h3>

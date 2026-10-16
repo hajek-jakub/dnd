@@ -13,7 +13,7 @@ export interface Computed<T = number> {
 /** Bonus nebo malus od DM, z itemu nebo z featury. */
 export interface Effect {
   /**
-   * Cíl: 'ac', 'speed', 'initiative', 'hp.max', 'hp.perLevel', 'proficiency', 'passive.perception',
+   * Cíl: 'ac', 'ac.armored' (jen ve zbroji), 'ac.unarmored' (jen bez zbroje a štítu), 'speed', 'initiative', 'hp.max', 'hp.perLevel', 'proficiency', 'passive.perception',
    * 'ability.str', 'save.all', 'save.dex', 'skill.all', 'skill.stealth', 'attack.all', 'attack.melee', 'attack.ranged',
    * 'damage.all', 'spell.dc', 'spell.attack'.
    */

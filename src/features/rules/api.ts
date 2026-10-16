@@ -45,6 +45,18 @@ export function useRules(filters: RuleFilters) {
   })
 }
 
+/** Všechny záznamy jednoho druhu najednou (např. zbroje nebo zbraně pro výběr základu magického itemu; SRD jich má do 40). */
+export function useRuleOptions(kind: 'armor' | 'weapon', campaignId: string | undefined, enabled = true) {
+  const params = new URLSearchParams({ kinds: kind, limit: '100' })
+  if (campaignId) params.set('campaignId', campaignId)
+  return useQuery({
+    queryKey: ['rule-options', params.toString()],
+    enabled,
+    staleTime: RULES_STALE_MS,
+    queryFn: async () => (await api.get<{ entries: RuleSummary[] }>(`/rules?${params.toString()}`)).entries,
+  })
+}
+
 export function useRuleFacets(kinds: string[], campaignId?: string) {
   const params = new URLSearchParams({ kinds: kinds.join(',') })
   if (campaignId) params.set('campaignId', campaignId)

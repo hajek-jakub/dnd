@@ -11,10 +11,11 @@ export interface DmNote {
   updatedAt: string
 }
 
-/** Po každé akci DM se přenačtou postavy v kampani (HP, stavy, efekty se hned ukážou). */
-function useRefreshCharacters(campaignId: string) {
+/** Po každé akci DM se přenačtou postavy v kampani i otevřené sheety (HP, stavy, efekty, nová zbroj se hned ukážou). */
+export function useRefreshCharacters(campaignId: string) {
   const queryClient = useQueryClient()
-  return () => queryClient.invalidateQueries({ queryKey: ['characters', campaignId] })
+  return () =>
+    Promise.all([queryClient.invalidateQueries({ queryKey: ['characters', campaignId] }), queryClient.invalidateQueries({ queryKey: ['character'] })])
 }
 
 export function useGiveItem(campaignId: string) {

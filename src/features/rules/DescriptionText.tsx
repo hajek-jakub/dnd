@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 
-/** Pár znaků markdownu, které SRD používá: **tučné**, *kurzíva*, odrážky "- " a tabulky "| a | b |". Žádné HTML. */
+/** Pár znaků markdownu, které SRD používá: **tučné**, *kurzíva*, odrážky "- " a tabulky "| a | b |". Žádné HTML. Zalomení řádku v odstavci zůstane (popisy itemů od DM). */
 function inline(text: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) return <strong key={i}>{part.slice(2, -2)}</strong>
@@ -87,7 +87,11 @@ export function DescriptionText({ text }: { text: string }) {
             </div>
           )
         }
-        return <p key={i}>{inline(block.text)}</p>
+        return (
+          <p key={i} className="whitespace-pre-line">
+            {inline(block.text)}
+          </p>
+        )
       })}
     </div>
   )

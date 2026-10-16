@@ -25,9 +25,10 @@ final class Sheets
     /**
      * Doplní k řádkům postav levely a zdroje a vrátí kompletní sheet pro každou.
      * @param list<array<string, mixed>> $rows
+     * @param bool $revealCurses jen pro DM: jinak neodhalené kletby na itemech ve výstupu nejsou (viz Items::loadMany)
      * @return array<string, array<string, mixed>> podle id postavy
      */
-    public static function loadMany(array $rows): array
+    public static function loadMany(array $rows, bool $revealCurses = false): array
     {
         if ($rows === []) {
             return [];
@@ -47,7 +48,7 @@ final class Sheets
             }
         }
 
-        $items = Items::loadMany(Db::all("SELECT * FROM character_items WHERE character_id IN ($in) ORDER BY created_at, id", $ids));
+        $items = Items::loadMany(Db::all("SELECT * FROM character_items WHERE character_id IN ($in) ORDER BY created_at, id", $ids), $revealCurses);
         $spells = [];
         foreach (Db::all(
             "SELECT cs.id, cs.character_id, cs.rule_id, cs.class_idx, cs.prepared, cs.always_prepared, cs.source, e.name, e.level, e.category, e.data

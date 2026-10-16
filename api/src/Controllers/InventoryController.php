@@ -27,51 +27,116 @@ final class InventoryController
     public static function addItem(Request $req, array $params, array $user): Response
     {
         $char = Sheets::loadMutable($params['id'], $user);
-        $id = self::createItem($char, $user, $req->json());
-        return Response::json(['item' => self::find($id)], 201);
+        $in = $req->json();
+        // Zámek postavy: automatické nasazení zbroje nesmí při dvou rychlých přidáních nasadit obě.
+        $id = Db::transaction(static function () use ($char, $user, $in): string {
+            Db::one('SELECT id FROM characters WHERE id = ? FOR UPDATE', [$char['id']]);
+            return self::createItem($char, $user, $in);
+        });
+        return Response::json(['item' => self::find($id, self::isDm($user, (string) $char['campaign_id']))], 201);
     }
 
     /**
-     * Vytvoří item postavě z pravidel (ruleId) nebo vlastní a vrátí jeho id. Sdílí ho hráč i DM (rozdávání).
+     * Vytvoří item postavě z pravidel (ruleId) nebo vlastní a vrátí jeho id. Sdílí ho hráč i DM (rozdávání, loot).
+     * Volat pod zámkem postavy (kvůli automatickému nasazení zbroje).
      * @param array<string, mixed> $char řádek postavy
      * @param array{id:string} $user
      * @param array<string, mixed> $in
      */
     public static function createItem(array $char, array $user, array $in): string
     {
-        $base = [];
-        if (isset($in['ruleId'])) {
-            $rule = RulesController::visibleEntry(is_string($in['ruleId']) ? $in['ruleId'] : '', $user);
-            if ($rule['campaign_id'] !== null && $rule['campaign_id'] !== $char['campaign_id']) {
-                throw HttpError::validation('Tento záznam patří do jiné kampaně.', 'ruleId');
-            }
-            if (!in_array($rule['kind'], ['weapon', 'armor', 'equipment', 'magic_item'], true)) {
-                throw HttpError::validation('Z tohoto druhu záznamu nejde vytvořit item.', 'ruleId');
-            }
-            $base = Items::fromRule($rule);
-        }
-
-        $given = Items::validate($in, create: $base === []);
-        $item = self::merge($base, $given);
+        $item = self::buildItem((string) $char['campaign_id'], $user, $in);
         $id = Ids::uuid();
         Db::exec(
             'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, equipped, attuned, requires_attunement, consumable,
-                rarity, stats, effects, notes, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                rarity, stats, effects, notes, curse, curse_revealed, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
             [
                 $id, $char['id'], $item['ruleId'] ?? null, $item['name'], $item['description'], $item['kind'], $item['quantity'],
                 $item['requires_attunement'], $item['consumable'], $item['rarity'], Sheets::enc($item['stats']), Sheets::enc($item['effects']), $item['notes'],
+                $item['curse'], $item['curse'] === null ? 0 : $item['curse_revealed'],
             ],
         );
+        // Zbroj a štít se rovnou nosí (když postava nic takového nenosí), jinak by se AC po přidání nezměnilo.
+        Items::autoEquip((string) $char['id'], $id);
         return $id;
+    }
+
+    /**
+     * Sestaví item ze vstupu bez zápisu: z pravidel (ruleId) sloučí výchozí hodnoty se vstupem (vstup má přednost), vlastní item jen ověří.
+     * Magická zbroj a zbraň potřebuje základ: `baseRuleId` (zbroj, štít nebo zbraň), jinak se dohledá z hlavičky (Dwarven Plate → Plate Armor),
+     * nebo vstup pošle hodnoty `armor`/`weapon` sám. U obecných (Armor +1, Weapon +2) bez základu 422.
+     * @param array{id:string} $user
+     * @param array<string, mixed> $in
+     * @return array<string, mixed> sloupce (viz merge)
+     */
+    public static function buildItem(string $campaignId, array $user, array $in): array
+    {
+        $base = [];
+        if (isset($in['ruleId'])) {
+            $rule = self::itemRule($in['ruleId'], $campaignId, $user, 'ruleId');
+            if (!in_array($rule['kind'], Items::RULE_KINDS, true)) {
+                throw HttpError::validation('Z tohoto druhu záznamu nejde vytvořit item.', 'ruleId');
+            }
+            // Souhrnné záznamy („Armor, +1, +2, or +3“) nemají jeden bonus.
+            if (preg_match('/\+\d.*\+\d/', (string) $rule['name']) === 1) {
+                throw HttpError::validation('Vyber konkrétní variantu (např. ' . preg_replace('/,?\s*\+\d.*$/', '', (string) $rule['name']) . ', +1).', 'ruleId');
+            }
+            $gear = Items::magicGear($rule);
+            // Klient může hodnoty zbroje či zbraně poslat sám (i null), pak se základ nehledá.
+            $explicit = array_key_exists('armor', $in) || array_key_exists('weapon', $in);
+            $baseRule = null;
+            if ($gear !== null && $gear['type'] !== 'ammunition' && !$explicit) {
+                if (isset($in['baseRuleId'])) {
+                    $baseRule = self::itemRule($in['baseRuleId'], $campaignId, $user, 'baseRuleId');
+                    if (!Items::baseFits($gear, $baseRule)) {
+                        throw HttpError::validation(self::baseLabel($gear['type'], 'Základ musí být '), 'baseRuleId');
+                    }
+                } else {
+                    $baseRule = Items::baseRuleFor($gear);
+                }
+                if ($baseRule === null) {
+                    throw HttpError::validation(self::baseLabel($gear['type'], 'Vyber, na čem je ' . $rule['name'] . ': '), 'baseRuleId');
+                }
+            }
+            $base = Items::fromRule($rule, $baseRule);
+        }
+
+        $given = Items::validate($in, create: $base === []);
+        self::requireDmForCurse($user, $campaignId, $given);
+        return self::merge($base, $given);
+    }
+
+    /**
+     * Záznam pravidel, ze kterého smí uživatel v této kampani vytvořit item (SRD, nebo homebrew této kampaně, který vidí).
+     * @param array{id:string} $user
+     * @return array<string, mixed>
+     */
+    private static function itemRule(mixed $id, string $campaignId, array $user, string $field): array
+    {
+        $rule = RulesController::visibleEntry(is_string($id) ? $id : '', $user);
+        if ($rule['campaign_id'] !== null && $rule['campaign_id'] !== $campaignId) {
+            throw HttpError::validation('Tento záznam patří do jiné kampaně.', $field);
+        }
+        return $rule;
+    }
+
+    private static function baseLabel(string $type, string $prefix): string
+    {
+        return $prefix . match ($type) {
+            'shield' => 'štít.',
+            'weapon' => 'zbraň (např. Longsword).',
+            default => 'zbroj (např. Chain Mail).',
+        };
     }
 
     /** @param array{id:string} $user */
     public static function updateItem(Request $req, array $params, array $user): array
     {
-        Sheets::loadMutable($params['id'], $user);
+        $char = Sheets::loadMutable($params['id'], $user);
         $item = self::row($params['id'], $params['itemId']);
         $in = Items::validate($req->json(), create: false);
+        self::requireDmForCurse($user, (string) $char['campaign_id'], $in);
 
         Db::transaction(static function () use ($params, $item, $in): void {
             // Zámek postavy: souběžné attunementy se nesmí předběhnout a přesáhnout limit.
@@ -95,7 +160,7 @@ final class InventoryController
 
             $sets = [];
             $values = [];
-            foreach (['name', 'description', 'kind', 'quantity', 'equipped', 'attuned', 'requires_attunement', 'consumable', 'rarity', 'notes'] as $column) {
+            foreach (['name', 'description', 'kind', 'quantity', 'equipped', 'attuned', 'requires_attunement', 'consumable', 'rarity', 'notes', 'curse', 'curse_revealed'] as $column) {
                 if (array_key_exists($column, $in)) {
                     $sets[] = "$column = ?";
                     $values[] = $in[$column];
@@ -119,7 +184,11 @@ final class InventoryController
                 Db::exec('UPDATE character_items SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
             }
         });
-        return ['item' => self::find($item['id'])];
+        // Odhalená kletba: majitel se to dozví (jinak by si jí všiml až při dalším otevření itemu).
+        if (($in['curse_revealed'] ?? 0) === 1 && (int) $item['curse_revealed'] === 0 && ($in['curse'] ?? $item['curse']) !== null && $char['owner_id'] !== null) {
+            Notifications::push((string) $char['owner_id'], $user['id'], (string) $char['campaign_id'], (string) $char['id'], 'item', 'DM odhalil kletbu na itemu: ' . ($in['name'] ?? $item['name']));
+        }
+        return ['item' => self::find((string) $item['id'], self::isDm($user, (string) $char['campaign_id']))];
     }
 
     /** @param array{id:string} $user */
@@ -193,18 +262,22 @@ final class InventoryController
                 if ($qty > (int) $item['quantity']) {
                     throw HttpError::validation('Nemáš tolik kusů.', 'quantity');
                 }
+                $receivedId = (string) $item['id'];
                 if ($qty === (int) $item['quantity']) {
                     Db::exec('UPDATE character_items SET character_id = ?, equipped = 0, attuned = 0, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$toId, $item['id']]);
                 } else {
+                    $receivedId = Ids::uuid();
                     Db::exec('UPDATE character_items SET quantity = quantity - ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$qty, $item['id']]);
                     Db::exec(
                         'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, equipped, attuned, requires_attunement, consumable,
-                            rarity, stats, effects, notes, created_at, updated_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-                        [Ids::uuid(), $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['requires_attunement'], $item['consumable'],
-                            $item['rarity'], $item['stats'], $item['effects'], $item['notes']],
+                            rarity, stats, effects, notes, curse, curse_revealed, created_at, updated_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                        [$receivedId, $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['requires_attunement'], $item['consumable'],
+                            $item['rarity'], $item['stats'], $item['effects'], $item['notes'], $item['curse'], $item['curse_revealed']],
                     );
                 }
+                // Příjemce zbroj rovnou nosí, když žádnou nenosí (předání Batanovi má změnit jeho AC).
+                Items::autoEquip($toId, $receivedId);
             }
 
             if ($coins !== []) {
@@ -230,9 +303,8 @@ final class InventoryController
         }
 
         $rows = Db::all('SELECT * FROM character_items WHERE character_id = ? ORDER BY created_at, id', [$params['id']]);
-        $items = Items::loadMany($rows)[$params['id']] ?? [];
         return [
-            'items' => $items,
+            'items' => Items::loadMany($rows, self::isDm($user, (string) $from['campaign_id']))[$params['id']] ?? [],
             'currency' => self::wallet((string) Db::value('SELECT currency FROM characters WHERE id = ?', [$params['id']])),
         ];
     }
@@ -394,10 +466,10 @@ final class InventoryController
     }
 
     /** @return array<string, mixed> */
-    private static function find(string $itemId): array
+    private static function find(string $itemId, bool $revealCurses): array
     {
         $row = Db::one('SELECT * FROM character_items WHERE id = ?', [$itemId]) ?? throw HttpError::notFound();
-        return Items::loadMany([$row])[$row['character_id']][0];
+        return Items::loadMany([$row], $revealCurses)[$row['character_id']][0];
     }
 
     /**
@@ -412,7 +484,7 @@ final class InventoryController
             'ruleId' => $base['ruleId'] ?? null,
             'name' => $given['name'] ?? $base['name'],
             'description' => $given['description'] ?? ($base['description'] ?? ''),
-            'kind' => $given['kind'] ?? ($base['kind'] ?? 'item'),
+            'kind' => $given['kind'] ?? ($base['kind'] ?? 'other'),
             'quantity' => $given['quantity'] ?? 1,
             'requires_attunement' => $given['requires_attunement'] ?? (int) ($base['requiresAttunement'] ?? false),
             'consumable' => $given['consumable'] ?? (int) ($base['consumable'] ?? false),
@@ -420,6 +492,22 @@ final class InventoryController
             'stats' => $given['stats'] ?? ($base['stats'] ?? []),
             'effects' => $given['effects'] ?? ($base['effects'] ?? []),
             'notes' => $given['notes'] ?? '',
+            'curse' => $given['curse'] ?? null,
+            'curse_revealed' => $given['curse_revealed'] ?? 0,
         ];
+    }
+
+    /** @param array{id:string} $user */
+    private static function isDm(array $user, string $campaignId): bool
+    {
+        return Access::role($user['id'], $campaignId) === 'dm';
+    }
+
+    /** Kletbu na itemu smí nastavit a odhalit jen DM. @param array<string, mixed> $given */
+    private static function requireDmForCurse(array $user, string $campaignId, array $given): void
+    {
+        if ((array_key_exists('curse', $given) || array_key_exists('curse_revealed', $given)) && !self::isDm($user, $campaignId)) {
+            throw HttpError::forbidden('Kletbu na itemu může nastavit jen DM.');
+        }
     }
 }

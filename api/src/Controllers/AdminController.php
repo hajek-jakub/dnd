@@ -6,6 +6,7 @@ namespace Dnd\Controllers;
 
 use Dnd\Config;
 use Dnd\HttpError;
+use Dnd\Items;
 use Dnd\Migrator;
 use Dnd\RateLimiter;
 use Dnd\Request;
@@ -33,12 +34,16 @@ final class AdminController
         return Response::json(['applied' => Migrator::migrate()]);
     }
 
-    /** Načte pravidla (SRD 5.1 + katalog itemů) do databáze; přeskočí se, pokud se data nezměnila. */
+    /**
+     * Načte pravidla (SRD 5.1 + katalog itemů) do databáze; přeskočí se, pokud se data nezměnila.
+     * Pokaždé (i bez změny dat) opraví dřív rozdané magické zbroje a zbraně bez hodnot (Items::repairMagicGear).
+     */
     public static function seed(Request $req): Response
     {
         self::requireKey($req);
         $force = ($req->query['force'] ?? '') === '1';
-        return Response::json(Seeder::run($force));
+        $repaired = Items::repairMagicGear();
+        return Response::json(Seeder::run($force) + ['repaired' => count($repaired), 'repairedItems' => $repaired]);
     }
 
     /** Kontrola prostředí serveru: verze PHP, GD pro obrázky, zapisovatelnost složky pro nahrané soubory. */

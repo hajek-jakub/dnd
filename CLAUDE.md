@@ -34,7 +34,7 @@ to na Endoře nejde, proto je backend **vlastní PHP API + MySQL**. Důsledky pr
 
 ```
 src/components/        sdílené komponenty (AppLayout, theme, ui/ = shadcn)
-src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about (další: inventory, levelup, dm, messages, maps, dice)
+src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about, dm, loot (dílna a loot DM), messages, maps, dice, journal, tactics, enemies, initiative
 src/lib/               api.ts (fetch klient), types.ts (tvary API), utils.ts
 src/engine/            pravidlový engine (čisté TS, unit testy)
 api/                   PHP backend (index.php, src/, migrations/, bin/, data/, config*.php)
@@ -90,6 +90,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - Postavy: majitel a DM vidí vše, ostatní členové jen veřejný náhled (jméno, fotka, rasa, třída, level; `payload()` soukromá pole do odpovědi vůbec nevloží),
   pokud DM nenastaví `visibility = full`. Majitele, viditelnost a kampaň postavy hráč měnit nesmí.
 - DM poznámky: jen DM (API testy i E2E ověřují, že hráč dostane 403 a text nikde nevidí). Oznámení vidí jen jejich příjemce. Soukromé zprávy (fáze 7) musí dostat stejně důkladné testy.
+- Kletby na itemech: neodhalenou kletbu nedostane nikdo kromě DM (ani majitel itemu). Skrytí je **výchozí**: `Items::loadMany` / `Sheets::loadMany` ji vrátí jen s `revealCurses: true` (role DM), nová trasa ji tedy nemůže prozradit omylem. Nastavit a odhalit ji smí jen DM (jinak 403). Loot (`/loot`) je celý jen pro DM.
 - Přihlášení: bcrypt (`password_hash`), heslo 8–72 bajtů, relace = náhodný token v HttpOnly cookie (`SameSite=Lax`, `Secure` při HTTPS), v DB jen SHA-256 hash tokenu.
   Rate limity (tabulka `rate_limits`): přihlášení, registrace, hádání kódů pozvánek, změna hesla. CSRF: kontrola `Origin` u mutací + SameSite.
 - Registrace: jen s platným kódem pozvánky (hráč se rovnou připojí do kampaně) nebo s tajným `registration_key` z konfigurace (DM / první uživatel).
@@ -150,7 +151,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 ### Fáze 4 – Kouzla a inventář: HOTOVO
 - **Kouzla** (`character_spells`, odkaz na `rules_entries`, SRD i homebrew kampaně): přidání do seznamu třídy (nebo mimo třídu), připravená kouzla u cleric/druid/paladin/wizard (limity jen jako upozornění, nikdy neblokují),
   detail kouzla, **seslání**: výběr slotu (kouzlo na vyšší úrovni ukáže text „na vyšší úrovni“), pact slot (např. warlock v multiclassu), rituál bez slotu, cantripy bez slotu, **koncentrace** (`characters.concentration`, adjust op `concentration`).
-- **Inventář** (`character_items`): položka je kopie z pravidel (`Items::fromRule`: zbraň, zbroj, štít, magický item včetně známých efektů jako Ring of Protection, +N zbroj/štít/zbraň) nebo vlastní.
+- **Inventář** (`character_items`): položka je kopie z pravidel (`Items::fromRule`: zbraň, zbroj, štít, magický item včetně známých efektů jako Ring of Protection; magická zbroj a zbraň dostane hodnoty základu, viz „Itemy, kletby, loot a AC“) nebo vlastní.
   Equip se promítá do enginu (AC, útoky, efekty); nosí se jedna zbroj a jeden štít; **attunement max 3** vynucuje server (transakce se zámkem postavy, souběžné požadavky se nepředběhnou).
   Efekty itemů (bonusy k AC, savům, skillům, rychlosti, ...) se započítají jen u nošeného (a u attunement itemů attunovaného) itemu a s původem se ukážou v rozpisu hodnoty.
 - **Peníze**: cp/sp/ep/gp/pp, převod mincí (`money.ts`, jen celé násobky), celková hodnota. **Předávání** (`POST /characters/{id}/transfer`): item (i část stacku) a/nebo peníze jiné postavě ve stejné kampani, v transakci s zámkem obou postav
@@ -295,6 +296,29 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   **Nemodelováno**: automatický dopad stavů (např. Poisoned = nevýhoda), trvání po kolech a úrovně Exhaustion; stavy jsou štítky a DM je případně doplní záporným bonusem.
 - **Vzhled**: teplá „pergamenová“ paleta s indigovým akcentem a tmavý režim (`index.css`), nadpisy fontem Cinzel (`@fontsource-variable/cinzel`, bundlovaný kvůli CSP), jemná záře pozadí, zaoblené karty. Kontrast ověřují axe testy (WCAG AA ve světlém i tmavém režimu).
   Odznaky nepřečtených mají pevně `bg-red-600`, ne `bg-destructive` (v tmavém režimu by bílý text neměl dost kontrastu).
+
+### Itemy, kletby, loot a AC (po fázi 10)
+- **Druhy itemů** (migrace 016, `character_items.kind` je VARCHAR): `wondrous, weapon, armor, shield, staff, wand, rod, scroll, potion, other` (`Items::KINDS`, `ITEM_KINDS` v `features/sheet/labels.ts`). Engine zná jen weapon/armor/shield (`model.ts` ostatní mapuje na `item`).
+  Druh z pravidel určuje `Items::kindForRule` podle kategorie (Potion, Wand, Staff, Rod, Scroll, Ring a Wondrous → wondrous, Ammunition → other), vybavení podle začátku názvu; homebrew magický item podle zadaného typu, attunement ze sloupce `attunement`.
+- **Magická zbroj a zbraň** (Armor +1, Dwarven Plate, Elven Chain, Dragon Scale Mail, štíty, Weapon +2, Sun Blade…): `Items::magicGear` zjistí typ a základ z hlavičky SRD („Armor (plate), very rare“) nebo z kategorie katalogu („Weapon (Longsword)“), `Items::magicBonus` bonus z názvu nebo textu
+  („+2 bonus to AC“, ne podmíněné „against ranged attacks“). Item dostane hodnoty základu (`Items::baseRuleFor`, SRD) a `magicBonus`; obecné (Armor +1, Weapon +2) potřebují `baseRuleId` (jinak 422 s polem `baseRuleId`), název je pak „Armor, +1 (Chain Mail)“.
+  Souhrnné záznamy („Armor, +1, +2, or +3“) nejde přidat. `GET /rules/{id}` vrací `itemBase {type, baseRuleId}`, UI (`ItemSourcePicker`, krok „Základní zbroj/zbraň“) z něj předvybere základ. Explicitní `armor`/`weapon` ve vstupu základ nahradí.
+  Sestavení itemu je jedno místo: `InventoryController::buildItem` (inventář, Panel DM i loot).
+- **Automatické nasazení** (`Items::autoEquip`, při přidání itemu, rozdání od DM i lootu a při **Předat** u příjemce, pod zámkem postavy): zbroj nebo štít s hodnotami si postava rovnou oblékne, když nic stejného druhu nenosí a umí ho nosit
+  (proficiency z první třídy, u dalších tříd z multiclassingu; mnich nikdy, barbar jen štít). Proč: „dal jsem Batanovi zbroj a AC se nezměnilo“ (předaná zbroj byla vždy nenošená).
+- **Engine AC** (`compute.ts`): zbroj a štít se počítají jen nošené a s hodnotami, z víc nošených nejlepší (stejná definice pro AC, Unarmored Defense, Unarmored Movement i Martial Arts, který ve zbroji neplatí), magický bonus zbroje, štítu i zbraně s attunementem až po attunementu,
+  Draconic Resilience (2014: 13 + DEX, 2024 od 3. levelu 10 + DEX + CHA; +1 HP za level sorcerera), podmíněné cíle efektů `ac.armored` (jen ve zbroji, Fighting Style Defense jako bonus od DM) a `ac.unarmored` (bez zbroje a štítu, Bracers of Defense).
+  Rozpis AC ukáže i to, co se nepočítá (bonus bez attunementu, zbroj bez hodnot); dialog AC na sheetu upozorní na nenošenou zbroj v batohu a ruční přepis (ten přebije každou změnu výbavy), Panel DM má u přepsaného AC značku „ručně“.
+- **Oprava starých dat** `Items::repairMagicGear` (idempotentní, volá ji `POST /admin/seed` při každém nasazení i `api/bin/seed.php`, výstup `repaired`/`repairedItems` vypíše deploy): magické zbroje a zbraně s jasným základem bez hodnot je dostanou (zbroj se nasadí podle `autoEquip`),
+  Bracers of Defense `ac` → `ac.unarmored`, starý druh `item` → `other`. Obecné staré (Armor +1) zůstanou wondrous s efektem +1 AC; DM je může předat znovu s výběrem základu.
+- **Kletby** (migrace 017: `curse`, `curse_revealed`): text vidí jen DM, dokud ji neodhalí (`PATCH …/items/{id}` `{curseRevealed: true}`, jen DM; majitel dostane oznámení). Při předání se kletba přenáší. V UI: pole „Kletba“ ve formuláři itemu (jen DM), na sheetu v Podrobnostech itemu „Odhalit hráči“ / „Skrýt před hráčem“.
+- **Tučné písmo v popisu**: `FormattingTextarea` (tlačítka Tučně, Kurzíva, Odrážka a Náhled; `renderPreview`) u popisu itemu, kletby a homebrew; `DescriptionText` zachová zalomení řádků („**Schopnost**: popis“ na každém řádku).
+- **Loot a dílna DM** (migrace 018 `loot_folders`, `loot_entries`; `LootController`; stránka `/campaigns/:id/dm/loot`, `src/features/loot/`, odkaz „Loot a itemy“ v hlavičce Panelu DM): strom složek (hloubka max 6, 300 složek, 1500 položek), položka je item nebo zlato.
+  Item se ukládá jako **samostatná kopie** vstupu (`buildItem` → `Items::toInput`, bez `ruleId`, i s kletbou), takže jde upravit a při rozdání se nic znovu nedohledává. Rozdání: přetažení položky na ikonu postavy, nebo zaškrtnutí a klepnutí na ikonu, jen **připraví** přiřazení (`distribution.ts`, jedno přiřazení na položku);
+  tlačítko Rozdat pošle `POST /campaigns/{id}/loot/give {assignments:[{entryId, characterIds, split?}]}` v jedné transakci (zlato pro víc postav rovným dílem, item každému; postavy z jiné kampaně 422 a nic se nerozdá). Položka pak zůstane s poznámkou `givenTo` („Rozdáno: Bob“).
+  „Celá družina“ je jen pro zlato (hráčské postavy). API: `GET /campaigns/{id}/loot`, `POST /campaigns/{id}/loot/folders|entries|give`, `PATCH|DELETE /loot/folders/{id}`, `PATCH|DELETE /loot/entries/{id}`; vše jen DM (hráč 403, cizinec 404).
+- Testy: `api-tests/loot-curse.test.ts` (kletby všude skryté a DM je vidí, loot, mutation check proveden), `api-tests/magic-gear.test.ts` (převody, druhy, automatické nasazení, oprava při seedu), engine (`engine.test.ts`, blok AC), `src/features/loot/distribution.test.ts`,
+  E2E `e2e/loot.spec.ts` (DM počítač + hráč telefon: složky, tučný popis, kletba, přetažení, rozdání, odhalení; AC s magickou zbrojí) a stránka lootu v layout a a11y testech. Migrace ověřené i na MariaDB 11.8 (starý kód → nové migrace → oprava).
 
 ### Další možná práce (mimo původní zadání)
 - Data SRD 5.2 (2024) a filtrování pravidel podle sady kampaně (dnes engine zná rozdíly 2014/2024 a prohlížeč pravidel na to upozorňuje).

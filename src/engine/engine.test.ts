@@ -21,6 +21,7 @@ import {
   spellSlots,
   spendHitDie,
 } from './index'
+import type { InventoryItem } from './types'
 import { item, levelsOf, loadBundle, makeInput } from './test-helpers'
 
 const bundle = loadBundle()
@@ -255,6 +256,92 @@ describe('AC', () => {
     const ac = computeSheet(input, bundle).ac
     expect(ac.value).toBe(12 + 1 + 1 + 1)
     expect(ac.sources).toContainEqual({ label: 'Požehnání od DM', value: '+1' })
+  })
+
+  it('z víc nošených zbrojí platí ta nejlepší a chybějící limit DEX nezpůsobí NaN', () => {
+    const scores = { dex: 14 }
+    const leather = item({ id: 'l', name: 'Leather', kind: 'armor', armor: { base: 11, dexBonus: true, maxDexBonus: null } })
+    const chain = item({ id: 'c', name: 'Chain Mail', kind: 'armor', armor: { base: 16, dexBonus: false, maxDexBonus: null } })
+    expect(computeSheet(makeInput({ scores, items: [leather, chain] }), bundle).ac.value).toBe(16)
+    expect(computeSheet(makeInput({ scores, items: [chain, leather] }), bundle).ac.value).toBe(16)
+    const noLimit = item({ id: 'x', name: 'Starý kus', kind: 'armor', armor: { base: 12, dexBonus: true } as unknown as InventoryItem['armor'] })
+    const ac = computeSheet(makeInput({ scores, items: [noLimit] }), bundle).ac
+    expect(ac.value).toBe(14)
+    expect(ac.sources).toContainEqual({ label: 'DEX', value: '+2' })
+  })
+
+  it('magický bonus zbroje a štítu s attunementem platí až po attunementu (základ vždy)', () => {
+    const demon = item({ id: 'd', name: 'Demon Armor', kind: 'armor', requiresAttunement: true, armor: { base: 18, dexBonus: false, maxDexBonus: null, magicBonus: 1 } })
+    const shield = item({ id: 's', name: 'Shield +1', kind: 'shield', requiresAttunement: true, armor: { base: 2, dexBonus: false, maxDexBonus: null, magicBonus: 1 } })
+    const before = computeSheet(makeInput({ items: [demon, shield] }), bundle).ac
+    expect(before.value).toBe(20)
+    expect(before.sources).toContainEqual({ label: 'Demon Armor: magický bonus až po attunementu', value: 'neplatí' })
+    expect(computeSheet(makeInput({ items: [{ ...demon, attuned: true }, { ...shield, attuned: true }] }), bundle).ac.value).toBe(22)
+  })
+
+  it('nošená zbroj bez hodnot se nepočítá nikde (AC, Unarmored Defense, rychlost) a rozpis to řekne', () => {
+    const input = makeInput({
+      levels: levelsOf(['monk', 3]),
+      scores: { dex: 16, wis: 16 },
+      items: [item({ id: 'w', name: 'Dwarven Plate', kind: 'armor' })],
+    })
+    const sheet = computeSheet(input, bundle)
+    expect(sheet.ac.value).toBe(10 + 3 + 3)
+    expect(sheet.ac.sources).toContainEqual({ label: 'Dwarven Plate: chybí hodnoty zbroje', value: 'nepočítá se' })
+    expect(sheet.speed.value).toBe(40) // Unarmored Movement zůstává
+  })
+
+  it('mnich ve zbroji přijde o Unarmored Defense, Unarmored Movement i Martial Arts', () => {
+    const leather = item({ id: 'l', name: 'Leather', kind: 'armor', armor: { base: 11, dexBonus: true, maxDexBonus: null } })
+    const base = makeInput({ levels: levelsOf(['monk', 5]), scores: { str: 10, dex: 16, wis: 16 } })
+    const free = computeSheet(base, bundle)
+    expect(free.attacks.find((a) => a.name === 'Unarmed Strike')?.damageDice).toBe('1d6')
+    const armored = computeSheet({ ...base, items: [leather] }, bundle)
+    expect(armored.ac.value).toBe(11 + 3)
+    expect(armored.speed.value).toBe(30)
+    const unarmed = armored.attacks.find((a) => a.name === 'Unarmed Strike')
+    expect(unarmed?.damageDice).not.toBe('1d6')
+    expect(unarmed?.notes).not.toContain('Martial Arts')
+    expect(armored.martialArtsDie).toBe('1d6') // kostka třídy zůstává (level up, karta útoků)
+  })
+
+  it('Draconic Resilience: 13 + DEX bez zbroje, štít se přičte, +1 HP za level sorcerera; 2024 od 3. levelu 10 + DEX + CHA', () => {
+    const plain = makeInput({ levels: levelsOf(['sorcerer', 3]), scores: { dex: 14, cha: 18 } })
+    const draconic = { ...plain, subclasses: { sorcerer: 'draconic' } }
+    expect(computeSheet(plain, bundle).ac.value).toBe(12)
+    expect(computeSheet(draconic, bundle).ac.value).toBe(15)
+    const shield = item({ id: 's', name: 'Shield', kind: 'shield', armor: { base: 2, dexBonus: false, maxDexBonus: null } })
+    expect(computeSheet({ ...draconic, items: [shield] }, bundle).ac.value).toBe(17)
+    expect(computeSheet(draconic, bundle).hp.max.value - computeSheet(plain, bundle).hp.max.value).toBe(3)
+    expect(computeSheet(draconic, bundle).hp.max.sources).toContainEqual({ label: 'Draconic Resilience', value: '+3' })
+    const rules2024 = { ...draconic, rules: { ruleset: '2024' as const } }
+    expect(computeSheet(rules2024, bundle).ac.value).toBe(10 + 2 + 4)
+    const level2 = { ...rules2024, levels: levelsOf(['sorcerer', 2]) }
+    expect(computeSheet(level2, bundle).ac.value).toBe(12)
+  })
+
+  it('podmíněné bonusy: ac.unarmored jen bez zbroje a štítu, ac.armored jen ve zbroji', () => {
+    const bracers = item({ id: 'b', name: 'Bracers of Defense', kind: 'item', requiresAttunement: true, attuned: true, effects: [{ target: 'ac.unarmored', value: 2, source: '' }] })
+    const shield = item({ id: 's', name: 'Shield', kind: 'shield', armor: { base: 2, dexBonus: false, maxDexBonus: null } })
+    const chain = item({ id: 'c', name: 'Chain Mail', kind: 'armor', armor: { base: 16, dexBonus: false, maxDexBonus: null } })
+    const defense = { target: 'ac.armored', value: 1, source: 'Fighting Style: Defense' }
+    expect(computeSheet(makeInput({ items: [bracers], effects: [defense] }), bundle).ac.value).toBe(12)
+    expect(computeSheet(makeInput({ items: [bracers, shield], effects: [defense] }), bundle).ac.value).toBe(12)
+    const armored = computeSheet(makeInput({ items: [bracers, chain], effects: [defense] }), bundle).ac
+    expect(armored.value).toBe(17)
+    expect(armored.sources).toContainEqual({ label: 'Fighting Style: Defense', value: '+1' })
+  })
+
+  it('magický bonus zbraně s attunementem platí až po attunementu', () => {
+    const blade = item({
+      id: 'w', name: 'Sun Blade', kind: 'weapon', requiresAttunement: true,
+      weapon: { damageDice: '1d8', damageType: 'Radiant', category: 'martial', range: 'melee', properties: ['Finesse'], magicBonus: 2 },
+    })
+    const scores = { str: 16 }
+    const before = computeSheet(makeInput({ scores, items: [blade] }), bundle).attacks.find((a) => a.name === 'Sun Blade')!
+    const after = computeSheet(makeInput({ scores, items: [{ ...blade, attuned: true }] }), bundle).attacks.find((a) => a.name === 'Sun Blade')!
+    expect(after.toHit.value - before.toHit.value).toBe(2)
+    expect(after.damageBonus.value - before.damageBonus.value).toBe(2)
   })
 
   it('barbarská rychlost: Fast Movement jen bez těžké zbroje', () => {

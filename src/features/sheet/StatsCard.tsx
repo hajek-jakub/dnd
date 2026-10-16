@@ -3,14 +3,15 @@ import { RollButton } from '@/features/dice/RollButton'
 import { d20 } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { useSheet } from './sheet-context'
+import type { CharacterItem } from './types'
 
 /** Klíčové hodnoty na jednom místě: AC, iniciativa, rychlost, proficiency, pasivní vnímání. */
 export function StatsCard() {
-  const { sheet } = useSheet()
+  const { sheet, character } = useSheet()
   return (
     <section aria-label="Klíčové hodnoty" className="grid grid-cols-3 gap-2 sm:grid-cols-5">
       <Stat label="AC">
-        <ComputedValue title="Armor Class" computed={sheet.ac} overrideKey="ac" className="w-full text-2xl" />
+        <ComputedValue title="Armor Class" computed={sheet.ac} overrideKey="ac" className="w-full text-2xl" hints={acHints(character.items)} />
       </Stat>
       <Stat label="Iniciativa">
         <ComputedValue title="Iniciativa" computed={sheet.initiative} overrideKey="initiative" format={formatModifier} className="w-full text-2xl" />
@@ -33,6 +34,22 @@ export function StatsCard() {
       </Stat>
     </section>
   )
+}
+
+/** Zbroj nebo štít v batohu, když postava nic takového nenosí: do AC se nepočítá (častý důvod, proč se AC „nezměnilo“). */
+function acHints(items: CharacterItem[]): string[] {
+  const hints: string[] = []
+  for (const [kind, what] of [
+    ['armor', 'zbroj'],
+    ['shield', 'štít'],
+  ] as const) {
+    const worn = items.some((i) => i.kind === kind && i.equipped && i.armor)
+    const carried = items.filter((i) => i.kind === kind && !i.equipped && i.armor)
+    if (!worn && carried.length > 0) {
+      hints.push(`V batohu je ${what} ${carried.map((i) => i.name).join(', ')}, ale postava ji nenosí, takže se do AC nepočítá. Nasadit jde v Inventáři tlačítkem „Nosit“.`)
+    }
+  }
+  return hints
 }
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {

@@ -249,6 +249,7 @@ if (!dryRun && !skipMigrate) {
         ? 'Pravidla jsou aktuální, nic se nenačítalo.'
         : `Pravidla načtena: ${Object.values(seed.counts).reduce((a, b) => a + b, 0)} záznamů, smazáno zastaralých ${seed.removed}.`,
     )
+    if (seed.repaired > 0) console.log(`Opravené itemy postav (magická zbroj a zbraň, Bracers of Defense, starý druh): ${seed.repairedItems.join(', ')}`)
   } catch (error) {
     fail(`Migrace se nepodařilo zavolat: ${error instanceof Error ? error.message : String(error)}`)
   }

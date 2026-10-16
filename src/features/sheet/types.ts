@@ -1,3 +1,4 @@
+import type { ItemKind } from './labels'
 import type { AbilityKey, CustomResource, Recharge, SkillKey } from '@/engine'
 
 export interface CharacterState {
@@ -77,13 +78,15 @@ export interface CharacterItem {
   ruleId: string | null
   name: string
   description: string
-  kind: 'armor' | 'shield' | 'weapon' | 'item'
+  kind: ItemKind
   quantity: number
   equipped: boolean
   attuned: boolean
   requiresAttunement: boolean
   /** spotřebuje se používáním (šípy, lektvary): tlačítko Použít ubere kus */
   consumable: boolean
+  /** Kletba na itemu: text vidí jen DM, hráč ji dostane, až ji DM odhalí (`revealed`). */
+  curse: { text: string; revealed: boolean } | null
   rarity: string | null
   armor: {
     base: number

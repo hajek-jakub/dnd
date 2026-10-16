@@ -1,4 +1,4 @@
-config.php
-config.production.php
+/config.php
+/config.production.php
 storage/*
 !storage/.htaccess

@@ -6,12 +6,10 @@ import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { ApiError } from '@/lib/api'
-import { useRules } from '@/features/rules/api'
-import { metaLine } from '@/features/rules/labels'
 import { EFFECT_TARGETS } from '@/features/sheet/effects'
-import { ItemForm } from '@/features/sheet/ItemForm'
-import { COINS, COIN_LABELS, formatCoins, fromCp, splitCoins, totalCp, type Coin } from '@/features/sheet/money'
-import type { ItemInput } from '@/features/sheet/api'
+import { CoinFields } from '@/features/sheet/CoinFields'
+import { ItemSourcePicker } from '@/features/sheet/ItemSourcePicker'
+import { COINS, formatCoins, fromCp, splitCoins, totalCp, type Coin } from '@/features/sheet/money'
 import {
   useAddEffect,
   useDmHp,
@@ -224,24 +222,7 @@ function CurrencyForm({ campaignId, targets, onClose }: DialogProps) {
           Vzít
         </Button>
       </div>
-      <div className="grid grid-cols-5 gap-2">
-        {COINS.map((c) => (
-          <div key={c} className="space-y-1">
-            <Label htmlFor={`dm-coin-${c}`} title={COIN_LABELS[c]}>
-              {c.toUpperCase()}
-            </Label>
-            <Input
-              id={`dm-coin-${c}`}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={values[c]}
-              onChange={(e) => setValues((v) => ({ ...v, [c]: e.target.value }))}
-              className="px-2"
-            />
-          </div>
-        ))}
-      </div>
+      <CoinFields idPrefix="dm-coin" values={values} onChange={(c, value) => setValues((v) => ({ ...v, [c]: value }))} />
       {many && (
         <label className="flex min-h-11 items-center gap-3">
           <input type="checkbox" className="size-5" checked={split} onChange={(e) => setSplit(e.target.checked)} />
@@ -267,81 +248,31 @@ function CurrencyForm({ campaignId, targets, onClose }: DialogProps) {
 }
 
 function ItemPicker({ campaignId, targets, onClose }: DialogProps) {
-  const [tab, setTab] = useState<'rules' | 'custom'>('rules')
-  const [q, setQ] = useState('')
-  const [kind, setKind] = useState('')
-  const [quantity, setQuantity] = useState('1')
   const give = useGiveItem(campaignId)
-  const kinds = kind === '' ? ['weapon', 'armor', 'equipment', 'magic_item'] : kind.split(',')
-  const rules = useRules({ kinds, q: q.trim() || undefined, campaignId })
-  const entries = rules.data?.pages.flatMap((p) => p.entries) ?? []
-  const qty = Math.max(1, Number.parseInt(quantity, 10) || 1)
-
-  function send(item: ItemInput, label: string) {
-    give.mutate(
-      { characterIds: targets.map((t) => t.id), item },
-      {
-        onSuccess: () => {
-          toast.success(`Předáno: ${label}`)
-          onClose()
-        },
-        onError: (e) => toast.error(errorText(e, 'Item se nepodařilo předat.')),
-      },
-    )
-  }
-
   return (
     <div className="space-y-4">
       <Targets targets={targets} />
-      <div role="tablist" aria-label="Zdroj itemu" className="grid grid-cols-2 gap-2">
-        {(
-          [
-            ['rules', 'Z pravidel'],
-            ['custom', 'Jednorázový'],
-          ] as const
-        ).map(([id, label]) => (
-          <Button key={id} type="button" role="tab" aria-selected={tab === id} variant={tab === id ? 'default' : 'outline'} onClick={() => setTab(id)}>
-            {label}
-          </Button>
-        ))}
-      </div>
-
-      {tab === 'rules' ? (
-        <div className="space-y-3">
-          <Input type="search" aria-label="Hledat item" placeholder="Hledat podle názvu…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <div className="grid grid-cols-[1fr_6rem] gap-2">
-            <NativeSelect aria-label="Druh itemu" value={kind} onChange={(e) => setKind(e.target.value)}>
-              <option value="">Všechno</option>
-              <option value="weapon">Zbraně</option>
-              <option value="armor">Zbroje a štíty</option>
-              <option value="equipment">Vybavení</option>
-              <option value="magic_item">Magické itemy</option>
-            </NativeSelect>
-            <Input aria-label="Počet kusů" type="number" min={1} max={9999} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-          </div>
-          <ul className="scroll-area max-h-[40dvh] space-y-2 pr-2">
-            {entries.map((e) => (
-              <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border p-2">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{e.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{metaLine(e)}</span>
-                </span>
-                <Button type="button" variant="secondary" disabled={give.isPending} aria-label={`Dát ${e.name}`} onClick={() => send({ ruleId: e.id, quantity: qty }, e.name)}>
-                  Dát
-                </Button>
-              </li>
-            ))}
-            {!rules.isPending && entries.length === 0 && <li className="text-sm text-muted-foreground">Nic nenalezeno.</li>}
-          </ul>
-          {rules.hasNextPage && (
-            <Button type="button" variant="outline" className="w-full" onClick={() => void rules.fetchNextPage()}>
-              Načíst další
-            </Button>
-          )}
-        </div>
-      ) : (
-        <ItemForm pending={give.isPending} submitLabel="Dát item" onSubmit={(input) => send(input, input.name ?? 'item')} />
-      )}
+      <ItemSourcePicker
+        campaignId={campaignId}
+        dm
+        pending={give.isPending}
+        pickLabel="Dát"
+        submitLabel="Dát item"
+        customTabLabel="Vlastní item"
+        note="Itemy si můžeš připravit dopředu v dílně (Panel DM → Loot a itemy) a rozdat je odtamtud."
+        onPick={(item, label) =>
+          give.mutate(
+            { characterIds: targets.map((t) => t.id), item },
+            {
+              onSuccess: () => {
+                toast.success(`Předáno: ${label}`)
+                onClose()
+              },
+              onError: (e) => toast.error(errorText(e, 'Item se nepodařilo předat.')),
+            },
+          )
+        }
+      />
     </div>
   )
 }

@@ -43,3 +43,33 @@ export const ALIGNMENTS = [
   'Neutral Evil',
   'Chaotic Evil',
 ]
+
+/** Druhy itemů (stejné jako `Items::KINDS` na serveru). Engine zná jen weapon, armor a shield, ostatní jsou pro přehlednost. */
+export const ITEM_KINDS = [
+  { value: 'wondrous', label: 'Wondrous item (kouzelný předmět)' },
+  { value: 'weapon', label: 'Zbraň (weapon)' },
+  { value: 'armor', label: 'Zbroj (armor)' },
+  { value: 'shield', label: 'Štít (shield)' },
+  { value: 'staff', label: 'Hůl (staff)' },
+  { value: 'wand', label: 'Hůlka (wand)' },
+  { value: 'rod', label: 'Žezlo (rod)' },
+  { value: 'scroll', label: 'Svitek (scroll)' },
+  { value: 'potion', label: 'Lektvar (potion)' },
+  { value: 'other', label: 'Ostatní (other)' },
+] as const
+
+export type ItemKind = (typeof ITEM_KINDS)[number]['value']
+
+/** Krátký český název druhu pro seznamy. */
+export const ITEM_KIND_SHORT: Record<ItemKind, string> = {
+  wondrous: 'Wondrous item',
+  weapon: 'Zbraň',
+  armor: 'Zbroj',
+  shield: 'Štít',
+  staff: 'Staff',
+  wand: 'Wand',
+  rod: 'Rod',
+  scroll: 'Scroll',
+  potion: 'Potion',
+  other: 'Ostatní',
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftRightIcon, CoinsIcon, HandCoinsIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import { ArrowLeftRightIcon, CoinsIcon, EyeIcon, EyeOffIcon, HandCoinsIcon, PlusIcon, SkullIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
+import { RichText } from '@/components/RichText'
 import { ApiError } from '@/lib/api'
 import { DescriptionText } from '@/features/rules/DescriptionText'
-import { useRules } from '@/features/rules/api'
-import { metaLine } from '@/features/rules/labels'
 import { effectLabel } from './effects'
 import { ItemForm } from './ItemForm'
+import { ItemSourcePicker } from './ItemSourcePicker'
+import { ITEM_KIND_SHORT } from './labels'
 import { NotesText } from './NotesText'
 import { useAddItem, useCharacters, useDeleteItem, useSpend, useTransfer, useUpdateItem, type ItemInput } from './api'
 import { COINS, COIN_LABELS, convertCoins, formatCp, totalCp, totalGold, type Coin } from './money'
@@ -79,7 +80,7 @@ function ItemGroup({ title, items }: { title: string; items: CharacterItem[] }) 
 }
 
 function ItemRow({ item }: { item: CharacterItem }) {
-  const { character, sheet, canEdit } = useSheet()
+  const { character, sheet, canEdit, isDm } = useSheet()
   const update = useUpdateItem(character.id)
   const remove = useDeleteItem(character.id)
   const [editing, setEditing] = useState(false)
@@ -87,6 +88,9 @@ function ItemRow({ item }: { item: CharacterItem }) {
   const patch = (p: ItemInput) =>
     update.mutate({ itemId: item.id, patch: p }, { onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Změna se nepodařila.') })
   const attuneBlocked = !item.attuned && sheet.attunement.used >= sheet.attunement.max
+  // Zbraň, zbroj, štít a itemy s efekty se musí nasadit, jinak se nepočítají do AC, útoků ani bonusů.
+  const wearable = item.kind === 'weapon' || item.kind === 'armor' || item.kind === 'shield' || item.effects.length > 0
+  const inactive = wearable && !item.equipped
 
   return (
     <li className="rounded-xl border bg-card">
@@ -98,18 +102,24 @@ function ItemRow({ item }: { item: CharacterItem }) {
           </p>
           <p className="text-xs text-muted-foreground">
             {[
-              item.kind === 'weapon' ? 'Zbraň' : item.kind === 'armor' ? 'Zbroj' : item.kind === 'shield' ? 'Štít' : null,
+              item.kind === 'other' ? null : ITEM_KIND_SHORT[item.kind],
               item.rarity,
               item.requiresAttunement ? 'attunement' : null,
               item.consumable ? 'spotřebuje se' : null,
+              item.curse ? (item.curse.revealed ? 'prokletý' : 'skrytá kletba (vidíš jen ty)') : null,
             ]
               .filter(Boolean)
               .join(' · ')}
+            {inactive && item.kind !== 'other' && (
+              <span className="ml-1 font-medium text-amber-700 dark:text-amber-400" data-testid="not-worn">
+                · nenosí se: {item.kind === 'weapon' ? 'nezobrazí se mezi útoky' : item.kind === 'armor' || item.kind === 'shield' ? 'nezapočítá se do AC' : 'bonusy neplatí'}
+              </span>
+            )}
           </p>
         </div>
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2">
-            {(item.kind !== 'item' || item.effects.length > 0) && (
+            {wearable && (
               <Button
                 variant={item.equipped ? 'default' : 'outline'}
                 aria-pressed={item.equipped}
@@ -118,7 +128,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
                 {item.equipped ? 'Nosím' : 'Nosit'}
               </Button>
             )}
-            {item.kind === 'item' && item.effects.length === 0 && (
+            {!wearable && (
               <Button
                 variant={item.equipped ? 'default' : 'outline'}
                 aria-pressed={item.equipped}
@@ -174,6 +184,28 @@ function ItemRow({ item }: { item: CharacterItem }) {
               {item.weapon.extraDamage?.length ? `, + ${item.weapon.extraDamage.map((x) => `${x.dice} ${x.type.toLowerCase()}`).join(', + ')}` : ''}
             </p>
           )}
+          {item.curse && (
+            <div className="space-y-2 rounded-lg border border-red-500/50 bg-red-500/5 p-3" data-testid="curse">
+              <p className="flex items-center gap-1 font-semibold text-red-700 dark:text-red-400">
+                <SkullIcon aria-hidden className="size-4" /> Kletba
+                {isDm && !item.curse.revealed && <span className="text-xs font-normal">(skrytá, hráč ji nevidí)</span>}
+              </p>
+              <RichText text={item.curse.text} />
+              {isDm && (
+                <Button variant="outline" onClick={() => patch({ curseRevealed: !item.curse?.revealed })}>
+                  {item.curse.revealed ? (
+                    <>
+                      <EyeOffIcon aria-hidden /> Skrýt před hráčem
+                    </>
+                  ) : (
+                    <>
+                      <EyeIcon aria-hidden /> Odhalit hráči
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
           {item.description && <DescriptionText text={item.description} />}
           {item.notes && <NotesText text={item.notes} className="space-y-1 text-muted-foreground" />}
           {canEdit && (
@@ -221,6 +253,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
         {editing && (
           <ItemForm
             item={item}
+            dm={isDm}
             pending={update.isPending}
             submitLabel="Uložit"
             onSubmit={(input) =>
@@ -238,91 +271,33 @@ function ItemRow({ item }: { item: CharacterItem }) {
 }
 
 function AddItemDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { character } = useSheet()
-  const [tab, setTab] = useState<'rules' | 'custom'>('rules')
-  const [q, setQ] = useState('')
-  const [kind, setKind] = useState('')
+  const { character, isDm } = useSheet()
   const add = useAddItem(character.id)
-
-  const kinds = kind === '' ? ['weapon', 'armor', 'equipment', 'magic_item'] : kind.split(',')
-  const rules = useRules({ kinds, q: q.trim() || undefined, campaignId: character.campaignId })
-  const entries = rules.data?.pages.flatMap((p) => p.entries) ?? []
-
-  function addFromRule(ruleId: string, name: string) {
-    add.mutate(
-      { ruleId },
-      {
-        onSuccess: () => toast.success(`Přidáno: ${name}`),
-        onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Přidání se nepodařilo.'),
-      },
-    )
-  }
 
   return (
     <Modal open={open} onClose={onClose} title="Přidat item">
-      <div className="space-y-4">
-        <div role="tablist" aria-label="Zdroj itemu" className="grid grid-cols-2 gap-2">
-          {(
-            [
-              ['rules', 'Z pravidel'],
-              ['custom', 'Vlastní'],
-            ] as const
-          ).map(([id, label]) => (
-            <Button key={id} role="tab" aria-selected={tab === id} variant={tab === id ? 'default' : 'outline'} onClick={() => setTab(id)}>
-              {label}
-            </Button>
-          ))}
-        </div>
-
-        {tab === 'rules' ? (
-          <div className="space-y-3">
-            <Input type="search" aria-label="Hledat item" placeholder="Hledat podle názvu…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <NativeSelect aria-label="Druh itemu" value={kind} onChange={(e) => setKind(e.target.value)}>
-              <option value="">Všechno</option>
-              <option value="weapon">Zbraně</option>
-              <option value="armor">Zbroje a štíty</option>
-              <option value="equipment">Vybavení</option>
-              <option value="magic_item">Magické itemy</option>
-            </NativeSelect>
-            <ul className="scroll-area max-h-[45dvh] space-y-2 pr-2">
-              {entries.map((e) => (
-                <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border p-2">
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{e.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{metaLine(e)}</span>
-                  </span>
-                  <Button variant="secondary" disabled={add.isPending} aria-label={`Přidat ${e.name}`} onClick={() => addFromRule(e.id, e.name)}>
-                    Přidat
-                  </Button>
-                </li>
-              ))}
-              {!rules.isPending && entries.length === 0 && <li className="text-sm text-muted-foreground">Nic nenalezeno.</li>}
-            </ul>
-            {rules.hasNextPage && (
-              <Button variant="outline" className="w-full" onClick={() => void rules.fetchNextPage()}>
-                Načíst další
-              </Button>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Item mimo SRD se přidá jen s názvem, vzácností a cenou. Popis najdeš v příručce, případně si ho dopiš po přidání.
-            </p>
-          </div>
-        ) : (
-          <ItemForm
-            pending={add.isPending}
-            submitLabel="Přidat item"
-            onSubmit={(input) =>
-              add.mutate(input, {
-                onSuccess: () => {
-                  toast.success('Item přidán')
-                  onClose()
-                },
-                onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Přidání se nepodařilo.'),
-              })
-            }
-          />
-        )}
-      </div>
+      <ItemSourcePicker
+        campaignId={character.campaignId}
+        dm={isDm}
+        pending={add.isPending}
+        pickLabel="Přidat"
+        submitLabel="Přidat item"
+        customTabLabel="Vlastní"
+        note="Item mimo SRD se přidá jen s názvem, vzácností a cenou. Popis najdeš v příručce, případně si ho dopiš po přidání."
+        onPick={(input, label) =>
+          add.mutate(input, {
+            onSuccess: () => {
+              // z pravidel jde přidat víc věcí za sebou, vlastní item dialog zavře
+              if (input.ruleId) toast.success(`Přidáno: ${label}`)
+              else {
+                toast.success('Item přidán')
+                onClose()
+              }
+            },
+            onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Přidání se nepodařilo.'),
+          })
+        }
+      />
     </Modal>
   )
 }
