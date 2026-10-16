@@ -231,6 +231,75 @@ describe('druhy itemů, kletby a loot DM', () => {
       expectStatus(await dm.client.post(`/campaigns/${campaignId}/loot/give`, { assignments: [{ entryId: swordEntry, characterIds: [] }] }), 422)
     })
 
+    describe('nákup: item s cenou se platí, nalezený je zdarma', () => {
+      let buyer: TestUser
+      let buyerChar: string
+      const wallet = async () => (await dm.client.get(`/characters/${buyerChar}`)).body.character.currency
+      const notifications = async () => (await buyer.client.get('/notifications')).body.notifications.map((n: any) => n.text) as string[]
+
+      beforeAll(async () => {
+        buyer = await joinAsPlayer(dm, campaignId, 'kupec')
+        buyerChar = (await buyer.client.post(`/campaigns/${campaignId}/characters`, body('Kupec'))).body.character.id
+      })
+
+      it('položka s cenou: bez peněz se nic neprodá, s penězi kupující zaplatí (s drobnými) a dostane item', async () => {
+        const shop = await dm.client.post(`/campaigns/${campaignId}/loot/entries`, { kind: 'item', item: { name: 'Lano', kind: 'other' }, price: { gp: 1, sp: 5 } })
+        expectStatus(shop, 201)
+        expect(shop.body.entry.priceCp).toBe(150)
+        const entryId = shop.body.entry.id as string
+        const broke = await dm.client.post(`/campaigns/${campaignId}/loot/give`, { assignments: [{ entryId, characterIds: [buyerChar] }] })
+        expectStatus(broke, 422)
+        expect(broke.body.error).toMatchObject({ field: 'price', message: expect.stringContaining('Kupec') })
+        expect(await items(dm, buyerChar)).toHaveLength(0)
+        expect((await loot()).entries.find((e) => e.id === entryId).givenTo).toBe('')
+
+        await dm.client.post(`/campaigns/${campaignId}/dm/currency`, { characterIds: [buyerChar], currency: { gp: 2 } })
+        const ok = await dm.client.post(`/campaigns/${campaignId}/loot/give`, { assignments: [{ entryId, characterIds: [buyerChar] }] })
+        expectStatus(ok, 200)
+        expect(ok.body.given[0]).toMatchObject({ label: 'Lano', priceCp: 150, to: ['Kupec'] })
+        expect(await wallet()).toMatchObject({ gp: 0, sp: 5, cp: 0 }) // 2 gp − 1 gp 5 sp, drobné se vrátí
+        expect((await items(buyer, buyerChar)).map((i) => i.name)).toEqual(['Lano'])
+        expect(await notifications()).toContain('Koupil(a) jsi: Lano za 1 gp, 5 sp')
+      })
+
+      it('nalezená položka (bez ceny) je zdarma; cenu jde změnit i zrušit; zlato cenu mít nemůže; neplatná cena 422', async () => {
+        const found = await dm.client.post(`/campaigns/${campaignId}/loot/entries`, { kind: 'item', item: { name: 'Kamínek' } })
+        expect(found.body.entry.priceCp).toBeNull()
+        const before = await wallet()
+        expectStatus(await dm.client.post(`/campaigns/${campaignId}/loot/give`, { assignments: [{ entryId: found.body.entry.id, characterIds: [buyerChar] }] }), 200)
+        expect(await wallet()).toEqual(before)
+        expect(await notifications()).toContain('DM ti dal: Kamínek')
+
+        const priced = await dm.client.patch(`/loot/entries/${found.body.entry.id}`, { price: { gp: 3 } })
+        expect(priced.body.entry.priceCp).toBe(300)
+        const renamed = await dm.client.patch(`/loot/entries/${found.body.entry.id}`, { item: { name: 'Leštěný kamínek' } })
+        expect(renamed.body.entry).toMatchObject({ priceCp: 300, data: { name: 'Leštěný kamínek' } }) // úprava itemu cenu nezmění
+        expect((await dm.client.patch(`/loot/entries/${found.body.entry.id}`, { price: null })).body.entry.priceCp).toBeNull()
+
+        expectStatus(await dm.client.post(`/campaigns/${campaignId}/loot/entries`, { kind: 'gold', currency: { gp: 1 }, price: { gp: 1 } }), 422)
+        for (const price of [{ gp: -1 }, { gp: 1.5 }, 'deset']) {
+          const bad = await dm.client.post(`/campaigns/${campaignId}/loot/entries`, { kind: 'item', item: { name: 'X' }, price })
+          expectStatus(bad, 422)
+          expect(bad.body.error.field).toBe('price')
+        }
+      })
+
+      it('Dát item v Panelu DM s cenou: nákup v obchodě (bez peněz nic), hráč zaplatí a dostane oznámení', async () => {
+        const tooMuch = await dm.client.post(`/campaigns/${campaignId}/dm/items`, { characterIds: [buyerChar], item: { name: 'Plátová zbroj' }, price: { gp: 1500 } })
+        expectStatus(tooMuch, 422)
+        expect((await items(dm, buyerChar)).some((i) => i.name === 'Plátová zbroj')).toBe(false)
+        const before = await wallet()
+        const res = await dm.client.post(`/campaigns/${campaignId}/dm/items`, { characterIds: [buyerChar], item: { name: 'Pochodeň' }, price: { cp: 1 } })
+        expectStatus(res, 200)
+        expect(res.body).toMatchObject({ given: 1, priceCp: 1 })
+        const after = await wallet()
+        expect(after.gp * 100 + after.sp * 10 + after.cp).toBe(before.gp * 100 + before.sp * 10 + before.cp - 1)
+        expect(await notifications()).toContain('Koupil(a) jsi: Pochodeň za 1 cp')
+        // hráč si sám nic „nekoupí“: Panel DM je jen pro DM
+        expectStatus(await buyer.client.post(`/campaigns/${campaignId}/dm/items`, { characterIds: [buyerChar], item: { name: 'X' }, price: { cp: 1 } }), 403)
+      })
+    })
+
     it('smazání složky smaže podsložky i položky v nich', async () => {
       expectStatus(await dm.client.delete(`/loot/folders/${dungeon}`), 204)
       const after = await loot()

@@ -3,6 +3,7 @@ import { GiftIcon, UsersIcon, XIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/features/sheet/Avatar'
+import { formatCp } from '@/features/sheet/money'
 import { cn } from '@/lib/utils'
 import type { LootEntry } from './api'
 import { countFor, goldShare, type Assignments } from './distribution'
@@ -69,8 +70,8 @@ export function PartyBar({
   })
 
   return (
-    <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]" data-testid="party-bar">
-      <CardContent className="space-y-3 p-3">
+    <Card size="sm" className="lg:sticky lg:top-[4.25rem] lg:z-[5]" data-testid="party-bar">
+      <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
           {tickedCount > 0
             ? `Vybráno ${tickedCount}: klepni na postavu, které to dáš.`
@@ -123,7 +124,7 @@ export function PartyBar({
         </ul>
         {members.length === 0 && <p className="text-sm text-muted-foreground">V kampani zatím nejsou žádné postavy.</p>}
 
-        <div aria-live="polite">
+        <div aria-live="polite" className="empty:hidden">
           {assigned.length > 0 && (
             <div className="space-y-2 rounded-lg border bg-muted/30 p-2">
               <h2 className="text-sm font-medium">Připraveno k rozdání</h2>
@@ -142,6 +143,7 @@ export function PartyBar({
                       </span>
                     ))}
                     {entry.kind === 'gold' && chars.length > 1 && <span className="text-muted-foreground">(každý {goldShare(entry.data.currency, chars.length).each})</span>}
+                    {entry.priceCp !== null && <span className="font-medium text-amber-700 dark:text-amber-400">({chars.length > 1 ? 'každý zaplatí' : 'zaplatí'} {formatCp(entry.priceCp)})</span>}
                   </li>
                 ))}
               </ul>

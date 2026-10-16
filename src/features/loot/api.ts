@@ -21,6 +21,8 @@ export interface LootGoldData {
 interface EntryBase {
   id: string
   folderId: string | null
+  /** Cena v mědácích u itemu na prodej (obchod); null = nalezená věc zdarma. */
+  priceCp: number | null
   position: number
   /** Komu už byla položka rozdána (jen pro DM, položka zůstává k dalšímu použití). */
   givenTo: string
@@ -119,7 +121,7 @@ export function useDeleteFolder(campaignId: string) {
 }
 
 export type NewLootEntry =
-  | { folderId: string | null; kind: 'item'; item: ItemInput }
+  | { folderId: string | null; kind: 'item'; item: ItemInput; price?: Partial<Currency> | null }
   | { folderId: string | null; kind: 'gold'; name: string; currency: Partial<Currency> }
 
 export function useCreateEntry(campaignId: string) {
@@ -136,6 +138,8 @@ export interface LootEntryPatch {
   item?: ItemInput
   name?: string
   currency?: Partial<Currency>
+  /** Cena itemu na prodej; null = nalezená věc zdarma. */
+  price?: Partial<Currency> | null
   /** '' smaže poznámku „rozdáno“. */
   givenTo?: ''
 }
@@ -174,7 +178,7 @@ export function useGiveLoot(campaignId: string) {
   const refresh = useRefreshCharacters(campaignId)
   return useMutation({
     mutationFn: (assignments: LootAssignment[]) =>
-      api.post<LootTree & { given: { entryId: string; label: string; to: string[] }[] }>(`/campaigns/${campaignId}/loot/give`, { assignments }),
+      api.post<LootTree & { given: { entryId: string; label: string; to: string[]; priceCp: number | null }[] }>(`/campaigns/${campaignId}/loot/give`, { assignments }),
     onSuccess: (res) => {
       cache.queryClient.setQueryData<LootTree>(cache.key, { folders: res.folders, entries: res.entries })
       void refresh()

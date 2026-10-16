@@ -8,8 +8,9 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { ApiError } from '@/lib/api'
 import { EFFECT_TARGETS } from '@/features/sheet/effects'
 import { CoinFields } from '@/features/sheet/CoinFields'
+import { PriceFields, type PriceMode } from '@/features/sheet/PriceFields'
 import { ItemSourcePicker } from '@/features/sheet/ItemSourcePicker'
-import { COINS, formatCoins, fromCp, splitCoins, totalCp, type Coin } from '@/features/sheet/money'
+import { COINS, coinsFromFields, cpOf, fieldsFromCp, formatCoins, formatCp, fromCp, splitCoins, totalCp, type Coin } from '@/features/sheet/money'
 import {
   useAddEffect,
   useDmHp,
@@ -249,9 +250,12 @@ function CurrencyForm({ campaignId, targets, onClose }: DialogProps) {
 
 function ItemPicker({ campaignId, targets, onClose }: DialogProps) {
   const give = useGiveItem(campaignId)
+  const [mode, setMode] = useState<PriceMode>('found')
+  const [price, setPrice] = useState(() => fieldsFromCp(null))
   return (
     <div className="space-y-4">
       <Targets targets={targets} />
+      <PriceFields idPrefix="dm-item-price" mode={mode} onMode={setMode} values={price} onValues={setPrice} />
       <ItemSourcePicker
         campaignId={campaignId}
         dm
@@ -260,18 +264,22 @@ function ItemPicker({ campaignId, targets, onClose }: DialogProps) {
         submitLabel="Dát item"
         customTabLabel="Vlastní item"
         note="Itemy si můžeš připravit dopředu v dílně (Panel DM → Loot a itemy) a rozdat je odtamtud."
-        onPick={(item, label) =>
+        onPick={(item, label, rule) => {
+          // Kupuje: zadaná cena, jinak cena z pravidel; nalezené je zdarma.
+          const typed = cpOf(coinsFromFields(price))
+          const cp = mode === 'found' ? null : typed > 0 ? typed : rule?.priceGp ? Math.round(rule.priceGp * 100) : undefined
+          if (cp === undefined) return void toast.error('Zadej cenu (item nemá cenu v pravidlech), nebo zvol Nalezené.')
           give.mutate(
-            { characterIds: targets.map((t) => t.id), item },
+            { characterIds: targets.map((t) => t.id), item, ...(cp !== null ? { price: fromCp(cp) } : {}) },
             {
               onSuccess: () => {
-                toast.success(`Předáno: ${label}`)
+                toast.success(cp !== null ? `Prodáno: ${label} za ${formatCp(cp)}` : `Předáno: ${label}`)
                 onClose()
               },
               onError: (e) => toast.error(errorText(e, 'Item se nepodařilo předat.')),
             },
           )
-        }
+        }}
       />
     </div>
   )

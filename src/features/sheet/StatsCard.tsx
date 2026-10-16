@@ -2,6 +2,7 @@ import { formatModifier } from '@/engine'
 import { RollButton } from '@/features/dice/RollButton'
 import { d20 } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
+import { cn } from '@/lib/utils'
 import { useSheet } from './sheet-context'
 import type { CharacterItem } from './types'
 
@@ -9,7 +10,7 @@ import type { CharacterItem } from './types'
 export function StatsCard() {
   const { sheet, character } = useSheet()
   return (
-    <section aria-label="Klíčové hodnoty" className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+    <section aria-label="Klíčové hodnoty" className="grid grid-cols-6 gap-2 sm:grid-cols-5">
       <Stat label="AC">
         <ComputedValue title="Armor Class" computed={sheet.ac} overrideKey="ac" className="w-full text-2xl" hints={acHints(character.items)} />
       </Stat>
@@ -20,7 +21,7 @@ export function StatsCard() {
       <Stat label="Rychlost">
         <ComputedValue title="Rychlost" computed={sheet.speed} overrideKey="speed" format={(n) => `${n} ft`} className="w-full text-2xl" />
       </Stat>
-      <Stat label="Proficiency">
+      <Stat label="Proficiency" wide>
         <ComputedValue
           title="Proficiency bonus"
           computed={sheet.proficiencyBonus}
@@ -29,7 +30,7 @@ export function StatsCard() {
           className="w-full text-2xl"
         />
       </Stat>
-      <Stat label="Pasivní vnímání">
+      <Stat label="Pasivní vnímání" wide>
         <ComputedValue title="Pasivní vnímání" computed={sheet.passivePerception} overrideKey="passivePerception" className="w-full text-2xl" />
       </Stat>
     </section>
@@ -52,11 +53,12 @@ function acHints(items: CharacterItem[]): string[] {
   return hints
 }
 
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+/** Dlaždice hodnoty: popisek vždy nahoře, ať jsou popisky i čísla v řadě ve stejné výšce (iniciativa má navíc dole tlačítko Hod). */
+function Stat({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border bg-card p-2 text-center">
-      {children}
+    <div className={cn('flex flex-col items-center rounded-xl border bg-card p-2 text-center sm:col-span-1', wide ? 'col-span-3' : 'col-span-2')}>
       <span className="text-xs text-muted-foreground">{label}</span>
+      {children}
     </div>
   )
 }

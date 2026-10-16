@@ -21,7 +21,8 @@ export function useRefreshCharacters(campaignId: string) {
 export function useGiveItem(campaignId: string) {
   const refresh = useRefreshCharacters(campaignId)
   return useMutation({
-    mutationFn: (input: { characterIds: string[]; item: ItemInput }) => api.post<{ given: number }>(`/campaigns/${campaignId}/dm/items`, input),
+    mutationFn: (input: { characterIds: string[]; item: ItemInput; price?: Partial<Currency> }) =>
+      api.post<{ given: number; priceCp: number | null }>(`/campaigns/${campaignId}/dm/items`, input),
     onSuccess: refresh,
   })
 }

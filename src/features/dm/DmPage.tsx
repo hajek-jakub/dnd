@@ -101,8 +101,8 @@ export function DmPage() {
         />
       </div>
 
-      <Card className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
-        <CardContent className="space-y-3 p-3">
+      <Card size="sm" className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
+        <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p aria-live="polite" className="text-sm">
               Vybráno: <strong>{targets.length}</strong> z {rows.length}
@@ -211,15 +211,16 @@ function CharacterOverview({
         </label>
         <Avatar id={character.id} name={character.name} version={character.photoVersion} className="size-12 text-xl" />
         <div className="min-w-0 flex-1">
-          <Link to={`/characters/${character.id}`} className="block truncate font-semibold underline-offset-4 hover:underline">
-            {character.name}
-          </Link>
-          {character.kind === 'npc' && <span className="mb-0.5 inline-flex rounded-full border border-primary px-2 text-xs font-medium text-primary">NPC</span>}
+          {/* Jméno a štítek NPC na jednom řádku: hlavičky karet jsou stejně vysoké a hodnoty pod nimi v jedné řadě. */}
+          <div className="flex min-w-0 items-center gap-2">
+            <Link to={`/characters/${character.id}`} className="truncate font-semibold underline-offset-4 hover:underline">
+              {character.name}
+            </Link>
+            {character.kind === 'npc' && <span className="shrink-0 rounded-full border border-primary px-2 text-xs font-medium text-primary">NPC</span>}
+            {character.inspiration && <span className="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-400">★ inspirace</span>}
+          </div>
           <p className="truncate text-sm text-muted-foreground">
             {[character.race, sheet.classSummary].filter(Boolean).join(' · ')} · level {sheet.totalLevel}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {character.inspiration && <span className="ml-2 font-medium text-amber-600">★ inspirace</span>}
           </p>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useCampaign } from '@/features/campaigns/api'
 import { useCharacters } from '@/features/sheet/api'
+import { formatCp } from '@/features/sheet/money'
 import { ApiError } from '@/lib/api'
 import { usePageTitle } from '@/lib/page-title'
 import { useCreateEntry, useDeleteEntry, useDeleteFolder, useGiveLoot, useLoot, useUpdateEntry, type LootEntry } from './api'
@@ -93,7 +94,7 @@ export function LootPage() {
     if (request.length === 0) return
     give.mutate(request, {
       onSuccess: (res) => {
-        toast.success(`Rozdáno: ${res.given.map((g) => `${g.label} → ${g.to.join(', ')}`).join('; ')}`)
+        toast.success(`Rozdáno: ${res.given.map((g) => `${g.label} → ${g.to.join(', ')}${g.priceCp ? ` (zaplaceno ${formatCp(g.priceCp)})` : ''}`).join('; ')}`)
         setAssignments({})
       },
       onError: (e) => toast.error(errorText(e, 'Rozdání se nepodařilo, nic se nerozdalo.')),
@@ -166,7 +167,7 @@ export function LootPage() {
         onGive={giveAll}
       />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]" data-testid="loot-layout">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]" data-testid="loot-layout">
         <Card>
           <CardHeader>
             <CardTitle>Složky</CardTitle>
@@ -195,24 +196,23 @@ export function LootPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setDialog({ type: 'folder', parentId: current })}>
-                <FolderPlusIcon aria-hidden /> {current === null ? 'Nová složka' : 'Podsložka'}
-              </Button>
-              {currentFolder && (
-                <>
-                  <Button variant="outline" onClick={() => setDialog({ type: 'folder', folder: currentFolder, parentId: currentFolder.parentId })}>
-                    <PencilIcon aria-hidden /> Přejmenovat
-                  </Button>
-                  <Button variant="outline" onClick={() => setDialog({ type: 'moveFolder', folder: currentFolder })}>
-                    <FolderInputIcon aria-hidden /> Přesunout
-                  </Button>
-                  <Button variant="outline" onClick={removeFolder}>
-                    <Trash2Icon aria-hidden /> Smazat složku
-                  </Button>
-                </>
-              )}
-            </div>
+            {/* Správa otevřené složky; novou složku na nejvyšší úrovni zakládá tlačítko v hlavičce stránky. */}
+            {currentFolder && (
+              <div role="group" aria-label="Složka" className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => setDialog({ type: 'folder', parentId: current })}>
+                  <FolderPlusIcon aria-hidden /> Podsložka
+                </Button>
+                <Button variant="outline" onClick={() => setDialog({ type: 'folder', folder: currentFolder, parentId: currentFolder.parentId })}>
+                  <PencilIcon aria-hidden /> Přejmenovat
+                </Button>
+                <Button variant="outline" onClick={() => setDialog({ type: 'moveFolder', folder: currentFolder })}>
+                  <FolderInputIcon aria-hidden /> Přesunout
+                </Button>
+                <Button variant="outline" onClick={removeFolder}>
+                  <Trash2Icon aria-hidden /> Smazat složku
+                </Button>
+              </div>
+            )}
 
             {subfolders.length > 0 && (
               <nav aria-label="Podsložky" className="flex flex-wrap gap-2">
@@ -224,10 +224,12 @@ export function LootPage() {
               </nav>
             )}
 
-            <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm">
-              <input type="checkbox" className="size-5" checked={hideGiven} onChange={(e) => setHideGiven(e.target.checked)} />
-              <span>Skrýt rozdané</span>
-            </label>
+            {entries.some((e) => e.folderId === current && e.givenTo !== '') && (
+              <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm">
+                <input type="checkbox" className="size-5" checked={hideGiven} onChange={(e) => setHideGiven(e.target.checked)} />
+                <span>Skrýt rozdané</span>
+              </label>
+            )}
 
             <ul className="space-y-2" aria-label="Položky ve složce">
               {shown.map((entry) => (

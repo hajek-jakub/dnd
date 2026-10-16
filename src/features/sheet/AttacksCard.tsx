@@ -35,47 +35,59 @@ export function AttacksCard() {
           </Button>
         )}
         <ul className="divide-y">
-          {sheet.attacks.map((a) => (
-            <li key={a.id} className="space-y-1 py-2">
-              <div>
-                <p className="font-medium">{a.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {a.ability.toUpperCase()}
-                  {a.notes.length > 0 && ` · ${a.notes.join(', ')}`}
-                  {!a.proficient && ' · bez proficiency'}
-                </p>
-              </div>
-              {/* Dva řádky pod sebou ve stejném sloupci: popisek vlevo, hodnoty a kostky vedle sebe a při nedostatku místa se zalomí. */}
-              <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 text-sm">
-                <span className="text-muted-foreground">k20</span>
-                <div className="flex items-center gap-1">
-                  <ComputedValue title={`${a.name}: bonus k útoku`} computed={a.toHit} overrideKey={`attack.${a.id}.toHit`} format={formatModifier} />
-                  <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} />
+          {sheet.attacks.map((a) => {
+            const extras = [...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : [])]
+            const damage = damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])
+            const damageLabel = `${a.name}: zranění${active ? ` + ${rider.name}` : ''}`
+            return (
+              <li key={a.id} className="space-y-1 py-2">
+                <div>
+                  <p className="font-medium">{a.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[a.ability.toUpperCase(), a.damageType.toLowerCase(), ...a.notes, !a.proficient && 'bez proficiency'].filter(Boolean).join(' · ')}
+                  </p>
                 </div>
-                <span className="text-muted-foreground">zranění</span>
-                <div className="flex flex-wrap items-center gap-x-2">
-                  <span className="font-semibold">{a.damageDice}</span>
+                {/* Oba řádky mají stejné sloupce (popisek, kostka, bonus, hody), takže čísla jsou přesně pod sebou. */}
+                <div className="grid grid-cols-[4rem_3rem_3rem_minmax(0,1fr)] items-center gap-x-2 text-sm">
+                  <span className="text-muted-foreground">Útok</span>
+                  <span className="text-muted-foreground tabular-nums">d20</span>
+                  <ComputedValue
+                    title={`${a.name}: bonus k útoku`}
+                    computed={a.toHit}
+                    overrideKey={`attack.${a.id}.toHit`}
+                    format={formatModifier}
+                    className="justify-self-start"
+                  />
+                  <div className="flex items-center">
+                    <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} />
+                  </div>
+
+                  <span className="text-muted-foreground">Zranění</span>
+                  <span className="font-semibold tabular-nums">{a.damageDice}</span>
                   <ComputedValue
                     title={`${a.name}: bonus ke zranění`}
                     computed={a.damageBonus}
                     overrideKey={`attack.${a.id}.damage`}
                     format={formatModifier}
+                    className="justify-self-start"
                   />
-                  {[...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : [])].map((x) => (
-                    <span key={`${x.dice}${x.type}`} className="font-semibold" title="Doplňkové zranění">
-                      + {x.dice} {x.type.toLowerCase()}
-                    </span>
-                  ))}
-                  {damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])]) && (
-                    <span className="flex items-center">
-                      <RollButton label={`${a.name}: zranění${active ? ` + ${rider.name}` : ''}`} expression={damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])!} />
-                      <RollButton label={`${a.name}: zranění${active ? ` + ${rider.name}` : ''}`} expression={damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])!} crit text="Krit" />
-                    </span>
+                  <div className="flex flex-wrap items-center">
+                    {damage && (
+                      <>
+                        <RollButton label={damageLabel} expression={damage} />
+                        <RollButton label={damageLabel} expression={damage} crit text="Krit" />
+                      </>
+                    )}
+                  </div>
+                  {extras.length > 0 && (
+                    <p className="col-span-3 col-start-2 pb-1 text-sm font-semibold" title="Doplňková zranění">
+                      {extras.map((x) => `+ ${x.dice} ${x.type.toLowerCase()}`).join(', ')}
+                    </p>
                   )}
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       </CardContent>
     </Card>

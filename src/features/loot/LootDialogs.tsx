@@ -10,7 +10,8 @@ import { CoinFields } from '@/features/sheet/CoinFields'
 import { ItemForm } from '@/features/sheet/ItemForm'
 import { ItemSourcePicker } from '@/features/sheet/ItemSourcePicker'
 import { formValuesFromInput } from '@/features/sheet/item-form-values'
-import { COINS, formatCoins, type Coin } from '@/features/sheet/money'
+import { PriceFields, type PriceMode } from '@/features/sheet/PriceFields'
+import { COINS, coinsFromFields, cpOf, fieldsFromCp, formatCoins, formatCp, fromCp, type Coin } from '@/features/sheet/money'
 import {
   folderWithDescendants,
   useCreateEntry,
@@ -77,50 +78,71 @@ function ItemEntryForm({
 }) {
   const create = useCreateEntry(campaignId)
   const update = useUpdateEntry(campaignId)
+  const [mode, setMode] = useState<PriceMode>(entry?.priceCp ? 'sale' : 'found')
+  const [price, setPrice] = useState(() => fieldsFromCp(entry?.priceCp ?? null))
+  const priceFields = <PriceFields idPrefix="loot-price" mode={mode} onMode={setMode} values={price} onValues={setPrice} />
+
+  /** Cena v mědácích (null = nalezené zdarma); bez zadané ceny vezme cenu z pravidel. `undefined` = chybí cena. */
+  function priceCp(rulePriceGp?: number | null): number | null | undefined {
+    if (mode === 'found') return null
+    const typed = cpOf(coinsFromFields(price))
+    if (typed > 0) return typed
+    return rulePriceGp ? Math.round(rulePriceGp * 100) : undefined
+  }
 
   if (entry) {
     return (
-      <ItemForm
-        dm
-        item={formValuesFromInput(entry.data)}
-        pending={update.isPending}
-        submitLabel="Uložit"
-        onSubmit={(item) =>
-          update.mutate(
-            { id: entry.id, item },
-            {
-              onSuccess: () => {
-                toast.success('Uloženo')
-                onClose()
+      <div className="space-y-4">
+        {priceFields}
+        <ItemForm
+          dm
+          item={formValuesFromInput(entry.data)}
+          pending={update.isPending}
+          submitLabel="Uložit"
+          onSubmit={(item) => {
+            const cp = priceCp()
+            if (cp === undefined) return void toast.error('Zadej cenu, nebo zvol Nalezené.')
+            update.mutate(
+              { id: entry.id, item, price: cp === null ? null : fromCp(cp) },
+              {
+                onSuccess: () => {
+                  toast.success('Uloženo')
+                  onClose()
+                },
+                onError: (e) => toast.error(errorText(e, 'Item se nepodařilo uložit.')),
               },
-              onError: (e) => toast.error(errorText(e, 'Item se nepodařilo uložit.')),
-            },
-          )
-        }
-      />
+            )
+          }}
+        />
+      </div>
     )
   }
   return (
-    <ItemSourcePicker
-      campaignId={campaignId}
-      dm
-      pending={create.isPending}
-      pickLabel="Přidat"
-      submitLabel="Přidat do lootu"
-      note="Item z pravidel se uloží jako kopie: můžeš ho pak upravit (popis, kletbu, bonusy) a rozdat."
-      onPick={(item, label) =>
-        create.mutate(
-          { folderId, kind: 'item', item },
-          {
-            onSuccess: () => {
-              toast.success(`Přidáno do lootu: ${label}`)
-              if (!item.ruleId) onClose()
+    <div className="space-y-4">
+      {priceFields}
+      <ItemSourcePicker
+        campaignId={campaignId}
+        dm
+        pending={create.isPending}
+        pickLabel="Přidat"
+        submitLabel="Přidat do lootu"
+        note="Item z pravidel se uloží jako kopie: můžeš ho pak upravit (popis, kletbu, bonusy, cenu) a rozdat."
+        onPick={(item, label, rule) => {
+          const cp = priceCp(rule?.priceGp)
+          if (cp === undefined) return void toast.error('Zadej cenu (item nemá cenu v pravidlech), nebo zvol Nalezené.')
+          create.mutate(
+            { folderId, kind: 'item', item, ...(cp !== null ? { price: fromCp(cp) } : {}) },
+            {
+              onSuccess: () => {
+                toast.success(`Přidáno do lootu: ${label}${cp !== null ? ` (na prodej za ${formatCp(cp)})` : ''}`)
+                if (!item.ruleId) onClose()
+              },
+              onError: (e) => toast.error(errorText(e, 'Item se nepodařilo přidat.')),
             },
-            onError: (e) => toast.error(errorText(e, 'Item se nepodařilo přidat.')),
-          },
-        )
-      }
-    />
+          )
+        }}
+      />
+    </div>
   )
 }
 

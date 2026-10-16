@@ -32,7 +32,10 @@ final class DmController
 
     // ------------------------------------------------------------------ rozdávání
 
-    /** Přidá item (z pravidel nebo jednorázově vytvořený) jedné nebo více postavám. @param array{id:string} $user */
+    /**
+     * Přidá item (z pravidel nebo jednorázově vytvořený) jedné nebo více postavám. Volitelná `price` (mince) = nákup v obchodě:
+     * každý z vybraných zaplatí celou cenu, nalezené věci (bez ceny) jsou zdarma. @param array{id:string} $user
+     */
     public static function giveItem(Request $req, array $params, array $user): array
     {
         Access::requireDm($user, $params['id']);
@@ -41,30 +44,68 @@ final class DmController
         if (!is_array($itemInput)) {
             throw HttpError::validation('Zadej item (ruleId nebo vlastní údaje).', 'item');
         }
+        $priceCp = Money::priceCp($in['price'] ?? null);
 
-        $names = Db::transaction(static fn (): array => self::grantItem($params['id'], $user, is_array($in['characterIds'] ?? null) ? $in['characterIds'] : [], $itemInput));
-        return ['given' => count($names)];
+        $names = Db::transaction(static fn (): array => self::grantItem($params['id'], $user, is_array($in['characterIds'] ?? null) ? $in['characterIds'] : [], $itemInput, $priceCp));
+        return ['given' => count($names), 'priceCp' => $priceCp];
     }
 
     /**
      * Přidá item (z pravidel nebo vlastní, i s kletbou) vybraným postavám (volat uvnitř transakce) a pošle oznámení.
+     * S `$priceCp` jde o nákup: každá postava zaplatí celou cenu (s rozměněním jako „Utratit“); když někdo nemá dost,
+     * nedostane nic nikdo a nikomu se nic nestrhne (422).
      * @param array{id:string} $user
      * @param list<mixed> $characterIds
      * @param array<string, mixed> $itemInput
      * @return array<string, string> id postavy => popisek itemu
      */
-    public static function grantItem(string $campaignId, array $user, array $characterIds, array $itemInput): array
+    public static function grantItem(string $campaignId, array $user, array $characterIds, array $itemInput, ?int $priceCp = null): array
     {
         $chars = self::targets($campaignId, ['characterIds' => $characterIds]);
+        $wallets = [];
+        if ($priceCp !== null) {
+            $broke = [];
+            foreach ($chars as $char) {
+                $paid = Money::pay(self::wallet($char), $priceCp);
+                if ($paid === null) {
+                    $broke[] = (string) $char['name'];
+                    continue;
+                }
+                $wallets[(string) $char['id']] = $paid;
+            }
+            if ($broke !== []) {
+                throw HttpError::validation('Nemá dost peněz na ' . Money::text($priceCp) . ': ' . implode(', ', $broke) . '. Nic se neprodalo.', 'price');
+            }
+        }
         $names = [];
         foreach ($chars as $char) {
             $itemId = InventoryController::createItem($char, $user, $itemInput);
             $item = Db::one('SELECT name, quantity FROM character_items WHERE id = ?', [$itemId]) ?? [];
             $label = $item['name'] . ((int) $item['quantity'] > 1 ? ' ×' . $item['quantity'] : '');
             $names[(string) $char['id']] = $label;
-            Notifications::push((string) $char['owner_id'], $user['id'], $campaignId, (string) $char['id'], 'item', 'DM ti dal: ' . $label);
+            if ($priceCp !== null) {
+                Db::exec('UPDATE characters SET currency = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($wallets[(string) $char['id']]), $char['id']]);
+                Notifications::push((string) $char['owner_id'], $user['id'], $campaignId, (string) $char['id'], 'item', 'Koupil(a) jsi: ' . $label . ' za ' . Money::text($priceCp));
+            } else {
+                Notifications::push((string) $char['owner_id'], $user['id'], $campaignId, (string) $char['id'], 'item', 'DM ti dal: ' . $label);
+            }
         }
         return $names;
+    }
+
+    /**
+     * Peněženka postavy se všemi druhy mincí.
+     * @param array<string, mixed> $char řádek postavy
+     * @return array<string, int>
+     */
+    private static function wallet(array $char): array
+    {
+        $wallet = Sheets::json($char['currency'], []);
+        $wallet = is_array($wallet) ? $wallet : [];
+        foreach (self::COINS as $coin) {
+            $wallet[$coin] = (int) ($wallet[$coin] ?? 0);
+        }
+        return $wallet;
     }
 
     /**
@@ -136,11 +177,7 @@ final class DmController
         $broke = [];
         $wallets = [];
         foreach ($chars as $char) {
-            $wallet = Sheets::json($char['currency'], []);
-            $wallet = is_array($wallet) ? $wallet : [];
-            foreach (self::COINS as $coin) {
-                $wallet[$coin] = (int) ($wallet[$coin] ?? 0);
-            }
+            $wallet = self::wallet($char);
             if ($mode === 'give') {
                 foreach (self::COINS as $coin) {
                     $wallet[$coin] += $share[$coin] ?? 0;

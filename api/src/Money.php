@@ -81,6 +81,44 @@ final class Money
     }
 
     /**
+     * Cena zadaná v mincích (`{gp: 50, sp: 5}`) jako částka v mědácích; null nebo nulová částka = bez ceny (zdarma).
+     * Neplatný vstup je 422 s polem `$field`.
+     */
+    public static function priceCp(mixed $coins, string $field = 'price'): ?int
+    {
+        if ($coins === null) {
+            return null;
+        }
+        if (!is_array($coins)) {
+            throw HttpError::validation('Cena má neplatný tvar.', $field);
+        }
+        $total = 0;
+        foreach (self::COINS as $c) {
+            $v = $coins[$c] ?? 0;
+            if (!is_int($v) || $v < 0 || $v > 1_000_000_000) {
+                throw HttpError::validation("Mince $c v ceně musí být celé číslo od 0.", $field);
+            }
+            $total += $v * self::VALUE[$c];
+        }
+        if ($total > 1_000_000_000) {
+            throw HttpError::validation('Cena je příliš vysoká.', $field);
+        }
+        return $total > 0 ? $total : null;
+    }
+
+    /** Částka v mědácích jako text („50 gp, 5 sp“). */
+    public static function text(int $cp): string
+    {
+        $parts = [];
+        foreach (self::fromCp($cp) as $coin => $n) {
+            if ($n > 0) {
+                $parts[] = "$n $coin";
+            }
+        }
+        return $parts === [] ? '0 cp' : implode(', ', array_reverse($parts));
+    }
+
+    /**
      * Částka v mědácích jako mince (gp, sp, cp), ať je čitelná.
      * @return array<string, int>
      */

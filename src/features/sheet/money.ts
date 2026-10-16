@@ -87,3 +87,21 @@ export function formatCoins(coins: Partial<Currency>): string {
     .map((c) => `${coins[c]} ${c}`)
     .join(', ')
 }
+
+/** Celková hodnota i neúplných mincí (`{gp: 1, sp: 5}`) v mědácích. */
+export function cpOf(coins: Partial<Currency>): number {
+  return COINS.reduce((n, c) => n + (coins[c] ?? 0) * COIN_VALUE[c], 0)
+}
+
+/** Mince z políček formuláře (prázdné nebo neplatné = 0). */
+export function coinsFromFields(values: Record<Coin, string>): Currency {
+  const out: Currency = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+  for (const c of COINS) out[c] = Math.max(0, Number.parseInt(values[c], 10) || 0)
+  return out
+}
+
+/** Částka v mědácích jako políčka formuláře (gp, sp, cp); null = prázdná políčka. */
+export function fieldsFromCp(cp: number | null): Record<Coin, string> {
+  const coins = cp ? fromCp(cp) : null
+  return Object.fromEntries(COINS.map((c) => [c, coins && coins[c] > 0 ? String(coins[c]) : ''])) as Record<Coin, string>
+}

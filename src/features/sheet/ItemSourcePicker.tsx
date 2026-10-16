@@ -29,7 +29,8 @@ export function ItemSourcePicker({
   customTabLabel = 'Vlastní item',
 }: {
   campaignId: string
-  onPick: (item: ItemInput, label: string) => void
+  /** `rule` je záznam pravidel, když item pochází z nich (např. kvůli ceně). */
+  onPick: (item: ItemInput, label: string, rule?: RuleSummary) => void
   pending: boolean
   /** Text tlačítka u položky z pravidel (např. „Dát“, „Přidat“). */
   pickLabel: string
@@ -76,7 +77,7 @@ export function ItemSourcePicker({
           pickLabel={pickLabel}
           onBack={() => setBaseFor(null)}
           onPick={(baseRuleId, label) => {
-            onPick({ ruleId: baseFor.id, quantity: qty, ...(baseRuleId ? { baseRuleId } : {}) }, label)
+            onPick({ ruleId: baseFor.id, quantity: qty, ...(baseRuleId ? { baseRuleId } : {}) }, label, baseFor)
             setBaseFor(null) // zpátky na seznam, ať jde přidat další
           }}
         />
@@ -105,7 +106,7 @@ export function ItemSourcePicker({
                   variant="secondary"
                   disabled={pending}
                   aria-label={`${pickLabel} ${e.name}`}
-                  onClick={() => (needsBase(e) ? setBaseFor(e) : onPick({ ruleId: e.id, quantity: qty }, e.name))}
+                  onClick={() => (needsBase(e) ? setBaseFor(e) : onPick({ ruleId: e.id, quantity: qty }, e.name, e))}
                 >
                   {pickLabel}
                 </Button>

@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
 use Dnd\Items;
+use Dnd\Money;
 use Dnd\Request;
 use Dnd\Response;
 
@@ -18,6 +19,7 @@ use Dnd\Response;
  * Všechno je jen pro DM (hráč 403, cizinec 404); hráči se o lootu nedozvědí, dokud jim ho DM nerozdá (pak je to běžný item nebo peníze).
  * Item v lootu je samostatná kopie ve tvaru vstupu vlastního itemu (včetně kletby): i item z pravidel se uloží celý, takže jde upravit
  * a rozdá se stejnou cestou jako vlastní item (nic se znovu nedohledává, smazaný homebrew ho nerozbije). Je to zároveň „dílna“ DM.
+ * Item může mít cenu (`price_cp`): pak je na prodej (obchod) a příjemce ji při rozdání zaplatí; bez ceny je to nalezená věc zdarma.
  */
 final class LootController
 {
@@ -94,23 +96,27 @@ final class LootController
 
     // ------------------------------------------------------------------ položky
 
-    /** Nový item nebo zlato ve složce. Tělo: `{folderId?, kind: 'item', item: {...}}` nebo `{folderId?, kind: 'gold', currency: {...}, name?}`. @param array{id:string} $user */
+    /**
+     * Nový item nebo zlato ve složce. Tělo: `{folderId?, kind: 'item', item: {...}, price?: {gp: 50}}` (s cenou na prodej)
+     * nebo `{folderId?, kind: 'gold', currency: {...}, name?}`. @param array{id:string} $user
+     */
     public static function createEntry(Request $req, array $params, array $user): Response
     {
         Access::requireDm($user, $params['id']);
         $in = $req->json();
         $folder = self::folderId($in, $params['id']);
         $data = self::entryData($in, $params['id'], $user);
+        $price = self::price($in, $data['kind']);
         $id = Ids::uuid();
-        Db::transaction(static function () use ($params, $folder, $data, $id): void {
+        Db::transaction(static function () use ($params, $folder, $data, $price, $id): void {
             Db::one('SELECT id FROM campaigns WHERE id = ? FOR UPDATE', [$params['id']]);
             if ((int) Db::value('SELECT COUNT(*) FROM loot_entries WHERE campaign_id = ?', [$params['id']]) >= self::MAX_ENTRIES) {
                 throw HttpError::validation('Položek lootu může být nejvýš ' . self::MAX_ENTRIES . '.', 'kind');
             }
             $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM loot_entries WHERE campaign_id = ? AND folder_id <=> ?', [$params['id'], $folder]);
             Db::exec(
-                'INSERT INTO loot_entries (id, campaign_id, folder_id, kind, data, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-                [$id, $params['id'], $folder, $data['kind'], json_encode($data['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $pos],
+                'INSERT INTO loot_entries (id, campaign_id, folder_id, kind, data, price_cp, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                [$id, $params['id'], $folder, $data['kind'], json_encode($data['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $pos],
             );
         });
         return Response::json(['entry' => self::entryPayload(self::entry($id))], 201);
@@ -136,9 +142,10 @@ final class LootController
             $data = self::entryData($merged, $campaignId, $user)['data'];
         }
         $given = array_key_exists('givenTo', $in) && $in['givenTo'] === '' ? '' : (string) $row['given_to'];
+        $price = array_key_exists('price', $in) ? self::price($in, (string) $row['kind']) : ($row['price_cp'] === null ? null : (int) $row['price_cp']);
         Db::exec(
-            'UPDATE loot_entries SET folder_id = ?, data = ?, given_to = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
-            [$folder, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $given, $row['id']],
+            'UPDATE loot_entries SET folder_id = ?, data = ?, price_cp = ?, given_to = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+            [$folder, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $given, $row['id']],
         );
         return ['entry' => self::entryPayload(self::entry($params['id']))];
     }
@@ -183,8 +190,10 @@ final class LootController
                 $row = Db::one('SELECT * FROM loot_entries WHERE id = ? AND campaign_id = ? FOR UPDATE', [$p['entryId'], $params['id']]) ?? throw HttpError::validation('Položka lootu není z této kampaně.', 'assignments');
                 $data = json_decode((string) $row['data'], true);
                 $data = is_array($data) ? $data : [];
+                $priceCp = $row['kind'] === 'item' && $row['price_cp'] !== null ? (int) $row['price_cp'] : null;
                 if ($row['kind'] === 'item') {
-                    $labels = DmController::grantItem($params['id'], $user, $p['characterIds'], $data);
+                    // Item na prodej: každý příjemce zaplatí cenu (kdo nemá dost, celé rozdání se zruší).
+                    $labels = DmController::grantItem($params['id'], $user, $p['characterIds'], $data, $priceCp);
                     $label = (string) (array_values($labels)[0] ?? ($data['name'] ?? 'Item'));
                     $recipients = array_keys($labels);
                 } else {
@@ -196,7 +205,7 @@ final class LootController
                 $names = array_column(Db::all('SELECT name FROM characters WHERE id IN (' . implode(',', array_fill(0, count($recipients), '?')) . ') ORDER BY name', $recipients), 'name');
                 $givenTo = mb_substr(trim(implode(', ', array_unique(array_filter([...explode(', ', (string) $row['given_to']), ...$names]))), ', '), 0, 400);
                 Db::exec('UPDATE loot_entries SET given_to = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$givenTo, $row['id']]);
-                $out[] = ['entryId' => (string) $row['id'], 'label' => $label, 'to' => array_values($names)];
+                $out[] = ['entryId' => (string) $row['id'], 'label' => $label, 'to' => array_values($names), 'priceCp' => $priceCp];
             }
             return $out;
         });
@@ -252,6 +261,19 @@ final class LootController
         }
         // Stejné sestavení jako při přidání do inventáře (pravidla, základ magické zbroje, validace, kletba), uloží se jako samostatná kopie.
         return ['kind' => 'item', 'data' => Items::toInput(InventoryController::buildItem($campaignId, $user, $item))];
+    }
+
+    /**
+     * Cena itemu na prodej v mědácích (null = nalezená věc zdarma). Zlato cenu mít nemůže.
+     * @param array<string, mixed> $in
+     */
+    private static function price(array $in, string $kind): ?int
+    {
+        $price = Money::priceCp($in['price'] ?? null);
+        if ($price !== null && $kind !== 'item') {
+            throw HttpError::validation('Cenu může mít jen item, zlato ne.', 'price');
+        }
+        return $price;
     }
 
     /** @param array<string, mixed> $in */
@@ -320,6 +342,7 @@ final class LootController
             'folderId' => $r['folder_id'],
             'kind' => $r['kind'],
             'data' => is_array($data) ? $data : new \stdClass(),
+            'priceCp' => $r['price_cp'] === null ? null : (int) $r['price_cp'],
             'position' => (int) $r['position'],
             'givenTo' => (string) $r['given_to'],
         ];

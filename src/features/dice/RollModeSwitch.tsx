@@ -14,15 +14,15 @@ const MODES: { value: RollMode; label: string }[] = [
 export function RollModeSwitch({ className }: { className?: string }) {
   const { mode, setMode, hidden, setHidden } = useRollSettings()
   return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <div role="group" aria-label="Režim hodu" className="inline-flex gap-1">
+    <div className={cn('grid gap-2 sm:flex sm:flex-wrap sm:items-center', className)}>
+      <div role="group" aria-label="Režim hodu" className="grid grid-cols-3 gap-1 sm:inline-flex">
         {MODES.map((m) => (
-          <Button key={m.value} type="button" variant={mode === m.value ? 'default' : 'outline'} aria-pressed={mode === m.value} onClick={() => setMode(m.value)}>
+          <Button key={m.value} type="button" variant={mode === m.value ? 'default' : 'outline'} aria-pressed={mode === m.value} onClick={() => setMode(m.value)} className="px-2 sm:px-4">
             {m.label}
           </Button>
         ))}
       </div>
-      <Button type="button" variant={hidden ? 'default' : 'outline'} aria-pressed={hidden} onClick={() => setHidden(!hidden)}>
+      <Button type="button" variant={hidden ? 'default' : 'outline'} aria-pressed={hidden} onClick={() => setHidden(!hidden)} className="w-full sm:w-auto">
         {hidden ? <EyeOffIcon aria-hidden /> : <EyeIcon aria-hidden />} Skrytý hod (vidí jen DM)
       </Button>
     </div>

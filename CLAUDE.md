@@ -295,6 +295,8 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - **DM navíc**: dočasná HP (`POST /dm/temp-hp`, platí nová hodnota, nula ruší) a zrušení stavu jedním klepnutím na štítek na kartě postavy. Debuffy: stavy (nastavit i zrušit), záporné bonusy (např. −2 AC) s trváním a zdrojem, zranění, dočasná HP.
   **Nemodelováno**: automatický dopad stavů (např. Poisoned = nevýhoda), trvání po kolech a úrovně Exhaustion; stavy jsou štítky a DM je případně doplní záporným bonusem.
 - **Vzhled**: teplá „pergamenová“ paleta s indigovým akcentem a tmavý režim (`index.css`), nadpisy fontem Cinzel (`@fontsource-variable/cinzel`, bundlovaný kvůli CSP), jemná záře pozadí, zaoblené karty. Kontrast ověřují axe testy (WCAG AA ve světlém i tmavém režimu).
+  Zásady zarovnání: čísla v řádcích karet ve společných sloupcích (útoky: popisek | kostka | bonus | hody, sesílání a dovednosti: popisek | hodnota | hod), dlaždice hodnot mají popisek nahoře, kompaktní lišty jsou `Card size="sm"`.
+  `buttonVariants` na odkazech: velikost písma určuje jen `size` (základní třída `text-sm` byla odebrána, jinak by bez slučování tříd přebila `text-base` a odkazy-tlačítka by byly menší než tlačítka).
   Odznaky nepřečtených mají pevně `bg-red-600`, ne `bg-destructive` (v tmavém režimu by bílý text neměl dost kontrastu).
 
 ### Itemy, kletby, loot a AC (po fázi 10)
@@ -317,6 +319,9 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Item se ukládá jako **samostatná kopie** vstupu (`buildItem` → `Items::toInput`, bez `ruleId`, i s kletbou), takže jde upravit a při rozdání se nic znovu nedohledává. Rozdání: přetažení položky na ikonu postavy, nebo zaškrtnutí a klepnutí na ikonu, jen **připraví** přiřazení (`distribution.ts`, jedno přiřazení na položku);
   tlačítko Rozdat pošle `POST /campaigns/{id}/loot/give {assignments:[{entryId, characterIds, split?}]}` v jedné transakci (zlato pro víc postav rovným dílem, item každému; postavy z jiné kampaně 422 a nic se nerozdá). Položka pak zůstane s poznámkou `givenTo` („Rozdáno: Bob“).
   „Celá družina“ je jen pro zlato (hráčské postavy). API: `GET /campaigns/{id}/loot`, `POST /campaigns/{id}/loot/folders|entries|give`, `PATCH|DELETE /loot/folders/{id}`, `PATCH|DELETE /loot/entries/{id}`; vše jen DM (hráč 403, cizinec 404).
+- **Nákup (obchod) vs. nalezené** (migrace 019 `loot_entries.price_cp`): item v lootu může mít cenu (`price` v mincích při vytvoření/úpravě, `priceCp` ve výstupu; null = nalezená věc zdarma, zlato cenu mít nemůže).
+  Při rozdání každý příjemce zaplatí celou cenu (`Money::pay`, s rozměněním jako Utratit); když někdo nemá dost, celé rozdání se zruší (422, pole `price`) a nikdo nic nedostane ani nezaplatí. Totéž umí `POST /campaigns/{id}/dm/items` s volitelným `price`.
+  Oznámení: „Koupil(a) jsi: Lano za 1 gp, 5 sp“ místo „DM ti dal“. UI: přepínač **Nalezené / Kupuje** s mincemi (`PriceFields`) v dialogu lootu i v „Dát item“ Panelu DM; bez zadané ceny se u itemu z pravidel vezme cena z pravidel (`priceGp`).
 - Testy: `api-tests/loot-curse.test.ts` (kletby všude skryté a DM je vidí, loot, mutation check proveden), `api-tests/magic-gear.test.ts` (převody, druhy, automatické nasazení, oprava při seedu), engine (`engine.test.ts`, blok AC), `src/features/loot/distribution.test.ts`,
   E2E `e2e/loot.spec.ts` (DM počítač + hráč telefon: složky, tučný popis, kletba, přetažení, rozdání, odhalení; AC s magickou zbrojí) a stránka lootu v layout a a11y testech. Migrace ověřené i na MariaDB 11.8 (starý kód → nové migrace → oprava).
 

@@ -138,6 +138,23 @@ test('DM připraví loot ve složkách a rozdá ho; hráč na telefonu vidí tu�
     const revealed = player.getByRole('listitem').filter({ hasText: 'Démonické kopí' }).first()
     await revealed.getByText('Podrobnosti').click()
     await expect(revealed.getByTestId('curse')).toContainText('Šepot tě nutí útočit na nejbližšího.')
+
+    // obchod: item na prodej kupující zaplatí (nalezené věci jsou zdarma)
+    await dm.goto(`/campaigns/${campaignId}/dm/loot`)
+    await dm.getByRole('button', { name: 'Nový item' }).click()
+    const shop = dm.getByRole('dialog', { name: /^Nový item/ })
+    await shop.getByRole('button', { name: 'Kupuje' }).click()
+    await shop.getByLabel('GP').fill('30')
+    await shop.getByRole('tab', { name: 'Vlastní item' }).click()
+    await shop.getByLabel('Název').fill('Lano')
+    await shop.getByRole('button', { name: 'Přidat do lootu' }).click()
+    await expect(dm.getByText('Přidáno do lootu: Lano (na prodej za 30 gp)')).toBeVisible()
+    await expect(dm.getByTestId('loot-entry-Lano')).toContainText('Na prodej za 30 gp')
+    await dm.getByTestId('loot-entry-Lano').dragTo(dm.getByTestId('loot-target-Elfka'))
+    await expect(dm.getByRole('list', { name: 'Připraveno k rozdání' })).toContainText('zaplatí 30 gp')
+    await dm.getByRole('button', { name: 'Rozdat (1)' }).click()
+    await expect(dm.getByText(/Lano → Elfka \(zaplaceno 30 gp\)/)).toBeVisible()
+    expect((await (await player.request.get(`/api/characters/${elfka}`)).json()).character.currency.gp).toBe(70)
   } finally {
     await phone.close()
   }

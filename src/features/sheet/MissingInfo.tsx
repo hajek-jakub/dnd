@@ -18,8 +18,8 @@ export function MissingInfo() {
   if (!canEdit || (missing.length === 0 && toConfirm.length === 0)) return null
 
   return (
-    <Card className="border-amber-500/60">
-      <CardContent className="space-y-2 px-3 py-2 text-sm">
+    <Card size="sm" className="ring-amber-500/60">
+      <CardContent className="space-y-2 text-sm">
         {missing.length > 0 && (
           <p data-testid="missing-info">
             <strong>Nedoplněno:</strong> {missing.join(', ')} <NotFilled>(doplň na záložce Postava)</NotFilled>

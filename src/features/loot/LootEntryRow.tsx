@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
 import { RichText } from '@/components/RichText'
 import { DescriptionText } from '@/features/rules/DescriptionText'
+import { formatCp } from '@/features/sheet/money'
 import { cn } from '@/lib/utils'
 import type { LootEntry, LootFolder } from './api'
 import { entryLabel, entryMeta, folderPath } from './labels'
@@ -68,6 +69,7 @@ export function LootEntryRow({
             {data?.curse && <SkullIcon aria-label="má kletbu" className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400" />}
           </p>
           <p className="text-xs text-muted-foreground">{entryMeta(entry)}</p>
+          {entry.priceCp !== null && <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Na prodej za {formatCp(entry.priceCp)} (kupující zaplatí)</p>}
           {given && <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Rozdáno: {entry.givenTo}</p>}
           {assignedTo.length > 0 && <p className="text-xs font-medium text-primary">Připraveno pro: {assignedTo.join(', ')}</p>}
         </div>
