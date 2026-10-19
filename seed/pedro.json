@@ -1,5 +1,5 @@
 {
-  "_info": "Seed data pro postavu Pedro (hráč Lukáš, kampaň Mirabilis). Přepsáno z PDF character sheetu (19. 10. 2026). Pravidla D&D 5e 2014 (SRD 5.1). Řádky „1 x“ z papíru jsou prázdné a vynechané. Sekce sheetValues obsahuje čísla z papíru jako kontrolu enginu.",
+  "_info": "Seed data pro postavu Pedro (hráč Lukáš, kampaň Mirabilis). Přepsáno z PDF character sheetu a doplněno podle hráče (19. 10. 2026). Pravidla D&D 5e 2014 (SRD 5.1), archetyp Cowboy je homebrew (Pointy Hat), featury jsou shrnuté vlastními slovy. Řádky „1 x“ z papíru jsou prázdné a vynechané. Sekce sheetValues obsahuje čísla z papíru jako kontrolu enginu.",
   "ruleset": "5e-2014 (SRD 5.1)",
   "character": {
     "name": "Pedro",
@@ -7,13 +7,16 @@
     "background": "Folk Hero",
     "alignment": null,
     "description": "Celým jménem Pedro „El Rayo“ de la Fuente. Pistolník a stopař (Ranger 6).",
-    "notes": "Ranger archetyp (homebrew, na papíře „Hunter Ranger 6“): Cowboy Marksmanship (proficiency se střelnými zbraněmi a s tinker's tools, kulky vyrobí za polovinu ceny, 10 ran za hodinu práce) a Beast Whisperer (akcí se spřátelí se zvířetem do 30 ft, které ho vidí a slyší: Animal Handling DC 10 + CR zvířete; zvíře poslouchá rozumné příkazy, neútočí na nepřátele, nosí věci, zvědí, ukáže cestu, může sloužit jako jízdní zvíře s +10 ft rychlosti; od svého území se nevzdálí víc než 100 ft).\nFavored Enemy: lidé, elfové, zvířata (beasts). Natural Explorer: les a pastviny (grassland). Fighting Style: Archery (+2 k útokům na dálku, uložené jako trvalý bonus).\nPistole: každá má zásobník 6 ran (na papíře první pistole 4 z 6, druhá 6 z 6).\nTO_CONFIRM: HP maximum 42 je z papíru, hody HP na jednotlivých levelech nejsou známé (rozdělené jako 6, 5, 5, 5, 5). Průměr by dal 46.\nTO_CONFIRM: Subclass v aplikaci není nastavený. SRD Hunter by přidal Hunter's Prey, který Pedro nemá; jeho featury jsou z homebrew archetypu (Cowboy Marksmanship, Beast Whisperer).\nTO_CONFIRM: Find Steed není kouzlo rangera (je paladinovo). Je od archetypu, nebo ho povolil DM?\nTO_CONFIRM: Pistole: dostřel a jak dlouho trvá přebití (akce, bonusová akce)?"
+    "notes": "Favored Enemy: lidé, elfové, zvířata (beasts). Natural Explorer: les a pastviny (grassland). Fighting Style: Archery (+2 k útokům na dálku, uložené jako trvalý bonus).\nPistole: dostřel 30/90 ft, každá má zásobník 6 ran (na papíře první pistole 4 z 6, druhá 6 z 6).\nHP: na papíře bylo 42 (hráč neví proč), aplikace počítá průměr podle pravidel, tedy 46.\nTO_CONFIRM: Pistole: jak dlouho trvá přebití (akce, bonusová akce)?"
   },
   "classes": [
     {
       "class": "Ranger",
       "level": 6,
-      "hpRolls": [null, 6, 5, 5, 5, 5]
+      "subclass": "Cowboy",
+      "subclassHomebrew": {
+        "description": "Homebrew ranger archetyp (Pointy Hat, playtest). Shrnutí featur:\n**Cowboy Magic (3. level):** kouzla navíc, která se nepočítají do známých kouzel rangera: Animal Friendship (3.), Find Steed (5.), Haste (9.), Dominate Beast (13.), Hold Monster (17.).\n**Cowboy Marksmanship (3. level):** proficiency se střelnými zbraněmi a s tinker's tools. Munici vyrobí za polovinu ceny, 10 ran za hodinu práce.\n**Beast Whisperer (3. level):** akcí se pokusí spřátelit se zvířetem do 30 ft, které ho vidí a slyší: Wisdom (Animal Handling) proti DC 10 + CR zvířete (zaokrouhleno nahoru). Při úspěchu je zvíře přátelské a plní rozumné příkazy: přinese věc, doručí zprávu, ukáže cestu, zvědí, nebo ho nechá jet na sobě (+10 ft rychlosti). Neútočí na jeho nepřátele a nejde do jisté smrti. Když mu úmyslně ublíží, přátelství končí. Od svého území se nevzdálí víc než 100 ft.\n**Hot Hand (7. level):** dostřel střelných zbraní +10 ft a ignoruje vlastnost Loading u zbraní, se kterými má proficiency.\n**Magical Bull's Eye (11. level):** při akci Attack se střelnou zbraní může jeden útok posílit slotem: + úroveň slotu k útoku, + polovina úrovně (zaokrouhleno nahoru) ke zranění. Útok ignoruje poloviční kryt a nemá nevýhodu za dlouhý dostřel ani za nepřítele do 5 ft.\n**Arcane Quick Draw (15. level):** při útoku střelnou zbraní na jednoho tvora může v rámci téže akce seslat jedno známé kouzlo rangera. Tolikrát, kolik je WIS modifikátor, obnoví se po long restu."
+      }
     }
   ],
   "abilityScores": {
@@ -25,17 +28,35 @@
     "CHA": 14
   },
   "proficiencies": {
-    "savingThrows": ["STR", "DEX"],
-    "skills": ["Animal Handling", "Insight", "Nature", "Perception", "Survival"],
+    "savingThrows": [
+      "STR",
+      "DEX"
+    ],
+    "skills": [
+      "Animal Handling",
+      "Insight",
+      "Nature",
+      "Perception",
+      "Survival"
+    ],
     "expertise": [],
-    "languages": ["Common", "Elvish", "Giant", "Infernal"],
-    "weapons": ["Firearms (Cowboy Marksmanship)"],
+    "languages": [
+      "Common",
+      "Elvish",
+      "Giant",
+      "Infernal"
+    ],
+    "weapons": [
+      "Firearms (Cowboy Marksmanship)"
+    ],
     "armor": [],
-    "tools": ["Tinker's Tools"]
+    "tools": [
+      "Tinker's Tools"
+    ]
   },
   "hitPoints": {
-    "max": 42,
-    "current": 42,
+    "max": 46,
+    "current": 46,
     "temp": 0,
     "hitDice": {
       "d10_ranger": 6
@@ -45,8 +66,17 @@
   "spells": {
     "ranger": {
       "spellcastingAbility": "WIS",
-      "known": ["Goodberry", "Hunter's Mark", "Animal Friendship", "Speak with Animals", "Find Steed", "Silence"],
-      "note": "Ranger 6 zná 5 kouzel, Pedro má na papíře 6 (Find Steed je navíc, viz openQuestions). Sloty 4× 1. a 2× 2. úrovně, DC 13, útok kouzlem +5."
+      "known": [
+        "Goodberry",
+        "Hunter's Mark",
+        "Speak with Animals",
+        "Silence"
+      ],
+      "subclass": [
+        "Animal Friendship",
+        "Find Steed"
+      ],
+      "note": "Ranger 6 zná 4 kouzla. Animal Friendship a Find Steed dává Cowboy Magic navíc (nepočítají se). Sloty 4× 1. a 2× 2. úrovně, DC 13, útok kouzlem +5."
     }
   },
   "attacks": [
@@ -82,47 +112,181 @@
         "damageType": "Fire",
         "category": "martial",
         "range": "ranged",
-        "properties": ["Ammunition"]
+        "properties": [
+          "Ammunition"
+        ]
       },
-      "description": "Palná zbraň (Cowboy Marksmanship). Útok na dálku z DEX, střílí kulky (Bullets), zásobník 6 ran. Zranění 1d6 fire."
+      "description": "Palná zbraň (Cowboy Marksmanship). Útok na dálku z DEX, dostřel 30/90 ft, střílí kulky (Bullets), zásobník 6 ran. Zranění 1d6 fire."
     },
-    { "item": "Dagger", "qty": 1 },
-    { "item": "Quarterstaff", "qty": 1 },
-    { "item": "Leather Armor", "qty": 1, "equipped": true },
+    {
+      "item": "Dagger",
+      "qty": 1
+    },
+    {
+      "item": "Quarterstaff",
+      "qty": 1
+    },
+    {
+      "item": "Leather Armor",
+      "qty": 1,
+      "equipped": true
+    },
     {
       "item": "Dýka z rudé oceli",
       "qty": 1,
       "homebrew": true,
       "base": "Dagger",
-      "description": "Dýka z rudé oceli: v poušti +1 k útoku a zranění. Na papíře „+1 v poušti +1 initiative“.",
-      "note": "TO_CONFIRM: Platí +1 k iniciativě vždy, nebo jen v poušti? Iniciativa na papíře (+4) ho nezahrnuje, proto se nepočítá."
+      "description": "Dýka z rudé oceli: jen v poušti +1 k útoku, zranění a iniciativě. Jinde jako obyčejná dýka."
     },
-    { "item": "Bullets", "qty": 22, "custom": true, "kind": "other", "consumable": true, "description": "Kulky do pistolí. Každý výstřel spotřebuje jednu. S tinker's tools vyrobí 10 ran za hodinu za polovinu ceny." },
-    { "item": "Černej kůň", "qty": 1, "custom": true, "kind": "other", "description": "Pedrův černý kůň.", "note": "TO_CONFIRM: Obyčejný jezdecký kůň, nebo duch z Find Steed?" },
-    { "item": "Explorer's Pack", "qty": 1 },
-    { "item": "Quiver", "qty": 1 },
-    { "item": "Bylinky na goodberries", "qty": 6, "custom": true, "kind": "other", "consumable": true, "description": "Bylinky jako materiálová složka na Goodberry." },
-    { "item": "Rope, hempen (50 feet)", "qty": 1 },
-    { "item": "Backpack", "qty": 1 },
-    { "item": "Mess Kit", "qty": 1 },
-    { "item": "Čutora do pouště", "qty": 1, "custom": true, "kind": "other", "description": "Velká čutora na vodu do pouště." },
-    { "item": "Bedroll", "qty": 1 },
-    { "item": "Bum bum šakalaka", "qty": 1, "custom": true, "kind": "other", "note": "TO_CONFIRM: Co to je a co to dělá?" },
-    { "item": "Chladicí plášť", "qty": 1, "custom": true, "kind": "wondrous", "description": "Chladí nositele v horku.", "note": "TO_CONFIRM: Na papíře „Chladicí plast“. Je to plášť a má nějaký efekt v pravidlech?" },
-    { "item": "Drahokam (20 gp)", "qty": 2, "custom": true, "kind": "other", "description": "Drahokam v hodnotě 20 gp.", "note": "TO_CONFIRM: Na papíře „Drahokam (20g)“, hodnota 20 gp?" },
-    { "item": "Tinker's Tools", "qty": 1 },
-    { "item": "Robo pavouk na poplach", "qty": 1, "custom": true, "kind": "wondrous", "description": "Mechanický pavouk, který hlídá a spustí poplach.", "note": "TO_CONFIRM: Jak přesně funguje (dosah, jak dlouho hlídá)?" },
-    { "item": "Kapesní loď", "qty": 1, "custom": true, "kind": "wondrous", "description": "Složená loďka, která se vejde do kapsy.", "note": "TO_CONFIRM: Je to Folding Boat ze SRD (rare)? Pak by šla nahradit itemem z pravidel." },
-    { "item": "Přístřešek do pouště", "qty": 1, "custom": true, "kind": "other", "description": "Skládací přístřešek proti slunci a písku." },
-    { "item": "Dřevitý parfém", "qty": 1, "custom": true, "kind": "other", "description": "Parfém s dřevitou vůní." },
-    { "item": "Rations (1 day)", "qty": 10 },
-    { "item": "Waterskin", "qty": 1 },
-    { "item": "Clothes, fine", "qty": 1, "note": "Na papíře „Fancy oblečení“." },
-    { "item": "Povolení do knihovny Umida", "qty": 1, "custom": true, "kind": "other", "description": "Povolení ke vstupu do knihovny v Umidu." },
-    { "item": "Torch", "qty": 4 },
-    { "item": "Tinderbox", "qty": 1 },
-    { "item": "Brýle do pouště", "qty": 1, "custom": true, "kind": "other", "description": "Brýle proti písku a slunci." },
-    { "item": "Papír s wanted týpkem za 10k", "qty": 1, "custom": true, "kind": "other", "description": "Plakát s hledaným mužem, odměna 10 000." }
+    {
+      "item": "Bullets",
+      "qty": 22,
+      "custom": true,
+      "kind": "other",
+      "consumable": true,
+      "description": "Kulky do pistolí. Každý výstřel spotřebuje jednu. S tinker's tools vyrobí 10 ran za hodinu za polovinu ceny."
+    },
+    {
+      "item": "Černej kůň",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Pedrův černý kůň, obyčejný jezdecký kůň (riding horse: rychlost 60 ft)."
+    },
+    {
+      "item": "Explorer's Pack",
+      "qty": 1
+    },
+    {
+      "item": "Quiver",
+      "qty": 1
+    },
+    {
+      "item": "Bylinky na goodberries",
+      "qty": 6,
+      "custom": true,
+      "kind": "other",
+      "consumable": true,
+      "description": "Bylinky jako materiálová složka na Goodberry."
+    },
+    {
+      "item": "Rope, hempen (50 feet)",
+      "qty": 1
+    },
+    {
+      "item": "Backpack",
+      "qty": 1
+    },
+    {
+      "item": "Mess Kit",
+      "qty": 1
+    },
+    {
+      "item": "Čutora do pouště",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Velká čutora na vodu do pouště."
+    },
+    {
+      "item": "Bedroll",
+      "qty": 1
+    },
+    {
+      "item": "Bum bum šakalaka",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "note": "TO_CONFIRM: Jak přesně funguje (zranění, dosah, záchranný hod)? Ví DM (Fila).",
+      "description": "Výbušnina."
+    },
+    {
+      "item": "Chladicí plášť",
+      "qty": 1,
+      "custom": true,
+      "kind": "wondrous",
+      "description": "Chladí v horku. Žádný herní efekt."
+    },
+    {
+      "item": "Drahokam (20 gp)",
+      "qty": 2,
+      "custom": true,
+      "kind": "other",
+      "description": "Drahokam v hodnotě 20 gp."
+    },
+    {
+      "item": "Tinker's Tools",
+      "qty": 1
+    },
+    {
+      "item": "Robo pavouk na poplach",
+      "qty": 1,
+      "custom": true,
+      "kind": "wondrous",
+      "description": "Mechanický pavouk, který hlídá a spustí poplach.",
+      "note": "TO_CONFIRM: Jak přesně funguje (dosah, jak dlouho hlídá)? Ví DM (Fila)."
+    },
+    {
+      "item": "Folding Boat",
+      "qty": 1,
+      "note": "Na papíře „Kapesní loď“."
+    },
+    {
+      "item": "Přístřešek do pouště",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Skládací přístřešek proti slunci a písku."
+    },
+    {
+      "item": "Dřevitý parfém",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Parfém s dřevitou vůní."
+    },
+    {
+      "item": "Rations (1 day)",
+      "qty": 10
+    },
+    {
+      "item": "Waterskin",
+      "qty": 1
+    },
+    {
+      "item": "Clothes, fine",
+      "qty": 1,
+      "note": "Na papíře „Fancy oblečení“."
+    },
+    {
+      "item": "Povolení do knihovny Umida",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Povolení ke vstupu do knihovny v Umidu."
+    },
+    {
+      "item": "Torch",
+      "qty": 4
+    },
+    {
+      "item": "Tinderbox",
+      "qty": 1
+    },
+    {
+      "item": "Brýle do pouště",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Brýle proti písku a slunci."
+    },
+    {
+      "item": "Papír s wanted týpkem za 10k",
+      "qty": 1,
+      "custom": true,
+      "kind": "other",
+      "description": "Plakát s hledaným mužem, odměna 10 000."
+    }
   ],
   "currency": {
     "cp": 13,
@@ -132,13 +296,32 @@
     "pp": 12
   },
   "effects": [
-    { "target": "attack.ranged", "value": 2, "source": "Fighting Style: Archery", "duration": "permanent" }
+    {
+      "target": "attack.ranged",
+      "value": 2,
+      "source": "Fighting Style: Archery",
+      "duration": "permanent"
+    }
   ],
   "sheetValues": {
-    "_info": "Čísla z papíru, engine je musí dopočítat ze vstupů výše (Archery jako trvalý bonus, HP z hodů).",
+    "_info": "Čísla z papíru, engine je musí dopočítat ze vstupů výše (Archery jako trvalý bonus). HP: papír 42, aplikace průměr 46 (hráč neví, odkud je 42).",
     "proficiencyBonus": 3,
-    "modifiers": { "STR": -1, "DEX": 4, "CON": 1, "INT": 0, "WIS": 2, "CHA": 2 },
-    "savingThrows": { "STR": 2, "DEX": 7, "CON": 1, "INT": 0, "WIS": 2, "CHA": 2 },
+    "modifiers": {
+      "STR": -1,
+      "DEX": 4,
+      "CON": 1,
+      "INT": 0,
+      "WIS": 2,
+      "CHA": 2
+    },
+    "savingThrows": {
+      "STR": 2,
+      "DEX": 7,
+      "CON": 1,
+      "INT": 0,
+      "WIS": 2,
+      "CHA": 2
+    },
     "skills": {
       "Acrobatics": 4,
       "Animal Handling": 5,
@@ -163,17 +346,17 @@
     "armorClass": 15,
     "initiative": 4,
     "speed": 30,
-    "hitPointMax": 42,
+    "hitPointMax": 46,
     "spellSaveDC": 13,
     "spellAttack": 5,
-    "spellSlots": { "1": 4, "2": 2 }
+    "spellSlots": {
+      "1": 4,
+      "2": 2
+    }
   },
   "openQuestions": [
-    "HP: jednotlivé hody na levelech 2 až 6 (na papíře jen maximum 42)",
-    "Subclass: homebrew archetyp s Cowboy Marksmanship a Beast Whisperer (na papíře „Hunter“)",
-    "Find Steed: odkud ho má (ranger ho nemá v seznamu)",
-    "Pistole: dostřel a přebíjení; Dýka z rudé oceli: +1 iniciativa vždy, nebo jen v poušti",
-    "Bum bum šakalaka, Chladicí plášť, Robo pavouk, Kapesní loď: co přesně dělají",
+    "Pistole: jak dlouho trvá přebití (akce, bonusová akce)",
+    "Bum bum šakalaka a Robo pavouk: jak přesně fungují (ví DM)",
     "Alignment, osobnost (traits, ideals, bonds, flaws) a fotka"
   ],
   "tactics": {
@@ -184,7 +367,7 @@
         "toHit": "d20+9",
         "damage": "1d6+4 fire",
         "roll": "1d6+4",
-        "range": "na dálku (dostřel ověř u DM)",
+        "range": "30/90 ft (dál než 30 ft s nevýhodou)",
         "usage": "Akce Attack: 2 výstřely (Extra Attack), klidně z obou pistolí. S Hunter's Mark +1d6 na každý zásah.",
         "note": "+9 = DEX 4 + proficiency 3 + Archery 2. ~7,5 dmg na zásah, s Hunter's Mark ~11. Každý výstřel spotřebuje kulku.",
         "count": 2,
@@ -211,7 +394,7 @@
         "roll": "1d4+5",
         "range": "5 ft (hod 20/60 ft)",
         "usage": "V poušti místo obyčejné dýky: Attack 2×.",
-        "note": "Jen v poušti +1 k útoku a zranění, jinde jako obyčejná dýka (+7, 1d4+4).",
+        "note": "Jen v poušti +1 k útoku a zranění (a +1 k iniciativě), jinde jako obyčejná dýka (+7, 1d4+4).",
         "count": 2,
         "hex": true
       },
@@ -331,7 +514,7 @@
       {
         "title": "Cowboy Marksmanship",
         "type": "passive",
-        "description": "Proficiency se střelnými zbraněmi a s tinker's tools (kulky za polovinu ceny)."
+        "description": "Proficiency se střelnými zbraněmi a s tinker's tools (kulky za polovinu ceny). Cowboy Magic: Animal Friendship a Find Steed máš navíc, nepočítají se do známých kouzel."
       }
     ],
     "combos": [
@@ -346,7 +529,14 @@
         "cost": "slot:1",
         "highlight": true,
         "description": "Základ každého boje. Jeden slot vydrží celý souboj i víc (až hodinu).",
-        "uses": [{ "title": "Hunter's Mark" }, { "title": "Pistole" }]
+        "uses": [
+          {
+            "title": "Hunter's Mark"
+          },
+          {
+            "title": "Pistole"
+          }
+        ]
       },
       {
         "title": "Přenesení značky",
@@ -357,7 +547,11 @@
         "expectedDamage": "~22",
         "cost": "free",
         "description": "Funguje, dokud držíš koncentraci. Nové seslání by stálo další slot.",
-        "uses": [{ "title": "Pistole" }]
+        "uses": [
+          {
+            "title": "Pistole"
+          }
+        ]
       },
       {
         "title": "Umlčet kouzelníka",
@@ -368,7 +562,11 @@
         "expectedDamage": "~15 za kolo bez Hunter's Mark",
         "cost": "slot:2",
         "description": "Pozor: Silence je koncentrace a ukončí Hunter's Mark. Vyplatí se na nepřítele, jehož kouzla jsou nebezpečnější než ztráta 1d6 za zásah.",
-        "uses": [{ "title": "Silence" }]
+        "uses": [
+          {
+            "title": "Silence"
+          }
+        ]
       },
       {
         "title": "Ústup a palba",
@@ -378,7 +576,11 @@
         ],
         "cost": "free",
         "description": "Střelba s nepřítelem do 5 ft má nevýhodu. Na koni nebo se zvířetem od Beast Whisperer odjedeš dál.",
-        "uses": [{ "title": "Pistole" }]
+        "uses": [
+          {
+            "title": "Pistole"
+          }
+        ]
       },
       {
         "title": "Zvířecí spojenec",
@@ -389,7 +591,11 @@
         ],
         "cost": "free",
         "description": "Ideální v lese a na pastvinách, kde máš Natural Explorer.",
-        "uses": [{ "title": "Beast Whisperer" }]
+        "uses": [
+          {
+            "title": "Beast Whisperer"
+          }
+        ]
       },
       {
         "title": "Na koni do boje",
@@ -400,7 +606,11 @@
         ],
         "cost": "slot:2",
         "description": "Rychlý přesun a udržení vzdálenosti od nepřátel na blízko.",
-        "uses": [{ "title": "Find Steed" }]
+        "uses": [
+          {
+            "title": "Find Steed"
+          }
+        ]
       }
     ],
     "rules": [
@@ -410,11 +620,11 @@
       },
       {
         "title": "Střelba s nevýhodou",
-        "text": "Útok na dálku má nevýhodu, když je nepřítel do 5 ft od tebe a nemá Incapacitated, a na dlouhý dostřel. Proti cíli za polovičním krytem +2 AC, za třičtvrtečním +5."
+        "text": "Útok na dálku má nevýhodu, když je nepřítel do 5 ft od tebe a nemá Incapacitated, a na dlouhý dostřel (pistole nad 30 ft). Proti cíli za polovičním krytem +2 AC, za třičtvrtečním +5."
       },
       {
         "title": "Pistole a kulky",
-        "text": "Každá pistole má zásobník 6 ran, každý výstřel spotřebuje kulku (Bullets v inventáři). Jak dlouho trvá přebití, si ověř u DM."
+        "text": "Dostřel 30/90 ft: do 30 ft normálně, do 90 ft s nevýhodou. Každá pistole má zásobník 6 ran, každý výstřel spotřebuje kulku (Bullets v inventáři). Jak dlouho trvá přebití, si ověř u DM."
       },
       {
         "title": "Hunter's Mark",
@@ -427,6 +637,10 @@
       {
         "title": "Goodberry na noc",
         "text": "Před long restem vysel Goodberry: 10 bobulí vydrží 24 hodin, každá vrátí 1 HP a nahradí jídlo na den. Slot se přes noc obnoví."
+      },
+      {
+        "title": "Co přinese 7. level (Cowboy)",
+        "text": "Hot Hand: dostřel střelných zbraní +10 ft (pistole 40/100 ft) a vlastnost Loading tě nebrzdí. Další kouzlo rangera a kouzla 2. úrovně ve větším počtu."
       }
     ]
   }

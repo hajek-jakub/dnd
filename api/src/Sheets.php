@@ -109,6 +109,7 @@ final class Sheets
                 'baseSpeed' => (int) $r['base_speed'],
                 'levels' => $levels[$id] ?? [],
                 'subclasses' => self::json($r['subclasses'], new \stdClass()),
+                'subclassNames' => self::homebrewSubclassNames(self::json($r['subclasses'], [])),
                 'skillProficiencies' => self::json($r['skill_proficiencies'], new \stdClass()),
                 'extraSaveProficiencies' => self::json($r['extra_save_proficiencies'], []),
                 'extraProficiencies' => self::json($r['extra_proficiencies'], []),
@@ -385,6 +386,23 @@ final class Sheets
             'resources' => $map($s['resources'] ?? [], 'resources', '/^[a-zA-Z0-9._-]{1,80}$/'),
             'conditions' => array_values(array_unique($conditions)),
         ];
+    }
+
+    /**
+     * Názvy homebrew subclassů postavy (idx „hb-…“ → „Cowboy“); názvy ze SRD zná klient z pravidel pro engine.
+     * @return array<string, string>|\stdClass
+     */
+    private static function homebrewSubclassNames(mixed $subclasses): array|\stdClass
+    {
+        $idxs = array_values(array_filter(is_array($subclasses) ? $subclasses : [], static fn (mixed $v): bool => is_string($v) && str_starts_with($v, 'hb-')));
+        if ($idxs === []) {
+            return new \stdClass();
+        }
+        $out = [];
+        foreach (Db::all("SELECT idx, name FROM rules_entries WHERE kind = 'subclass' AND idx IN (" . implode(',', array_fill(0, count($idxs), '?')) . ')', $idxs) as $row) {
+            $out[(string) $row['idx']] = (string) $row['name'];
+        }
+        return $out === [] ? new \stdClass() : $out;
     }
 
     // ------------------------------------------------------------------ levely a odvozené údaje

@@ -44,6 +44,8 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   baseSpeed: number
   levels: { classIndex: string; hpRoll: number | null; choices: Record<string, unknown> }[]
   subclasses: Record<string, string>
+  /** Názvy homebrew subclassů (idx „hb-…“ → „Cowboy“); názvy ze SRD jsou v pravidlech enginu. */
+  subclassNames?: Record<string, string>
   skillProficiencies: Partial<Record<SkillKey, 0 | 1 | 2>>
   extraSaveProficiencies: AbilityKey[]
   extraProficiencies: string[]

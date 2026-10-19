@@ -47,8 +47,9 @@ export function SpellsTab() {
           {sheet.spellcasting.classes.map((c) => {
             const mine = character.spells.filter((s) => s.classIdx === c.classIndex)
             const cantrips = mine.filter((s) => s.level === 0).length
-            const leveled = mine.filter((s) => s.level > 0)
-            const prepared = leveled.filter((s) => s.prepared || s.alwaysPrepared).length
+            // Kouzla vždy připravená (domény, přísahy, archetyp jako Cowboy Magic) se do limitu známých ani připravených nepočítají.
+            const leveled = mine.filter((s) => s.level > 0 && !s.alwaysPrepared)
+            const prepared = leveled.filter((s) => s.prepared).length
             return (
               <p key={c.classIndex} className="text-sm text-muted-foreground">
                 <strong className="text-foreground">{c.className}:</strong> cantripy {cantrips}
@@ -97,6 +98,7 @@ export function SpellsTab() {
                             s.classIdx
                               ? character.spells.length && sheet.spellcasting.classes.find((c) => c.classIndex === s.classIdx)?.className
                               : null,
+                            s.alwaysPrepared ? 'navíc ze subclassu, nepočítá se do limitu' : null,
                           ]
                             .filter(Boolean)
                             .join(' · ')}

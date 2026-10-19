@@ -74,8 +74,12 @@ final class CharacterSeeder
             $homebrew[] = $hb['body']['name'];
         }
 
-        // 2) postava
-        $res = CharacterController::create(self::req($plan['create']), ['id' => $campaign], $user);
+        // 2) postava (homebrew subclass má idx „hb-…“ až po založení)
+        $create = $plan['create'];
+        foreach ($plan['subclassKeys'] as $classIdx => $key) {
+            $create['subclasses'][$classIdx] = (string) Db::value('SELECT idx FROM rules_entries WHERE id = ?', [$ruleIds[$key]]);
+        }
+        $res = CharacterController::create(self::req($create), ['id' => $campaign], $user);
         $id = (string) ($res->body['character']['id'] ?? '');
         CharacterController::update(self::req($plan['update']), ['id' => $id], $user);
 
@@ -117,6 +121,9 @@ final class CharacterSeeder
         foreach ($plan['spells'] as $spell) {
             $ruleId = $spell['ruleId'] ?? $ruleIds[$spell['ruleKey']];
             InventoryController::addSpell(self::req(['ruleId' => $ruleId, 'classIdx' => $spell['classIdx'], 'prepared' => true]), ['id' => $id], $user);
+            if ($spell['always'] ?? false) {
+                Db::exec("UPDATE character_spells SET always_prepared = 1, source = 'subclass' WHERE character_id = ? AND rule_id = ? AND class_idx = ?", [$id, $ruleId, $spell['classIdx']]);
+            }
         }
 
         return ['status' => 'created', 'characterId' => $id, 'campaignId' => $campaign, 'campaignCreated' => $campaignCreated, 'homebrew' => $homebrew, 'warnings' => $plan['warnings']];
@@ -185,6 +192,8 @@ final class CharacterSeeder
         // třídy a subclassy
         $levels = [];
         $subclasses = [];
+        $subclassKeys = [];
+        $homebrew = [];
         $classIdxs = [];
         foreach (is_array($seed['classes'] ?? null) ? $seed['classes'] : [] as $c) {
             $className = is_array($c) ? (string) ($c['class'] ?? '') : '';
@@ -214,7 +223,18 @@ final class CharacterSeeder
                 $levels[] = ['classIndex' => $idx, 'hpRoll' => $roll];
             }
             $sub = is_array($c) && is_string($c['subclass'] ?? null) ? trim(preg_replace('/\s*\(.*$/', '', $c['subclass']) ?? '') : '';
-            if ($sub !== '') {
+            if ($sub !== '' && is_array($c['subclassHomebrew'] ?? null)) {
+                // Subclass mimo SRD (třeba Cowboy): homebrew kampaně s popisem featur, postava na něj odkazuje přes idx „hb-…“.
+                $desc = $c['subclassHomebrew']['description'] ?? null;
+                if (!is_string($desc) || trim($desc) === '') {
+                    $fail("Subclass \"$sub\": subclassHomebrew potřebuje description.");
+                } else {
+                    $key = 'subclass:' . mb_strtolower($sub);
+                    $homebrew[$key] = ['kind' => 'subclass', 'body' => ['kind' => 'subclass', 'name' => $sub, 'category' => (string) Db::value("SELECT name FROM rules_entries WHERE kind = 'class' AND scope = '' AND idx = ?", [$idx]), 'description' => $desc]];
+                    $subclassKeys[$idx] = $key;
+                    $warnings[] = "Subclass $sub není v SRD: založen jako homebrew kampaně.";
+                }
+            } elseif ($sub !== '') {
                 $subIdx = Db::value("SELECT idx FROM rules_entries WHERE kind = 'subclass' AND scope = '' AND ? LIKE CONCAT('%', name)", [$sub]);
                 if ($subIdx === null) {
                     $fail("Subclass \"$sub\" se nedá namapovat na SRD.");
@@ -330,20 +350,20 @@ final class CharacterSeeder
 
         // kouzla
         $spells = [];
-        $homebrew = [];
         foreach (is_array($seed['spells'] ?? null) ? $seed['spells'] : [] as $classKey => $block) {
             $classIdx = strtolower((string) $classKey);
             if (!in_array($classIdx, $classIdxs, true)) {
                 $fail("Kouzla třídy \"$classKey\", kterou postava nemá.");
                 continue;
             }
-            foreach (['cantrips', 'known', 'leveled'] as $group) {
+            // subclass: kouzla, která dává archetyp (Cowboy Magic), jsou vždy připravená a nepočítají se do limitu známých kouzel
+            foreach (['cantrips', 'known', 'leveled', 'subclass'] as $group) {
                 foreach (is_array($block[$group] ?? null) ? $block[$group] : [] as $spellName) {
                     // SRD má přednost, jinak katalog kouzel mimo SRD (api/data/extra/warlock-spells.json)
                     $rule = Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND is_srd = 1 AND LOWER(name) = LOWER(?)", [$spellName])
                         ?? Db::one("SELECT id FROM rules_entries WHERE kind = 'spell' AND ruleset = 'ref' AND LOWER(name) = LOWER(?)", [$spellName]);
                     if ($rule !== null) {
-                        $spells[] = ['classIdx' => $classIdx, 'ruleId' => (string) $rule['id'], 'ruleKey' => null];
+                        $spells[] = ['classIdx' => $classIdx, 'ruleId' => (string) $rule['id'], 'ruleKey' => null, 'always' => $group === 'subclass'];
                     } else {
                         $fail("Kouzlo \"$spellName\" není ani v SRD, ani v katalogu kouzel (api/data/extra/warlock-spells.json).");
                     }
@@ -552,6 +572,7 @@ final class CharacterSeeder
             'items' => $items,
             'spells' => $spells,
             'effects' => $effects,
+            'subclassKeys' => $subclassKeys,
             'create' => [
                 'name' => $name,
                 'race' => (string) ($char['race'] ?? ''),

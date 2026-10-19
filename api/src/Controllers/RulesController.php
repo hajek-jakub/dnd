@@ -13,6 +13,7 @@ use Dnd\Items;
 use Dnd\Monsters;
 use Dnd\Request;
 use Dnd\Response;
+use Dnd\Sheets;
 
 /**
  * Pravidla (SRD 5.1 a katalog itemů) a homebrew obsah.
@@ -146,14 +147,23 @@ final class RulesController
             throw HttpError::notFound('Třída nenalezena.');
         }
         $collect($class, 'class', $className);
+        $homebrew = null;
         if ($subclass !== '') {
             $subName = (string) (Db::value("SELECT name FROM rules_entries WHERE kind = 'subclass' AND idx = ? AND scope = ''", [$subclass]) ?? '');
             if ($subName !== '') {
                 $collect($subclass, 'subclass', $subName);
+            } elseif (str_starts_with($subclass, 'hb-')) {
+                // Homebrew subclass (třeba Cowboy) nemá tabulku levelů: ukáže se jako jedna featura s celým popisem, jen tomu, kdo ho vidí.
+                $id = (string) (Db::value("SELECT id FROM rules_entries WHERE kind = 'subclass' AND idx = ?", [$subclass]) ?? '');
+                $homebrew = $id !== '' ? self::loadVisible($id, $user) : null;
             }
         }
+        $homebrewFeature = $homebrew === null || $level < (Sheets::SUBCLASS_LEVEL[$class] ?? 3) ? [] : [[
+            'id' => $homebrew['id'], 'idx' => $homebrew['idx'], 'name' => $homebrew['name'], 'level' => Sheets::SUBCLASS_LEVEL[$class] ?? 3,
+            'source' => 'subclass', 'className' => 'homebrew ' . $className, 'description' => $homebrew['desc_text'],
+        ]];
         if ($byLevel === []) {
-            return ['features' => []];
+            return ['features' => $homebrewFeature];
         }
 
         $featureIdxs = array_values(array_unique(array_column($byLevel, 'featureIdx')));
@@ -176,6 +186,11 @@ final class RulesController
                 'id' => $row['id'], 'idx' => $row['idx'], 'name' => $row['name'], 'level' => $f['level'], 'source' => $f['source'],
                 'className' => $f['className'], 'description' => $row['desc_text'],
             ];
+        }
+        if ($homebrewFeature !== []) {
+            // za featury třídy na stejném levelu (subclass se vybírá spolu s „Ranger Archetype“)
+            $at = count(array_filter($out, static fn (array $f): bool => $f['level'] <= $homebrewFeature[0]['level']));
+            array_splice($out, $at, 0, $homebrewFeature);
         }
         return ['features' => $out];
     }

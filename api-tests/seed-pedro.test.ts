@@ -4,11 +4,11 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { ABILITIES, SKILLS, buildRulesBundle, computeSheet } from '../src/engine'
 import { toEngineInput } from '../src/features/sheet/model'
-import { createCampaign, registerUser, type TestUser } from './client'
+import { createCampaign, joinAsPlayer, registerUser, type TestUser } from './client'
 
 /**
- * Seed postavy Pedro (seed/pedro.json, Ranger 6 z PDF sheetu): vlastní předměty mimo pravidla, homebrew pistole s vlastními hodnotami,
- * Fighting Style Archery jako trvalý bonus a HP z hodů. Engine z uložených dat musí vyjít jako papír.
+ * Seed postavy Pedro (seed/pedro.json, Ranger 6 z PDF sheetu): homebrew subclass Cowboy s kouzly navíc, vlastní předměty mimo pravidla,
+ * homebrew pistole s vlastními hodnotami a Fighting Style Archery jako trvalý bonus. Engine z uložených dat musí vyjít jako papír.
  */
 const root = path.resolve(import.meta.dirname, '..')
 const SEED = path.join(root, 'seed/pedro.json')
@@ -57,12 +57,14 @@ describe('seed postavy Pedro', () => {
     expect(list).toHaveLength(1)
     character = (await owner.client.get(`/characters/${list[0].id}`)).body.character
     expect(character.overrides).toEqual({})
-    expect(character.levels.map((l: any) => l.hpRoll)).toEqual([null, 6, 5, 5, 5, 5])
-    expect(character.subclasses).toEqual({})
+    expect(character.levels.map((l: any) => l.hpRoll)).toEqual([null, null, null, null, null, null])
+    expect(character.subclasses.ranger).toMatch(/^hb-/)
+    expect(character.subclassNames).toEqual({ [character.subclasses.ranger]: 'Cowboy' })
     expect(character.extraProficiencies).toEqual(['Language: Common', 'Language: Elvish', 'Language: Giant', 'Language: Infernal', 'Weapon: Firearms (Cowboy Marksmanship)', "Tool: Tinker's Tools"])
     expect(character.currency).toMatchObject({ cp: 13, sp: 90, gp: 372, pp: 12 })
     expect(character.description).toContain('El Rayo')
-    expect(character.notes).toContain('TO_CONFIRM: Find Steed')
+    expect(character.notes).toContain('TO_CONFIRM: Pistole')
+    expect(character.notes).not.toContain('TO_CONFIRM: Find Steed')
   })
 
   it('vlastní předměty, homebrew pistole s vlastními hodnotami a SRD vybavení', () => {
@@ -74,8 +76,12 @@ describe('seed postavy Pedro', () => {
     expect(byName('Dýka z rudé oceli')).toMatchObject({ kind: 'weapon', equipped: false, weapon: { damageDice: '1d4' } })
     expect(byName('Leather Armor')).toMatchObject({ kind: 'armor', equipped: true })
     expect(byName('Rations (1 day)').quantity).toBe(10)
+    expect(byName('Folding Boat')).toMatchObject({ kind: 'wondrous', ruleId: expect.any(String) })
+    expect(byName('Černej kůň').notes ?? '').not.toContain('TO_CONFIRM')
     expect(byName('Dagger').equipped).toBe(true)
     expect(character.spells.map((s: any) => s.name).sort()).toEqual(['Animal Friendship', 'Find Steed', 'Goodberry', "Hunter's Mark", 'Silence', 'Speak with Animals'])
+    // Cowboy Magic: kouzla navíc jsou vždy připravená a nepočítají se do limitu známých kouzel
+    expect(character.spells.filter((s: any) => s.alwaysPrepared).map((s: any) => s.name).sort()).toEqual(['Animal Friendship', 'Find Steed'])
     expect(character.effects).toEqual([expect.objectContaining({ target: 'attack.ranged', value: 2, source: 'Fighting Style: Archery', duration: 'permanent' })])
   })
 
@@ -112,10 +118,26 @@ describe('seed postavy Pedro', () => {
     expect(Object.fromEntries(sheet.spellcasting.slots.filter((s) => s.max > 0).map((s) => [String(s.level), s.max]))).toEqual(v.spellSlots)
   })
 
+  it('featury: homebrew subclass Cowboy se ukáže za featurami 3. levelu, cizinec ho nedostane', async () => {
+    const url = `/rules/class-features?class=ranger&level=6&subclass=${character.subclasses.ranger}`
+    const features = (await owner.client.get(url)).body.features as any[]
+    const cowboy = features.findIndex((f) => f.name === 'Cowboy')
+    expect(features[cowboy]).toMatchObject({ level: 3, source: 'subclass', className: 'homebrew Ranger', description: expect.stringContaining('**Beast Whisperer (3. level):**') })
+    expect(features.slice(0, cowboy).every((f) => f.level <= 3)).toBe(true)
+    expect(features.slice(cowboy + 1).every((f) => f.level > 3)).toBe(true)
+    // na 2. levelu ještě subclass není
+    expect((await owner.client.get(url.replace('level=6', 'level=2'))).body.features.some((f: any) => f.name === 'Cowboy')).toBe(false)
+    const stranger = await registerUser('cizi')
+    expect((await stranger.client.get(url)).status).toBe(404)
+    // člen kampaně ho vidí (homebrew je pro kampaň)
+    const player = await joinAsPlayer(owner, campaignId)
+    expect((await player.client.get(url)).body.features.some((f: any) => f.name === 'Cowboy')).toBe(true)
+  })
+
   it('taktiky: pistole střílí kulkami a s Hunter\'s Mark, komba odkazují na existující taktiky', async () => {
     const tactics = (await owner.client.get(`/characters/${character.id}/tactics`)).body.tactics as any[]
     const count = (kind: string) => tactics.filter((t) => t.kind === kind).length
-    expect({ attack: count('attack'), spell: count('spell'), ki: count('ki'), passive: count('passive'), combo: count('combo'), rule: count('rule') }).toEqual({ attack: 4, spell: 6, ki: 3, passive: 5, combo: 6, rule: 6 })
+    expect({ attack: count('attack'), spell: count('spell'), ki: count('ki'), passive: count('passive'), combo: count('combo'), rule: count('rule') }).toEqual({ attack: 4, spell: 6, ki: 3, passive: 5, combo: 6, rule: 7 })
     const pistol = tactics.find((t) => t.title === 'Pistole')
     expect(pistol.data).toMatchObject({ toHit: 'd20+9', roll: '1d6+4', count: 2, hex: true, ammo: character.items.find((i: any) => i.name === 'Bullets').id })
     const hunt = tactics.find((t) => t.title === "Lov: Hunter's Mark a 2 výstřely")

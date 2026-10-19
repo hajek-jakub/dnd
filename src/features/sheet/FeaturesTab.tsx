@@ -19,6 +19,7 @@ export function FeaturesTab() {
           level={c.level}
           subclassIndex={c.subclassIndex ?? undefined}
           className={bundle.classes[c.classIndex]?.name ?? c.classIndex}
+          subclassName={c.subclassIndex ? (bundle.subclasses[c.subclassIndex]?.name ?? character.subclassNames?.[c.subclassIndex]) : undefined}
         />
       ))}
       <FeatsCard />
@@ -39,11 +40,13 @@ function ClassFeatures({
   level,
   subclassIndex,
   className,
+  subclassName,
 }: {
   classIndex: string
   level: number
   subclassIndex?: string
   className: string
+  subclassName?: string
 }) {
   const { data, isPending, error } = useClassFeatures(classIndex, level, subclassIndex)
   return (
@@ -51,6 +54,7 @@ function ClassFeatures({
       <CardHeader>
         <CardTitle>
           {className} {level}
+          {subclassName && <span className="font-normal text-muted-foreground"> · {subclassName}</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
