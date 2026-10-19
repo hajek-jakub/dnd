@@ -48,11 +48,11 @@ final class InventoryController
         $item = self::buildItem((string) $char['campaign_id'], $user, $in);
         $id = Ids::uuid();
         Db::exec(
-            'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, equipped, attuned, requires_attunement, consumable,
+            'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, charges_max, charges_used, charges_recharge, equipped, attuned, requires_attunement, consumable,
                 rarity, stats, effects, notes, curse, curse_revealed, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
             [
-                $id, $char['id'], $item['ruleId'] ?? null, $item['name'], $item['description'], $item['kind'], $item['quantity'],
+                $id, $char['id'], $item['ruleId'] ?? null, $item['name'], $item['description'], $item['kind'], $item['quantity'], $item['charges_max'], $item['charges_recharge'],
                 $item['requires_attunement'], $item['consumable'], $item['rarity'], Sheets::enc($item['stats']), Sheets::enc($item['effects']), $item['notes'],
                 $item['curse'], $item['curse'] === null ? 0 : $item['curse_revealed'],
             ],
@@ -164,10 +164,20 @@ final class InventoryController
 
             $sets = [];
             $values = [];
-            foreach (['name', 'description', 'kind', 'quantity', 'equipped', 'attuned', 'requires_attunement', 'consumable', 'rarity', 'notes', 'curse', 'curse_revealed'] as $column) {
+            foreach (['name', 'description', 'kind', 'quantity', 'charges_max', 'charges_recharge', 'equipped', 'attuned', 'requires_attunement', 'consumable', 'rarity', 'notes', 'curse', 'curse_revealed'] as $column) {
                 if (array_key_exists($column, $in)) {
                     $sets[] = "$column = ?";
                     $values[] = $in[$column];
+                }
+            }
+            if (array_key_exists('charges_max', $in) || array_key_exists('charges_used', $in)) {
+                // spotřebovaných nábojů nesmí být víc než maximum (po snížení maxima)
+                $sets[] = 'charges_used = LEAST(' . (array_key_exists('charges_used', $in) ? '?' : 'charges_used') . ', COALESCE(' . (array_key_exists('charges_max', $in) ? '?' : 'charges_max') . ', 0))';
+                if (array_key_exists('charges_used', $in)) {
+                    $values[] = $in['charges_used'];
+                }
+                if (array_key_exists('charges_max', $in)) {
+                    $values[] = $in['charges_max'];
                 }
             }
             if (array_key_exists('effects', $in)) {
@@ -273,11 +283,11 @@ final class InventoryController
                     $receivedId = Ids::uuid();
                     Db::exec('UPDATE character_items SET quantity = quantity - ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$qty, $item['id']]);
                     Db::exec(
-                        'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, equipped, attuned, requires_attunement, consumable,
+                        'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, charges_max, charges_used, charges_recharge, equipped, attuned, requires_attunement, consumable,
                             rarity, stats, effects, notes, curse, curse_revealed, created_at, updated_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-                        [$receivedId, $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['requires_attunement'], $item['consumable'],
-                            $item['rarity'], $item['stats'], $item['effects'], $item['notes'], $item['curse'], $item['curse_revealed']],
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                        [$receivedId, $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['charges_max'], $item['charges_used'], $item['charges_recharge'],
+                            $item['requires_attunement'], $item['consumable'], $item['rarity'], $item['stats'], $item['effects'], $item['notes'], $item['curse'], $item['curse_revealed']],
                     );
                 }
                 // Příjemce zbroj rovnou nosí, když žádnou nenosí (předání Batanovi má změnit jeho AC).
@@ -493,6 +503,9 @@ final class InventoryController
             'quantity' => ($given['quantity'] ?? 1) * (int) ($base['bundle'] ?? 1),
             'requires_attunement' => $given['requires_attunement'] ?? (int) ($base['requiresAttunement'] ?? false),
             'consumable' => $given['consumable'] ?? (int) ($base['consumable'] ?? false),
+            // náboje: zadané ve vstupu, jinak z popisu pravidla (Wand of Wonder 7, obnova 1d6+1)
+            'charges_max' => array_key_exists('charges_max', $given) ? $given['charges_max'] : ($base['charges']['max'] ?? null),
+            'charges_recharge' => array_key_exists('charges_max', $given) ? ($given['charges_recharge'] ?? null) : ($base['charges']['recharge'] ?? null),
             'rarity' => array_key_exists('rarity', $given) ? $given['rarity'] : ($base['rarity'] ?? null),
             'stats' => $given['stats'] ?? ($base['stats'] ?? []),
             'effects' => $given['effects'] ?? ($base['effects'] ?? []),

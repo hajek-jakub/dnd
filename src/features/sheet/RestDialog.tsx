@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { longRest, shortRest, type CharacterState as EngineState } from '@/engine'
 import { useExpireLongRestEffects } from './api'
+import { hasCharges, useRecharge } from './charges'
 import { useSheet } from './sheet-context'
 
 function roll(sides: number): number {
@@ -114,11 +115,15 @@ function ShortRestDialog({ open, onClose }: { open: boolean; onClose: () => void
 function LongRestDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { sheet, character, hpCurrent, update } = useSheet()
   const expire = useExpireLongRestEffects(character.id)
+  const { recharge } = useRecharge(character.id)
+  // Itemy s obnovou „za úsvitu“ (Wand of Wonder): po long restu se dobijí, hází se na serveru.
+  const rechargeable = character.items.filter((i) => hasCharges(i) && i.charges.recharge !== null && i.charges.used > 0)
   function confirm() {
     const next = longRest(engineState(character, hpCurrent), sheet)
     update({ state: { ...character.state, ...next } })
     // Bonusy "do long restu" od DM zmizí.
     if (character.effects.some((e) => e.duration === 'long_rest')) expire.mutate()
+    if (rechargeable.length > 0) recharge(rechargeable.map((i) => i.id))
     onClose()
   }
   return (
@@ -130,6 +135,7 @@ function LongRestDialog({ open, onClose }: { open: boolean; onClose: () => void 
           <li>Zdroje s obnovou na short/long rest/úsvit se obnoví (ruční ne)</li>
           <li>Vrátí se polovina hit dice (aspoň jedna)</li>
           <li>Bonusy od DM s trváním „do long restu“ skončí</li>
+          {rechargeable.length > 0 && <li>Dobijí se náboje: {rechargeable.map((i) => i.name).join(', ')}</li>}
         </ul>
         <Button size="lg" className="w-full" onClick={confirm}>
           Dát si long rest

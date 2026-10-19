@@ -6,6 +6,7 @@ namespace Dnd\Controllers;
 
 use Dnd\Access;
 use Dnd\Db;
+use Dnd\Dice;
 use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Images;
@@ -282,7 +283,11 @@ final class CharacterController
             throw HttpError::validation('Pošli 1 až 20 operací v poli ops.', 'ops');
         }
 
-        Db::transaction(static function () use ($params, $ops): void {
+        $recharged = [];
+        $touched = [];
+        Db::transaction(static function () use ($params, $ops, &$recharged, &$touched): void {
+            $recharged = [];
+            $touched = [];
             $r = Db::one('SELECT * FROM characters WHERE id = ? FOR UPDATE', [$params['id']]) ?? throw HttpError::notFound();
             $hp = $r['hp_current'] === null ? null : (int) $r['hp_current'];
             $temp = (int) $r['hp_temp'];
@@ -370,6 +375,34 @@ final class CharacterController
                             [max(0, min(9999, (int) $qty + $intField($op, 'delta', -9999, 9999))), $itemId],
                         );
                         break;
+                    case 'charges':
+                    case 'recharge':
+                        // Náboje itemu (Wand of Wonder): delta záporná = utracené, kladná = vrácené; recharge = obnova podle itemu (kostky nebo všechny).
+                        $itemId = is_string($op['itemId'] ?? null) ? $op['itemId'] : '';
+                        $it = Ids::isUuid($itemId) ? Db::one('SELECT name, charges_max, charges_used, charges_recharge FROM character_items WHERE id = ? AND character_id = ? FOR UPDATE', [$itemId, $params['id']]) : null;
+                        if ($it === null) {
+                            throw HttpError::notFound('Item nenalezen.');
+                        }
+                        if ($it['charges_max'] === null) {
+                            throw HttpError::validation('Item nemá náboje.', 'ops');
+                        }
+                        $max = (int) $it['charges_max'];
+                        $used = min($max, (int) $it['charges_used']);
+                        if ($op['op'] === 'charges') {
+                            $used = max(0, min($max, $used - $intField($op, 'delta', -100, 100)));
+                        } else {
+                            if ($it['charges_recharge'] === null) {
+                                throw HttpError::validation('Item se sám nedobíjí, náboje uprav ručně.', 'ops');
+                            }
+                            $expr = (string) $it['charges_recharge'];
+                            $rolled = $expr === 'all' ? null : (ctype_digit($expr) ? (int) $expr : (int) Dice::roll(Dice::parse($expr))['total']);
+                            $gained = $rolled === null ? $used : min($used, max(0, $rolled));
+                            $used -= $gained;
+                            $recharged[] = ['itemId' => $itemId, 'name' => (string) $it['name'], 'expression' => $expr, 'rolled' => $rolled, 'gained' => $gained];
+                        }
+                        Db::exec('UPDATE character_items SET charges_used = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$used, $itemId]);
+                        $touched[$itemId] = true;
+                        break;
                     case 'inspiration':
                         $insp = ($op['set'] ?? null) === true ? 1 : 0;
                         break;
@@ -402,7 +435,18 @@ final class CharacterController
             );
         });
         $sheet = self::loadFull($params['id'], false);
-        return ['state' => $sheet['state'], 'inspiration' => $sheet['inspiration']];
+        $out = ['state' => $sheet['state'], 'inspiration' => $sheet['inspiration']];
+        if ($touched !== []) {
+            // náboje změněných itemů (klient je přepíše v cache) a výsledek hodu obnovy
+            $out['charges'] = [];
+            foreach ($sheet['items'] as $item) {
+                if (isset($touched[$item['id']])) {
+                    $out['charges'][$item['id']] = $item['charges'];
+                }
+            }
+            $out['recharged'] = $recharged;
+        }
+        return $out;
     }
 
     /** @param array{id:string} $user */

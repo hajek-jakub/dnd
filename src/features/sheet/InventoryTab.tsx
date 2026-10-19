@@ -10,7 +10,9 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { RichText } from '@/components/RichText'
 import { ApiError } from '@/lib/api'
 import { DescriptionText } from '@/features/rules/DescriptionText'
+import { hasCharges } from './charges'
 import { effectLabel } from './effects'
+import { ItemChargesControl } from './ItemChargesControl'
 import { ItemForm } from './ItemForm'
 import { ItemSourcePicker } from './ItemSourcePicker'
 import { ITEM_KIND_SHORT } from './labels'
@@ -151,6 +153,11 @@ function ItemRow({ item }: { item: CharacterItem }) {
           </div>
         )}
       </div>
+      {hasCharges(item) && (
+        <div className="border-t px-3 py-2">
+          <ItemChargesControl item={item} />
+        </div>
+      )}
       <details className="border-t">
         <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-muted-foreground">Podrobnosti</summary>
         <div className="space-y-3 px-3 pb-3 text-sm">

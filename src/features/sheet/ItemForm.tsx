@@ -21,6 +21,8 @@ interface FormState {
   quantity: string
   requiresAttunement: boolean
   consumable: boolean
+  chargesMax: string
+  chargesRecharge: string
   rarity: string
   description: string
   notes: string
@@ -52,6 +54,8 @@ function initial(item?: ItemFormValues): FormState {
     quantity: String(item?.quantity ?? 1),
     requiresAttunement: item?.requiresAttunement ?? false,
     consumable: item?.consumable ?? false,
+    chargesMax: item?.charges ? String(item.charges.max) : '',
+    chargesRecharge: item?.charges?.recharge ?? '',
     rarity: item?.rarity ?? '',
     description: item?.description ?? '',
     notes: item?.notes ?? '',
@@ -102,12 +106,14 @@ export function ItemForm({
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    const chargesMax = Number.parseInt(s.chargesMax, 10) || 0
     const input: ItemInput = {
       name: s.name.trim(),
       kind: s.kind,
       quantity: Number.isFinite(Number.parseInt(s.quantity, 10)) ? Math.max(0, Number.parseInt(s.quantity, 10)) : 1,
       requiresAttunement: s.requiresAttunement,
       consumable: s.consumable,
+      charges: chargesMax > 0 ? { max: Math.min(100, chargesMax), recharge: s.chargesRecharge.trim() === '' ? null : s.chargesRecharge.trim() } : null,
       rarity: s.rarity === '' ? null : s.rarity,
       description: s.description,
       notes: s.notes,
@@ -203,6 +209,36 @@ export function ItemForm({
         <input type="checkbox" className="size-5 accent-primary" checked={s.consumable} onChange={(e) => set('consumable', e.target.checked)} />
         <span>Spotřebuje se používáním (šípy, šipky, lektvary, svitky)</span>
       </label>
+      <fieldset className="space-y-2 rounded-lg border p-3">
+        <legend className="px-1 text-sm font-medium">Náboje (hůlky, hole, prsteny)</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="it-charges">Počet nábojů</Label>
+            <Input
+              id="it-charges"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={100}
+              placeholder="bez nábojů"
+              value={s.chargesMax}
+              onChange={(e) => set('chargesMax', e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="it-recharge">Obnova (za úsvitu)</Label>
+            <Input
+              id="it-recharge"
+              maxLength={40}
+              placeholder="1d6+1, 3 nebo all"
+              disabled={!(Number.parseInt(s.chargesMax, 10) > 0)}
+              value={s.chargesRecharge}
+              onChange={(e) => set('chargesRecharge', e.target.value)}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">Kostky, číslo, nebo „all“ (všechny). Prázdná obnova: náboje se vrací jen ručně.</p>
+      </fieldset>
 
       {(s.kind === 'armor' || s.kind === 'shield') && (
         <fieldset className="space-y-3 rounded-lg border p-3">

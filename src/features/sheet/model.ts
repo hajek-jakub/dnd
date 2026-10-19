@@ -105,6 +105,9 @@ export function applyOps(
         break
       case 'item':
         break // množství itemů se mění na serveru, klient po odpovědi načte postavu znovu
+      case 'charges':
+      case 'recharge':
+        break // náboje jsou na itemu (`applyChargeOps`), dobití hází server
       case 'inspiration':
         inspiration = op.set
         break
@@ -118,4 +121,14 @@ export function applyOps(
     }
   }
   return { state: s, inspiration }
+}
+
+/** Optimistická změna nábojů itemů (`charges`); dobití hází server, jeho výsledek přijde až v odpovědi. */
+export function applyChargeOps(items: CharacterItem[], ops: AdjustOp[]): CharacterItem[] {
+  let out = items
+  for (const op of ops) {
+    if (op.op !== 'charges') continue
+    out = out.map((i) => (i.id === op.itemId && i.charges ? { ...i, charges: { ...i.charges, used: clamp(i.charges.used - op.delta, 0, i.charges.max) } } : i))
+  }
+  return out
 }

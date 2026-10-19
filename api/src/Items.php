@@ -86,7 +86,52 @@ final class Items
             'stats' => $stats,
             'effects' => $effects,
             'ruleId' => (string) $rule['id'],
+            'charges' => self::chargesFromRule($rule),
         ];
+    }
+
+    /**
+     * Náboje magického itemu z popisu SRD: „has 7 charges“ a „regains 1d6 + 1 expended charges daily at dawn“ (Wand of Wonder).
+     * Vrací maximum a obnovu (výraz kostek, „all“, nebo null, když se náboje samy neobnovují), u itemu bez nábojů null.
+     * @param array<string, mixed> $rule
+     * @return array{max: int, recharge: string|null}|null
+     */
+    public static function chargesFromRule(array $rule): ?array
+    {
+        $text = (string) ($rule['desc_text'] ?? '');
+        // „has 7 charges“, „They have 3 charges“, „starts with 36 charges“, „expend 1 of its 10 charges“ (náhodný počet jako u Luck Blade ne)
+        if (preg_match('/\b(?:has|have|starts with|of its) (\d{1,3}) charges\b/i', $text, $m) !== 1 || (int) $m[1] < 1 || (int) $m[1] > 100) {
+            return null;
+        }
+        $recharge = null;
+        if (preg_match('/regains? (all|\d+d\d+(?:\s*[+-]\s*\d+)?|\d+)\b[^.]*?charges?\b[^.]*?\b(dawn|dusk|midnight|long rest)\b/i', $text, $r) === 1) {
+            $recharge = strtolower((string) preg_replace('/\s+/', '', $r[1]));
+        }
+        return ['max' => (int) $m[1], 'recharge' => $recharge];
+    }
+
+    /** Obnova nábojů ze vstupu: null, „all“ (všechny), nebo výraz kostek či číslo („1d6+1“, „1d3“, „5“). */
+    public static function recharge(mixed $value): ?string
+    {
+        if ($value === null || (is_string($value) && trim($value) === '')) {
+            return null;
+        }
+        $v = is_string($value) ? strtolower((string) preg_replace('/\s+/', '', $value)) : '';
+        if ($v === 'all' || $v === 'vse' || $v === 'všechny') {
+            return 'all';
+        }
+        if (preg_match('/^\d{1,3}$/', $v) === 1 && (int) $v >= 1) {
+            return (string) (int) $v;
+        }
+        if ($v === '' || mb_strlen($v) > 40) {
+            throw HttpError::validation('Obnova nábojů: zadej kostky (1d6+1), číslo, nebo „all“.', 'charges');
+        }
+        try {
+            Dice::parse($v);
+        } catch (HttpError) {
+            throw HttpError::validation('Obnova nábojů: zadej kostky (1d6+1), číslo, nebo „all“.', 'charges');
+        }
+        return $v;
     }
 
     /**
@@ -348,6 +393,27 @@ final class Items
                 $out[$column] = $in[$key] ? 1 : 0;
             }
         }
+        if ($has('charges')) {
+            // náboje: {max, recharge} nebo null (item bez nábojů)
+            $c = $in['charges'];
+            if ($c === null) {
+                $out['charges_max'] = null;
+                $out['charges_recharge'] = null;
+                $out['charges_used'] = 0;
+            } elseif (is_array($c) && is_int($c['max'] ?? null) && $c['max'] >= 1 && $c['max'] <= 100) {
+                $out['charges_max'] = $c['max'];
+                $out['charges_recharge'] = self::recharge($c['recharge'] ?? null);
+            } else {
+                throw HttpError::validation('Náboje: maximum musí být celé číslo 1 až 100.', 'charges');
+            }
+        }
+        if ($has('chargesUsed')) {
+            $u = $in['chargesUsed'];
+            if (!is_int($u) || $u < 0 || $u > 100) {
+                throw HttpError::validation('Spotřebované náboje musí být 0 až 100.', 'chargesUsed');
+            }
+            $out['charges_used'] = $u;
+        }
         if ($has('rarity')) {
             $r = $in['rarity'];
             if ($r !== null && (!is_string($r) || !in_array($r, self::RARITIES, true))) {
@@ -478,6 +544,7 @@ final class Items
                 'attuned' => (bool) $r['attuned'],
                 'requiresAttunement' => (bool) $r['requires_attunement'],
                 'consumable' => (bool) $r['consumable'],
+                'charges' => self::chargesPayload($r),
                 'curse' => $curse === null || $curse === '' || (!$revealed && !$revealCurses) ? null : ['text' => (string) $curse, 'revealed' => $revealed],
                 'rarity' => $r['rarity'],
                 'armor' => $stats['armor'] ?? null,
@@ -487,6 +554,20 @@ final class Items
             ];
         }
         return $out;
+    }
+
+    /**
+     * Náboje itemu pro odpověď: maximum, spotřebované a obnova; item bez nábojů null.
+     * @param array<string, mixed> $r řádek character_items
+     * @return array{max: int, used: int, recharge: string|null}|null
+     */
+    public static function chargesPayload(array $r): ?array
+    {
+        if (($r['charges_max'] ?? null) === null) {
+            return null;
+        }
+        $max = (int) $r['charges_max'];
+        return ['max' => $max, 'used' => max(0, min($max, (int) $r['charges_used'])), 'recharge' => $r['charges_recharge'] === null ? null : (string) $r['charges_recharge']];
     }
 
     /**
@@ -505,6 +586,7 @@ final class Items
             'quantity' => (int) $item['quantity'],
             'requiresAttunement' => (bool) $item['requires_attunement'],
             'consumable' => (bool) $item['consumable'],
+            'charges' => ($item['charges_max'] ?? null) === null ? null : ['max' => (int) $item['charges_max'], 'recharge' => $item['charges_recharge'] ?? null],
             'rarity' => $item['rarity'],
             'notes' => (string) $item['notes'],
             'armor' => $stats['armor'] ?? null,
@@ -635,6 +717,26 @@ final class Items
         foreach (Db::all("SELECT i.id, i.name, c.name AS character_name FROM character_items i JOIN characters c ON c.id = i.character_id WHERE i.kind = 'item'") as $row) {
             Db::exec("UPDATE character_items SET kind = 'other' WHERE id = ?", [$row['id']]);
             $fixed[] = $row['name'] . ' (' . $row['character_name'] . ')';
+        }
+        // Náboje (migrace 023): itemy z pravidel získané dřív je dostanou podle popisu. Jen jednou (značka v seed_state),
+        // aby se při dalším nasazení nevrátilo počítadlo, které DM u itemu zrušil.
+        if (Db::value("SELECT 1 FROM seed_state WHERE name = 'repair:charges-v1'") === null) {
+            $rows = Db::all(
+                "SELECT i.id AS item_id, c.name AS character_name, r.name, r.desc_text
+                 FROM character_items i JOIN rules_entries r ON r.id = i.rule_id JOIN characters c ON c.id = i.character_id
+                 WHERE i.charges_max IS NULL AND r.kind = 'magic_item'",
+            );
+            foreach ($rows as $row) {
+                $charges = self::chargesFromRule($row);
+                if ($charges !== null) {
+                    Db::exec(
+                        'UPDATE character_items SET charges_max = ?, charges_used = 0, charges_recharge = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+                        [$charges['max'], $charges['recharge'], $row['item_id']],
+                    );
+                    $fixed[] = $row['name'] . ' (' . $row['character_name'] . ', náboje ' . $charges['max'] . ')';
+                }
+            }
+            Db::exec("INSERT INTO seed_state (name, hash, seeded_at) VALUES ('repair:charges-v1', ?, UTC_TIMESTAMP())", [str_repeat('0', 64)]);
         }
         return $fixed;
     }

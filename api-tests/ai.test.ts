@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, uniqueName, type TestUser } from './client'
+import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, testDbExec, uniqueName, type TestUser } from './client'
 
 /**
  * AI pomocník DM proti napodobenému Claude API (scripts/claude-mock.mjs). Ověřuje přístup (jen DM a jen povolené účty),
@@ -359,18 +359,23 @@ describe('AI pomocník: chyby a limity', () => {
     expect(res.body).toMatchObject({ curl: true, claude: { configured: true, reachable: true, status: 200, error: null, model: 'claude-opus-5-5' } })
   })
 
-  // Musí být poslední v souboru: vyčerpá měsíční rozpočet testovací DB (5 USD).
+  // Musí být poslední v souboru: vyčerpá měsíční rozpočet testovací DB (5 USD). Na konci útratu smaže,
+  // jinak by AI testy v souběžně běžících souborech (encounters.test.ts) dostaly 429.
   it('útrata se počítá z tokenů a po vyčerpání měsíčního rozpočtu AI neodpoví', async () => {
     const k = uniqueName('budget')
     // 300 000 výstupních tokenů Opus 5.5 = 6 USD
     await script(k, [{ content: [text('drahé')], usage: { input_tokens: 10, output_tokens: 300_000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } }])
     const before = (await dm.client.get(`/campaigns/${campaignId}/ai`)).body.spentUsd
     const created = await dm.client.post(`/campaigns/${campaignId}/ai/conversations`, { message: `[[mock:${k}]] x` })
-    expect(created.body.conversation.state).toBe('idle')
-    const status = await dm.client.get(`/campaigns/${campaignId}/ai`)
-    expect(status.body.spentUsd).toBeCloseTo(before + 6, 1)
-    const blocked = await dm.client.post(`/ai/conversations/${created.body.conversation.id}/messages`, { message: 'další' })
-    expect(blocked.status).toBe(429)
-    expect(blocked.body.error.code).toBe('ai_budget')
+    try {
+      expect(created.body.conversation.state).toBe('idle')
+      const status = await dm.client.get(`/campaigns/${campaignId}/ai`)
+      expect(status.body.spentUsd).toBeCloseTo(before + 6, 1)
+      const blocked = await dm.client.post(`/ai/conversations/${created.body.conversation.id}/messages`, { message: 'další' })
+      expect(blocked.status).toBe(429)
+      expect(blocked.body.error.code).toBe('ai_budget')
+    } finally {
+      testDbExec('DELETE FROM ai_calls WHERE conversation_id = ?', [created.body.conversation.id])
+    }
   })
 })

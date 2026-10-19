@@ -75,6 +75,13 @@ export interface CharacterEffect {
   duration: 'permanent' | 'long_rest' | 'manual'
 }
 
+/** Náboje itemu (Wand of Wonder 7): `used` spotřebované, `recharge` obnova (kostky „1d6+1“, číslo, „all“ = všechny, null = jen ručně). */
+export interface ItemCharges {
+  max: number
+  used: number
+  recharge: string | null
+}
+
 export interface CharacterItem {
   id: string
   ruleId: string | null
@@ -87,6 +94,7 @@ export interface CharacterItem {
   requiresAttunement: boolean
   /** spotřebuje se používáním (šípy, lektvary): tlačítko Použít ubere kus */
   consumable: boolean
+  charges: ItemCharges | null
   /** Kletba na itemu: text vidí jen DM, hráč ji dostane, až ji DM odhalí (`revealed`). */
   curse: { text: string; revealed: boolean } | null
   rarity: string | null
@@ -142,6 +150,10 @@ export type AdjustOp =
   | { op: 'resource'; key: string; delta: number; max: number }
   | { op: 'deathSave'; kind: 'success' | 'failure'; delta: number }
   | { op: 'item'; itemId: string; delta: number }
+  /** náboje itemu: záporná delta utratí, kladná vrátí */
+  | { op: 'charges'; itemId: string; delta: number }
+  /** dobití nábojů podle itemu (hod kostkou na serveru) */
+  | { op: 'recharge'; itemId: string }
   | { op: 'inspiration'; set: boolean }
   | { op: 'condition'; name: string; set: boolean }
   | { op: 'concentration'; set: string | null }

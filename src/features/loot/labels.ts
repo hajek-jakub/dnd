@@ -24,6 +24,7 @@ export function entryMeta(e: LootEntry): string {
     d.rarity,
     d.requiresAttunement ? 'attunement' : null,
     d.consumable ? 'spotřebuje se' : null,
+    d.charges ? `náboje ${d.charges.max}${d.charges.recharge ? ` (obnova ${d.charges.recharge === 'all' ? 'všech' : d.charges.recharge})` : ''}` : null,
     d.curse ? (d.curseRevealed ? 'kletba (odhalená)' : 'kletba (skrytá)') : null,
   ]
     .filter(Boolean)

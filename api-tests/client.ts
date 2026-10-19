@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process'
+import path from 'node:path'
 import { makePng } from '../test-utils/png'
 
 export { makePng }
@@ -123,6 +125,18 @@ export async function joinAsPlayer(dm: TestUser, campaignId: string, prefix = 'h
   const res = await client.post('/auth/register', { username, password: PASSWORD, code })
   expectStatus(res, 201)
   return { client, id: res.body.user.id, username }
+}
+
+/** SQL přímo do testovací DB (vždy api/config.test.php): napodobení starých dat nebo úklid po testu. */
+export function testDbExec(query: string, params: unknown[] = []): void {
+  const root = path.resolve(import.meta.dirname, '..')
+  const code = `require 'api/src/bootstrap_cli.php'; Dnd\\Db::exec($argv[1], json_decode($argv[2], true));`
+  const res = spawnSync('php', ['-r', code, query, JSON.stringify(params)], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH ?? '', DND_CONFIG: path.join(root, 'api/config.test.php') },
+  })
+  if (res.status !== 0) throw new Error(res.stderr || res.stdout)
 }
 
 export function expectStatus(res: ApiResult, status: number): void {

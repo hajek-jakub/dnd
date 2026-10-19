@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
+import { hasCharges } from './charges'
 import { ComputedValue } from './ComputedValue'
+import { ItemChargesControl } from './ItemChargesControl'
 import { useSheet } from './sheet-context'
 import { toEngineInput } from './model'
 import { Stepper } from './Stepper'
@@ -18,6 +20,7 @@ export function ResourcesCard() {
   const { slots, pact } = sheet.spellcasting
   const baseSlots = spellSlots(bundle, groupClasses(toEngineInput(character)))
   const [adding, setAdding] = useState(false)
+  const charged = character.items.filter(hasCharges)
 
   return (
     <Card>
@@ -30,7 +33,7 @@ export function ResourcesCard() {
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {slots.length === 0 && !pact && sheet.resources.length === 0 && (
+        {slots.length === 0 && !pact && sheet.resources.length === 0 && charged.length === 0 && (
           <p className="text-sm text-muted-foreground">Zatím žádné zdroje. Přidej vlastní, třeba náboje nebo kouzelné předměty s nábojem.</p>
         )}
 
@@ -131,6 +134,15 @@ export function ResourcesCard() {
                   )}
                 </div>
               </div>
+            ))}
+          </section>
+        )}
+
+        {charged.length > 0 && (
+          <section aria-label="Náboje itemů" className="space-y-1">
+            <h3 className="text-sm font-medium text-muted-foreground">Náboje itemů (zbývající / celkem)</h3>
+            {charged.map((item) => (
+              <ItemChargesControl key={item.id} item={item} label={item.name} />
             ))}
           </section>
         )}

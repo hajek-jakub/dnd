@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
 import { buildRulesBundle, type RawClass, type RawLevel, type RulesBundle } from '@/engine'
-import { applyOps } from './model'
-import type { AdjustOp, CharacterFull, CharacterItem, CharacterListItem, CharacterSpell, CharacterState, Currency } from './types'
+import { applyChargeOps, applyOps } from './model'
+import type { AdjustOp, CharacterFull, CharacterItem, CharacterListItem, CharacterSpell, CharacterState, Currency, ItemCharges } from './types'
 import { applyItemPatch } from './item-patch'
 
 export function characterPhotoUrl(id: string, version: string | null): string | null {
@@ -134,18 +134,34 @@ export function useUpdateCharacter(id: string) {
 }
 
 /** Rychlé úpravy stavu (HP, sloty, zdroje, ...): UI se změní hned, na server jde změna o hodnotu. */
+/** Výsledek dobití nábojů: `rolled` je hod (null u „all“), `gained` kolik se doopravdy vrátilo (nejvýš spotřebované). */
+export interface RechargeResult {
+  itemId: string
+  name: string
+  expression: string
+  rolled: number | null
+  gained: number
+}
+
+interface AdjustResult {
+  state: CharacterState
+  inspiration: boolean
+  charges?: Record<string, ItemCharges | null>
+  recharged?: RechargeResult[]
+}
+
 export function useAdjust(id: string) {
   const queryClient = useQueryClient()
   const key = ['character', id]
   return useMutation({
     mutationKey: ['adjust', id],
-    mutationFn: (ops: AdjustOp[]) => api.post<{ state: CharacterState; inspiration: boolean }>(`/characters/${id}/adjust`, { ops }),
+    mutationFn: (ops: AdjustOp[]) => api.post<AdjustResult>(`/characters/${id}/adjust`, { ops }),
     onMutate: async (ops) => {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<CharacterFull>(key)
       if (previous) {
         const next = applyOps(previous.state, ops, { inspiration: previous.inspiration })
-        queryClient.setQueryData<CharacterFull>(key, { ...previous, state: next.state, inspiration: next.inspiration })
+        queryClient.setQueryData<CharacterFull>(key, { ...previous, state: next.state, inspiration: next.inspiration, items: applyChargeOps(previous.items, ops) })
       }
       return { previous }
     },
@@ -155,8 +171,16 @@ export function useAdjust(id: string) {
     },
     onSuccess: (res, ops) => {
       // Při rychlém klikání platí jen odpověď poslední změny, ostatní by přepsaly novější lokální stav.
-      if (queryClient.isMutating({ mutationKey: ['adjust', id] }) <= 1) {
+      const last = queryClient.isMutating({ mutationKey: ['adjust', id] }) <= 1
+      if (last) {
         queryClient.setQueryData<CharacterFull>(key, (old) => (old ? { ...old, state: res.state, inspiration: res.inspiration } : old))
+      }
+      // Náboje: dobití se optimisticky nedá (hází server), proto jeho výsledek platí vždy.
+      const charges = res.charges
+      if (charges && (last || ops.some((o) => o.op === 'recharge'))) {
+        queryClient.setQueryData<CharacterFull>(key, (old) =>
+          old ? { ...old, items: old.items.map((i) => (charges[i.id] !== undefined ? { ...i, charges: charges[i.id] ?? null } : i)) } : old,
+        )
       }
       // Změna množství itemů (munice) se v odpovědi nevrací, načte se znovu.
       if (ops.some((o) => o.op === 'item')) void queryClient.invalidateQueries({ queryKey: key })
@@ -249,6 +273,8 @@ export type ItemInput = Partial<
   >
 > & {
   ruleId?: string
+  /** Náboje (maximum a obnova), null = bez nábojů. Spotřebované se mění přes adjust. */
+  charges?: { max: number; recharge: string | null } | null
   /** Základní zbroj nebo zbraň u magické výbavy z pravidel (Armor, +1 → Chain Mail). */
   baseRuleId?: string
   /** jen DM */

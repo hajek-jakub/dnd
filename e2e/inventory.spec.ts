@@ -291,3 +291,56 @@ test('utratit peníze: rozmění zlatý na drobné, zapíše poznámku a nepust�
   await expect(again.getByRole('button', { name: 'Zaplatit' })).toBeDisabled()
   await expectNoHorizontalScroll(page)
 })
+
+test('náboje: Wand of Wonder má počítadlo v inventáři i v přehledu, dobití hodí kostkou, long rest dobíjí', async ({ page }) => {
+  await openCharacter(page, { ...wizard3, name: 'Hůlkař' }, 'charges')
+  await page.getByRole('button', { name: 'Inventář', exact: true }).click()
+  await addFromRules(page, 'Wand of Wonder')
+  const wand = page.getByRole('listitem').filter({ hasText: 'Wand of Wonder' }).first()
+  const charges = (n: number, max = 7) => page.getByRole('status', { name: `Náboje Wand of Wonder: ${n} z ${max}` })
+  await expect(charges(7)).toBeVisible()
+  await expect(wand.getByText('obnova 1d6+1 za úsvitu')).toBeVisible()
+  await expect(wand.getByRole('button', { name: 'Dobít Wand of Wonder' })).toBeDisabled() // plná
+
+  await wand.getByRole('button', { name: 'Použít náboj: Wand of Wonder' }).click()
+  await wand.getByRole('button', { name: 'Použít náboj: Wand of Wonder' }).click()
+  await expect(charges(5)).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: 'Inventář', exact: true }).click()
+  await expect(charges(5)).toBeVisible()
+  await expectNoHorizontalScroll(page)
+
+  // přehled: sekce Náboje itemů ve Zdrojích a slotech
+  await page.getByRole('button', { name: 'Přehled', exact: true }).click()
+  const section = page.getByRole('region', { name: 'Náboje itemů' })
+  await section.getByRole('button', { name: 'Vrátit náboj: Wand of Wonder' }).click()
+  await expect(charges(6)).toBeVisible()
+  // chybí jeden náboj, hod 1d6+1 vrátí vždy právě jeden
+  await section.getByRole('button', { name: 'Dobít Wand of Wonder' }).click()
+  await expect(page.getByText(/^Dobité náboje: Wand of Wonder \+1 \(hod 1d6\+1 = [2-7]\)$/)).toBeVisible()
+  await expect(charges(7)).toBeVisible()
+
+  // long rest dobije spotřebované
+  await section.getByRole('button', { name: 'Použít náboj: Wand of Wonder' }).click()
+  await expect(charges(6)).toBeVisible()
+  await page.getByRole('button', { name: 'Long rest' }).click()
+  const rest = page.getByRole('dialog', { name: 'Long rest' })
+  await expect(rest.getByText('Dobijí se náboje: Wand of Wonder')).toBeVisible()
+  await rest.getByRole('button', { name: 'Dát si long rest' }).click()
+  await expect(charges(7)).toBeVisible()
+
+  // úprava: jiné maximum a obnova všech, pak bez nábojů
+  await page.getByRole('button', { name: 'Inventář', exact: true }).click()
+  await wand.getByText('Podrobnosti').click()
+  await wand.getByRole('button', { name: 'Upravit' }).click()
+  const form = page.getByRole('dialog', { name: 'Upravit: Wand of Wonder' })
+  await form.getByLabel('Počet nábojů').fill('3')
+  await form.getByLabel('Obnova (za úsvitu)').fill('all')
+  await form.getByRole('button', { name: 'Uložit' }).click()
+  await expect(charges(3, 3)).toBeVisible()
+  await expect(wand.getByText('obnova všech za úsvitu')).toBeVisible()
+  await wand.getByRole('button', { name: 'Upravit' }).click()
+  await form.getByLabel('Počet nábojů').fill('')
+  await form.getByRole('button', { name: 'Uložit' }).click()
+  await expect(wand.getByTestId('item-charges')).toHaveCount(0)
+})
