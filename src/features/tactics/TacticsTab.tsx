@@ -25,7 +25,9 @@ const SECTIONS: { kind: TacticKind; title: string }[] = [
 
 /** Taktiky postavy: tahák do boje. Data jsou v databázi, hráč i DM je můžou upravovat, štítky cen sledují ki a spell sloty. */
 export function TacticsTab() {
-  const { character, canEdit } = useSheet()
+  const { character, canEdit, sheet } = useSheet()
+  // Druh „ki“ jsou schopnosti třídy: u mnicha ki, u ostatních třeba Wild Shape, Natural Recovery nebo magické předměty.
+  const sectionTitle = (kind: TacticKind, title: string) => (kind === 'ki' && !kiState(sheet) ? 'Schopnosti' : title)
   const { data, isPending, error } = useTactics(character.id)
   const reorder = useReorderTactics(character.id)
   const remove = useDeleteTactic(character.id)
@@ -109,7 +111,8 @@ export function TacticsTab() {
         </p>
       )}
 
-      {SECTIONS.map(({ kind, title }) => {
+      {SECTIONS.map(({ kind, title: baseTitle }) => {
+        const title = sectionTitle(kind, baseTitle)
         const list = byKind.get(kind) ?? []
         if (list.length === 0 && !(editing && canEdit)) return null
         return (
@@ -137,6 +140,7 @@ export function TacticsTab() {
 function QuickStats() {
   const { sheet } = useSheet()
   const ki = kiState(sheet)
+  const wildShape = sheet.resources.find((r) => r.key === 'druid.wild-shape')
   const caster = sheet.spellcasting.classes.find((c) => c.classIndex === 'warlock') ?? sheet.spellcasting.classes[0]
   const { pact, slots } = sheet.spellcasting
   const stats: { label: string; value: string; hint?: string }[] = [
@@ -145,6 +149,7 @@ function QuickStats() {
     { label: 'Rychlost', value: `${sheet.speed.value} ft` },
     { label: 'HP', value: `${sheet.hp.current}/${sheet.hp.max.value}`, hint: sheet.hp.temp > 0 ? `+${sheet.hp.temp} dočasných` : undefined },
     ...(ki ? [{ label: 'Ki', value: `${ki.current}/${ki.max}` }, { label: 'Ki DC', value: String(8 + sheet.proficiencyBonus.value + sheet.abilities.wis.modifier) }] : []),
+    ...(wildShape ? [{ label: 'Wild Shape', value: `${wildShape.current}/${wildShape.max.value}` }] : []),
     ...(caster ? [{ label: 'Spell DC', value: String(caster.saveDc.value) }, { label: 'Útok kouzlem', value: formatModifier(caster.attackBonus.value) }] : []),
     { label: 'CON save', value: formatModifier(sheet.saves.con.value) },
     ...(pact ? [{ label: `Pact sloty ${pact.level}. ú.`, value: `${pact.count - pact.used}/${pact.count}` }] : []),

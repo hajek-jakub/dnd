@@ -1,0 +1,354 @@
+{
+  "character": { "name": "Enros" },
+  "tactics": {
+    "attacks": [
+      {
+        "title": "Produce Flame",
+        "actionType": "action",
+        "toHit": "d20+8",
+        "damage": "2d8 fire",
+        "roll": "2d8",
+        "range": "30 ft (hod plamenem)",
+        "usage": "Akce. Hlavní útok na dálku, když nechceš utrácet sloty.",
+        "note": "Cantrip, útok kouzlem +8. Plamen v dlani 10 minut svítí (jasné světlo 10 ft); hod ho ukončí, dalším sesláním ho máš hned zpátky."
+      },
+      {
+        "title": "Hůl bohyně Mielikki",
+        "actionType": "action",
+        "toHit": "d20+7",
+        "damage": "1d8+4 bludgeoning",
+        "roll": "1d8+4",
+        "range": "5 ft",
+        "usage": "Akce, když jsi zblízka a nechceš sesílat.",
+        "note": "Útočíš z WIS díky holi. Obouruč (versatile) 1d8+4, jednoruč 1d6+4. Bonus +1 hole platí jen pro kouzla (DC 16, útok +8)."
+      },
+      {
+        "title": "Wild Shape: Opice",
+        "actionType": "action",
+        "toHit": "d20+5",
+        "damage": "1d6+3 bludgeoning",
+        "roll": "1d6+3",
+        "range": "5 ft (kámen 25/50 ft)",
+        "usage": "Ve formě opice akce Attack: 2 údery pěstí.",
+        "note": "Ape (CR ½): HP 19, AC 12, rychlost 30 ft, šplhání 30 ft, CON +2. Hozený kámen +5, 1d6+3.",
+        "count": 2
+      },
+      {
+        "title": "Wild Shape: Krokodýl",
+        "actionType": "action",
+        "toHit": "d20+4",
+        "damage": "1d10+2 piercing",
+        "roll": "1d10+2",
+        "range": "5 ft",
+        "usage": "Ve vodě, nebo když chceš nepřítele chytit a držet.",
+        "note": "Crocodile (CR ½): HP 19, AC 12, plavání 30 ft, zadrží dech 15 minut. Zásah = cíl je chycený (grappled, únik DC 12); dokud ho držíš, jiného nekousneš."
+      },
+      {
+        "title": "Vlci z Conjure Animals",
+        "actionType": "none",
+        "toHit": "d20+4",
+        "damage": "2d4+2 piercing",
+        "roll": "2d4+2",
+        "range": "5 ft",
+        "usage": "V tahu vlků (mají vlastní iniciativu jako skupina): hoď všech 8 kousnutí. Zapni Výhodu, když má vlk vedle cíle spojence (Pack Tactics).",
+        "note": "Wolf (CR ¼): HP 11, AC 13, rychlost 40 ft. Zásah = cíl hází STR save DC 11, jinak padá (prone). Když DM zvolí jiná zvířata, hoď podle jejich statů a počet uprav.",
+        "count": 8
+      }
+    ],
+    "spells": [
+      {
+        "title": "Moonbeam",
+        "level": 2,
+        "actionType": "action",
+        "range": "120 ft",
+        "duration": "1 minuta",
+        "concentration": true,
+        "save": "CON DC 16 (polovina)",
+        "effect": "Stříbrný paprsek (válec o poloměru 5 ft). 2d10 radiant, když do něj nepřítel poprvé v tahu vstoupí nebo v něm tah začne. V dalších tazích ho akcí posuneš až o 60 ft (není to sesílání, jde i ve Wild Shape). Měňavci (lykantropové) mají na save nevýhodu. Z vyššího slotu +1d10 za úroveň.",
+        "roll": "2d10",
+        "cost": "slot:2"
+      },
+      {
+        "title": "Spike Growth",
+        "level": 2,
+        "actionType": "action",
+        "range": "150 ft",
+        "duration": "10 minut",
+        "concentration": true,
+        "save": "",
+        "effect": "Kruh o poloměru 20 ft: těžký terén a 2d4 piercing za každých 5 ft pohybu v něm. Je maskovaný, odhalí ho jen Perception proti DC 16. Polož ho mezi družinu a nepřátele, kteří se k vám ženou. Je magický, takže zraní i tebe a spojence (Land's Stride nepomůže). Teď ho nemáš připravené.",
+        "roll": "2d4",
+        "cost": "slot:2"
+      },
+      {
+        "title": "Conjure Animals",
+        "level": 3,
+        "actionType": "action",
+        "range": "60 ft",
+        "duration": "1 hodina",
+        "concentration": true,
+        "save": "",
+        "effect": "Přivoláš 8 zvířat CR ¼ (třeba vlky), nebo 4 CR ½, 2 CR 1 či 1 CR 2 (druh vybírá DM). Mají vlastní iniciativu jako skupina a poslouchají tvé povely; útoky hoď položkou Vlci z Conjure Animals. Nejsilnější kouzlo na velký boj, hlídej koncentraci. Teď ho nemáš připravené.",
+        "cost": "slot:3"
+      },
+      {
+        "title": "Haste",
+        "level": 3,
+        "actionType": "action",
+        "range": "30 ft",
+        "duration": "1 minuta",
+        "concentration": true,
+        "save": "",
+        "effect": "Na Obalatomiho nebo jiného bojovníka: +2 AC, výhoda na DEX save, dvojnásobná rychlost a každý tah akce navíc (jeden útok zbraní, Dash, Disengage, Hide nebo Use an Object). Když koncentrace skončí, cíl další tah nemůže nic dělat ani se hýbat. Circle spell, máš ho vždy.",
+        "cost": "slot:3"
+      },
+      {
+        "title": "Faerie Fire",
+        "level": 1,
+        "actionType": "action",
+        "range": "60 ft",
+        "duration": "1 minuta",
+        "concentration": true,
+        "save": "DEX DC 16",
+        "effect": "Krychle 20 ft: kdo neuspěje, svítí. Útoky na něj mají výhodu (když ho útočník vidí) a nemůže být neviditelný. Nejlepší na začátku boje proti silnému nebo neviditelnému nepříteli.",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Thunderwave",
+        "level": 1,
+        "actionType": "action",
+        "range": "Self (krychle 15 ft)",
+        "duration": "okamžitě",
+        "concentration": false,
+        "save": "CON DC 16 (polovina, bez odhození)",
+        "effect": "2d8 thunder a odhodí o 10 ft. Když se k tobě dostanou nepřátelé zblízka, odhodí je pryč (nebo zpátky do Spike Growth). Hlasité, slyšet až na 300 ft. Z vyššího slotu +1d8.",
+        "roll": "2d8",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Healing Word",
+        "level": 1,
+        "actionType": "bonus",
+        "range": "60 ft",
+        "duration": "okamžitě",
+        "concentration": false,
+        "save": "",
+        "effect": "Vyléčí 1d4+4. Hlavně na zvednutí padlého spojence z 0 HP: stojí jen bonusovou akci a funguje na dálku. Z vyššího slotu +1d4.",
+        "roll": "1d4+4",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Cure Wounds",
+        "level": 1,
+        "actionType": "action",
+        "range": "Touch",
+        "duration": "okamžitě",
+        "concentration": false,
+        "save": "",
+        "effect": "Vyléčí 1d8+4. Víc než Healing Word, ale stojí akci a musíš se dotknout. Z vyššího slotu +1d8.",
+        "roll": "1d8+4",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Poison Spray",
+        "level": 0,
+        "actionType": "action",
+        "range": "10 ft",
+        "duration": "okamžitě",
+        "concentration": false,
+        "save": "CON DC 16",
+        "effect": "2d12 poison. Nejvíc zranění z tvých cantripů, ale dosah jen 10 ft a nemrtví, konstrukti a mnoho démonů jsou vůči jedu imunní.",
+        "roll": "2d12",
+        "cost": "free"
+      },
+      {
+        "title": "Pass without Trace",
+        "level": 2,
+        "actionType": "action",
+        "range": "Self (30 ft)",
+        "duration": "1 hodina",
+        "concentration": true,
+        "save": "",
+        "effect": "Ty a spojenci do 30 ft máte +10 na Stealth a bez magie vás nejde stopovat. Na plížení, přepadení a útěk. Circle spell, máš ho vždy.",
+        "cost": "slot:2"
+      },
+      {
+        "title": "Invisibility",
+        "level": 2,
+        "actionType": "action",
+        "range": "Touch",
+        "duration": "1 hodina",
+        "concentration": true,
+        "save": "",
+        "effect": "Jedna postava je neviditelná, dokud nezaútočí nebo nesešle kouzlo. Na průzkum a útěk. Z vyššího slotu +1 postava za úroveň. Circle spell, máš ho vždy.",
+        "cost": "slot:2"
+      },
+      {
+        "title": "Guidance",
+        "level": 0,
+        "actionType": "action",
+        "range": "Touch",
+        "duration": "1 minuta",
+        "concentration": true,
+        "save": "",
+        "effect": "Spojenec si přičte 1d4 k jednomu ověření vlastnosti (smí hodit i až po hodu). Dávej ho před každý důležitý check mimo boj (Perception, Persuasion, Investigation). Bere koncentraci, v boji ji nech na Moonbeam.",
+        "roll": "1d4",
+        "cost": "free"
+      }
+    ],
+    "ki": [
+      {
+        "title": "Wild Shape",
+        "actionType": "action",
+        "cost": "free",
+        "description": "Akcí se proměníš ve zvíře do CR ½ bez létání (plavat smí), až na 3 hodiny; 2× za short rest (odečti ve Zdrojích na přehledu). Dostaneš staty a HP zvířete, INT, WIS, CHA a proficiency ti zůstávají. Když zvíře padne na 0 HP, vrátíš se do své podoby a přebytek zranění jde na tebe. Ve formě nesesíláš, ale koncentrace běží dál (Moonbeam, Conjure Animals). Formy: Opice do boje, Krokodýl do vody, Kočka nebo Pavouk na průzkum, Válečný kůň (60 ft) na rychlý přesun."
+      },
+      {
+        "title": "Natural Recovery",
+        "actionType": "none",
+        "cost": "free",
+        "description": "1× za long rest při short restu obnovíš sloty v součtu do 3 úrovní: jeden slot 3. úrovně, nebo 2. + 1., nebo tři 1. Nejvýhodnější je vrátit slot 3. úrovně kvůli Conjure Animals nebo Haste."
+      },
+      {
+        "title": "Wand of Wonder",
+        "actionType": "action",
+        "cost": "free",
+        "roll": "1d100",
+        "description": "Akce, 1 náboj (má 7, za úsvitu obnoví 1d6+1), cíl do 120 ft, hoď d100: náhodný efekt (Slow, Faerie Fire, Lightning Bolt, Fireball, ale i motýli nebo tráva). Kouzla z hůlky mají DC 15. Poslední náboj: na d20 = 1 se hůlka rozpadne. Hazard na chvíli, kdy nic jiného nefunguje."
+      },
+      {
+        "title": "Lesní koruna: Speak with Animals",
+        "actionType": "action",
+        "cost": "slot:1",
+        "description": "Koruna ti dovolí seslat Speak with Animals bez přípravy, stojí ale slot 1. úrovně. Zvířata jsou skvělí zvědové a svědci: ptej se, co viděla v okolí, kudy kdo šel a kde je voda."
+      }
+    ],
+    "passives": [
+      {
+        "title": "Land's Stride",
+        "type": "passive",
+        "description": "Nemagický těžký terén tě nezpomaluje, nemagické rostliny (trní, houští) tě nezpomalí ani nezraní. Výhoda na save proti magicky vytvořeným rostlinám (Entangle). Tvůj Spike Growth je ale magický, ten tě zraní."
+      },
+      {
+        "title": "Mask of the Wild",
+        "type": "passive",
+        "description": "Můžeš se pokusit schovat (Hide) i v lehkém zakrytí přírodou: listí, hustý déšť, sníh, mlha. S Pass without Trace (+10 na Stealth) tě skoro nikdo neuvidí."
+      },
+      {
+        "title": "Fey Ancestry",
+        "type": "passive",
+        "description": "Výhoda na save proti zmámení (charmed) a magie tě neuspí. Trance: místo spánku 4 hodiny meditace. Darkvision 60 ft, pasivní vnímání 17."
+      },
+      {
+        "title": "Kožené brnění s dračí kůží",
+        "type": "passive",
+        "description": "Odolnost proti ohni: fire damage poloviční."
+      }
+    ],
+    "combos": [
+      {
+        "title": "Otevření s Moonbeam",
+        "steps": [
+          "Akce: Moonbeam na skupinu nepřátel nebo na nejsilnějšího (2d10, CON DC 16)",
+          "Další kola: akcí posuň paprsek na nové cíle, nebo Produce Flame",
+          "Bonusová akce: Healing Word, když někdo padne"
+        ],
+        "expectedDamage": "~11 každému v paprsku za kolo",
+        "cost": "slot:2",
+        "highlight": false,
+        "description": "Koncentrace na celou minutu. Drž se daleko (dosah 120 ft), tvůj CON save je jen +1.",
+        "uses": [{ "title": "Moonbeam" }]
+      },
+      {
+        "title": "Smečka vlků",
+        "steps": [
+          "Akce: Conjure Animals (8 vlků vedle nepřátel)",
+          "Vlci jednají ve svém tahu: zapni Výhodu (Pack Tactics) a hoď položku Vlci z Conjure Animals",
+          "Ty se stáhni dozadu a hlídej koncentraci"
+        ],
+        "expectedDamage": "~40 dmg za kolo (8 kousnutí)",
+        "cost": "slot:3",
+        "highlight": true,
+        "description": "Nejsilnější tah ve velkém boji. Vlci shazují nepřátele na zem, takže na ně má výhodu i družina zblízka. Kouzlo si musíš nejdřív připravit.",
+        "uses": [{ "title": "Conjure Animals" }]
+      },
+      {
+        "title": "Ostny a hrom",
+        "steps": [
+          "Akce: Spike Growth na místo, kudy musí nepřátelé k vám (150 ft)",
+          "Kdo se k tobě dostane, toho Thunderwave odhodí o 10 ft zpátky přes ostny",
+          "Nebo ustupuj: kdo jde za tebou, dostane 2d4 za každých 5 ft"
+        ],
+        "expectedDamage": "~19 (2× 2d4 + 2d8)",
+        "cost": "slot:2",
+        "highlight": false,
+        "description": "Silné proti nepřátelům na blízko, kteří se k vám ženou. Thunderwave stojí další slot 1. úrovně.",
+        "uses": [{ "title": "Spike Growth" }]
+      },
+      {
+        "title": "Haste na Obalatomiho",
+        "steps": [
+          "Akce: Haste na Obalatomiho (30 ft)",
+          "Obalatomi má +2 AC a každé kolo útok kopím navíc",
+          "Ty se drž vzadu: když koncentraci ztratíš, Obalatomi jedno kolo nic nedělá"
+        ],
+        "expectedDamage": "+~12 dmg Obalatomiho za kolo",
+        "cost": "slot:3",
+        "highlight": false,
+        "description": "Nejlepší proti jednomu silnému nepříteli, na kterého útočí Obalatomi.",
+        "uses": [{ "title": "Haste" }]
+      },
+      {
+        "title": "Paprsek a opice",
+        "steps": [
+          "1. kolo: Moonbeam",
+          "2. kolo: Wild Shape do Opice (koncentrace běží dál)",
+          "Další kola: akcí posouvej paprsek, nebo útoč pěstmi"
+        ],
+        "expectedDamage": "~11 za kolo + 2 údery",
+        "cost": "slot:2",
+        "highlight": false,
+        "description": "Nejbezpečnější způsob, jak udržet koncentraci zblízka: zranění bere nejdřív opice (19 HP) a koncentraci házíš s jejím CON (+2).",
+        "uses": [{ "title": "Moonbeam" }]
+      },
+      {
+        "title": "Zvednout padlého a zaútočit",
+        "steps": [
+          "Bonusová akce: Healing Word na padlého spojence (60 ft)",
+          "Akce: Produce Flame (po kouzle bonusovou akcí smíš akcí seslat jen cantrip)"
+        ],
+        "expectedDamage": "~9 dmg + ~6 HP léčení",
+        "cost": "slot:1",
+        "highlight": false,
+        "description": "Spojenec na 0 HP je hned zpátky v boji a ty neztratíš útok.",
+        "uses": [{ "title": "Healing Word" }, { "title": "Produce Flame" }]
+      }
+    ],
+    "rules": [
+      {
+        "title": "Koncentrace",
+        "text": "Najednou jen jedno kouzlo s koncentrací (Moonbeam, Spike Growth, Conjure Animals, Haste, Faerie Fire, Pass without Trace, Invisibility, Guidance); nové ukončí staré. Zásah = CON save DC 10 nebo polovina zranění. Tvůj CON save je jen +1, proto se drž vzadu nebo se schovej ve Wild Shape."
+      },
+      {
+        "title": "Bonusová akce a kouzlo",
+        "text": "Když sešleš kouzlo bonusovou akcí (Healing Word), akcí smíš ve stejném tahu seslat jen cantrip (Produce Flame, Poison Spray)."
+      },
+      {
+        "title": "Příprava kouzel",
+        "text": "Po long restu si připravíš WIS 4 + druid 6 = 10 kouzel. Circle spells (Invisibility, Pass without Trace, Daylight, Haste) máš navíc vždy. Teď máš připravených 5, doplň Spike Growth, Conjure Animals a Dispel Magic."
+      },
+      {
+        "title": "Sloty",
+        "text": "4× 1. úroveň, 3× 2., 3× 3., obnova po long restu (a Natural Recovery 1× při short restu). Cantripy jsou zdarma: Produce Flame na dálku, Poison Spray zblízka."
+      },
+      {
+        "title": "Pozice v boji",
+        "text": "AC 14 a 39 HP: jsi zadní řada. Moonbeam (120 ft), Spike Growth (150 ft) a Conjure Animals (60 ft) mají velký dosah. Proti skupině Moonbeam nebo Spike Growth, proti jednomu silnému Faerie Fire pro družinu a Haste na Obalatomiho."
+      },
+      {
+        "title": "Wild Shape jako štít a zvěd",
+        "text": "V boji: Opice nebo Krokodýl ti dají 19 HP navíc a koncentraci neruší. Mimo boj: Kočka nebo Pavouk na průzkum (malí, nenápadní), Válečný kůň (60 ft) na rychlou cestu."
+      }
+    ]
+  }
+}

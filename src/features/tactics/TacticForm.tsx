@@ -216,7 +216,7 @@ export function TacticForm({
               {uses.map((u, i) => (
                 <div key={i} className="grid grid-cols-[minmax(0,1fr)_4.5rem_auto] items-end gap-2">
                   <NativeSelect aria-label={`Položka komba ${i + 1}`} value={u.id} onChange={(e) => setUses((l) => l.map((x, j) => (j === i ? { ...x, id: e.target.value } : x)))}>
-                    <option value="">Vyber útok, kouzlo nebo ki schopnost…</option>
+                    <option value="">Vyber útok, kouzlo nebo schopnost…</option>
                     {usable.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.title}

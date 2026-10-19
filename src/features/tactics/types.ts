@@ -87,7 +87,7 @@ export type TacticInput = { title: string } & Record<string, unknown>
 export const KIND_LABELS: Record<TacticKind, string> = {
   attack: 'Útok',
   spell: 'Kouzlo',
-  ki: 'Ki schopnost',
+  ki: 'Schopnost (ki, Wild Shape, předmět…)',
   passive: 'Pasivka nebo reakce',
   combo: 'Kombo',
   rule: 'Pravidlo',
