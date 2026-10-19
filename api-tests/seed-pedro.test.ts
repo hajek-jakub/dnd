@@ -72,7 +72,9 @@ describe('seed postavy Pedro', () => {
     expect(character.items).toHaveLength(seed.inventory.length)
     expect(byName('Pistol')).toMatchObject({ quantity: 2, kind: 'weapon', equipped: true, weapon: { damageDice: '1d6', damageType: 'Fire', category: 'martial', range: 'ranged' } })
     expect(byName('Bullets')).toMatchObject({ quantity: 22, kind: 'other', consumable: true, ruleId: null })
-    expect(byName('Robo pavouk na poplach')).toMatchObject({ kind: 'wondrous', description: expect.stringContaining('poplach'), notes: expect.stringMatching(/^TO_CONFIRM/) })
+    expect(byName('Robo pavouk na poplach')).toMatchObject({ kind: 'wondrous', description: expect.stringContaining('60 × 60 ft') })
+    expect(byName('Bum bum šakalaka')).toMatchObject({ consumable: true, description: expect.stringContaining('DC 12') })
+    expect(character.items.filter((i: any) => (i.notes ?? '').includes('TO_CONFIRM'))).toEqual([])
     expect(byName('Dýka z rudé oceli')).toMatchObject({ kind: 'weapon', equipped: false, weapon: { damageDice: '1d4' } })
     expect(byName('Leather Armor')).toMatchObject({ kind: 'armor', equipped: true })
     expect(byName('Rations (1 day)').quantity).toBe(10)
@@ -137,9 +139,12 @@ describe('seed postavy Pedro', () => {
   it('taktiky: pistole střílí kulkami a s Hunter\'s Mark, komba odkazují na existující taktiky', async () => {
     const tactics = (await owner.client.get(`/characters/${character.id}/tactics`)).body.tactics as any[]
     const count = (kind: string) => tactics.filter((t) => t.kind === kind).length
-    expect({ attack: count('attack'), spell: count('spell'), ki: count('ki'), passive: count('passive'), combo: count('combo'), rule: count('rule') }).toEqual({ attack: 4, spell: 6, ki: 3, passive: 5, combo: 6, rule: 7 })
+    expect({ attack: count('attack'), spell: count('spell'), ki: count('ki'), passive: count('passive'), combo: count('combo'), rule: count('rule') }).toEqual({ attack: 5, spell: 6, ki: 4, passive: 5, combo: 6, rule: 7 })
     const pistol = tactics.find((t) => t.title === 'Pistole')
     expect(pistol.data).toMatchObject({ toHit: 'd20+9', roll: '1d6+4', count: 2, hex: true, ammo: character.items.find((i: any) => i.name === 'Bullets').id })
+    // bomba nemá hod na zásah (DEX save), použití ji odečte z inventáře
+    const bomb = tactics.find((t) => t.title === 'Bum bum šakalaka (bomba)')
+    expect(bomb.data).toMatchObject({ toHit: '', roll: '3d6', count: 1, ammo: character.items.find((i: any) => i.name === 'Bum bum šakalaka').id })
     const hunt = tactics.find((t) => t.title === "Lov: Hunter's Mark a 2 výstřely")
     expect(hunt.data.uses.map((u: any) => tactics.find((t) => t.id === u.id)?.title)).toEqual(["Hunter's Mark", 'Pistole'])
   })

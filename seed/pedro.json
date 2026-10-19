@@ -197,8 +197,8 @@
       "qty": 1,
       "custom": true,
       "kind": "other",
-      "note": "TO_CONFIRM: Jak přesně funguje (zranění, dosah, záchranný hod)? Ví DM (Fila).",
-      "description": "Výbušnina."
+      "description": "Bomba (jako Bomb z DMG). Akcí ji zapálíš a hodíš až na 60 ft; každý tvor do 5 ft od místa dopadu hází DEX save DC 12, jinak dostane 3d6 fire. Místo hodu můžeš nastavit časovač výbuchu až na 5 minut.",
+      "consumable": true
     },
     {
       "item": "Chladicí plášť",
@@ -223,8 +223,7 @@
       "qty": 1,
       "custom": true,
       "kind": "wondrous",
-      "description": "Mechanický pavouk, který hlídá a spustí poplach.",
-      "note": "TO_CONFIRM: Jak přesně funguje (dosah, jak dlouho hlídá)? Ví DM (Fila)."
+      "description": "Mechanický pavouk na poplach. Pošleš ho někam; po 35 ft nebo 12 sekundách (2 kola) se začne množit a do 1 minuty spustí poplach a kouř všude, kde pavouci jsou. Zaplní místnost až 60 × 60 ft."
     },
     {
       "item": "Folding Boat",
@@ -356,7 +355,6 @@
   },
   "openQuestions": [
     "Pistole: jak dlouho trvá přebití (akce, bonusová akce)",
-    "Bum bum šakalaka a Robo pavouk: jak přesně fungují (ví DM)",
     "Alignment, osobnost (traits, ideals, bonds, flaws) a fotka"
   ],
   "tactics": {
@@ -408,6 +406,16 @@
         "usage": "Nouzově, třeba na omráčení bez zabití. Oběma rukama 1d8-1.",
         "count": 2,
         "hex": true
+      },
+      {
+        "title": "Bum bum šakalaka (bomba)",
+        "actionType": "action",
+        "damage": "3d6 fire",
+        "roll": "3d6",
+        "range": "hod až 60 ft, výbuch 5 ft kolem místa dopadu",
+        "usage": "Akcí zapal a hoď do skupiny nepřátel, nebo nastav časovač (až 5 minut) a nech ji ležet jako past.",
+        "note": "Bez hodu na zásah: každý tvor do 5 ft od místa dopadu hází DEX save DC 12, jinak 3d6 fire. Použití ji odečte z inventáře.",
+        "ammoItem": "Bum bum šakalaka"
       }
     ],
     "spells": [
@@ -488,6 +496,12 @@
         "actionType": "none",
         "cost": "free",
         "description": "Cowboy Marksmanship: s tinker's tools vyrobíš 10 ran za hodinu za polovinu ceny. Na krátkém i dlouhém odpočinku doplň zásobu (Bullets v inventáři)."
+      },
+      {
+        "title": "Robo pavouk na poplach",
+        "actionType": "action",
+        "cost": "free",
+        "description": "Pošleš ho na místo (třeba do místnosti s nepřáteli). Po 35 ft nebo 12 sekundách (2 kola) se začne množit a do 1 minuty spustí poplach a kouř všude, kde pavouci jsou; zaplní místnost až 60 × 60 ft. Hodí se na odvedení pozornosti nebo krytí ústupu."
       }
     ],
     "passives": [
