@@ -26,10 +26,12 @@ final class CharacterSeeder
 {
     public const TEST_CAMPAIGN_NAME = 'Testovací kampaň (seed)';
 
-    private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'sheetValues', 'tactics', 'openQuestions'];
+    private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'effects', 'sheetValues', 'tactics', 'openQuestions'];
     private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'notes', 'description'];
     private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
-    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'consumable', 'description', 'note'];
+    private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'custom', 'kind', 'weapon', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'consumable', 'description', 'note'];
+    /** Hodnoty homebrew zbraně zadané přímo v seedu (`weapon`), když v SRD není žádný základ (např. pistole). */
+    private const WEAPON_KEYS = ['damageDice', 'damageType', 'category', 'range', 'properties', 'versatileDice'];
     private const ALIASES = ['light crossbow' => 'Crossbow, light', 'heavy crossbow' => 'Crossbow, heavy', 'hand crossbow' => 'Crossbow, hand'];
     /** Základ homebrew zbraní, které nejsou v SRD a papír k nim neříká víc než název. Co je odhad, dostane TO_CONFIRM v poznámce. */
     private const HOMEBREW_DEFAULTS = [
@@ -81,7 +83,9 @@ final class CharacterSeeder
         $char = Db::one('SELECT * FROM characters WHERE id = ?', [$id]) ?? throw new \RuntimeException('Postava se nezaložila.');
         foreach ($plan['items'] as $item) {
             $input = ['quantity' => $item['qty']];
-            if ($item['ruleKey'] !== null) {
+            if (isset($item['custom'])) {
+                $input += $item['custom'];
+            } elseif ($item['ruleKey'] !== null) {
                 $input['ruleId'] = $ruleIds[$item['ruleKey']];
             } else {
                 $input['ruleId'] = $item['ruleId'];
@@ -102,6 +106,12 @@ final class CharacterSeeder
                 // attunement má smysl jen u itemu, který ho vyžaduje
                 Db::exec('UPDATE character_items SET requires_attunement = 1, attuned = 1 WHERE id = ?', [$itemId]);
             }
+        }
+        foreach ($plan['effects'] as $e) {
+            Db::exec(
+                'INSERT INTO character_effects (id, character_id, target, value, source, duration, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())',
+                [Ids::uuid(), $id, $e['target'], $e['value'], $e['source'], $e['duration'], $user['id']],
+            );
         }
         Tactics::replaceAll($id, $plan['tactics']);
         foreach ($plan['spells'] as $spell) {
@@ -186,8 +196,22 @@ final class CharacterSeeder
             }
             $idx = (string) $idx;
             $classIdxs[] = $idx;
+            // Hody HP po levelech (null = průměr; první level postavy je vždy plná kostka), když papír neodpovídá průměru.
+            $rolls = is_array($c['hpRolls'] ?? null) ? array_values($c['hpRolls']) : [];
+            $die = (int) (json_decode((string) Db::value("SELECT data FROM rules_entries WHERE kind = 'class' AND scope = '' AND idx = ?", [$idx]), true)['hit_die'] ?? 12);
+            if (isset($c['hpRolls']) && (!is_array($c['hpRolls']) || count($rolls) !== $lvl)) {
+                $fail("Třída \"$className\": hpRolls musí mít $lvl hodnot (jednu na level, null = průměr).");
+            }
             for ($i = 0; $i < $lvl; $i++) {
-                $levels[] = ['classIndex' => $idx, 'hpRoll' => null];
+                $roll = $rolls[$i] ?? null;
+                if ($roll !== null && (!is_int($roll) || $roll < 1 || $roll > $die)) {
+                    $fail("Třída \"$className\": hod HP " . json_encode($roll) . " na $i. levelu není 1 až $die.");
+                    $roll = null;
+                }
+                if ($levels === [] && $roll !== null) {
+                    $fail('První level postavy má vždy plnou kostku HP, hpRolls[0] musí být null.');
+                }
+                $levels[] = ['classIndex' => $idx, 'hpRoll' => $roll];
             }
             $sub = is_array($c) && is_string($c['subclass'] ?? null) ? trim(preg_replace('/\s*\(.*$/', '', $c['subclass']) ?? '') : '';
             if ($sub !== '') {
@@ -371,9 +395,42 @@ final class CharacterSeeder
 
             $ruleId = null;
             $ruleKey = null;
+            if (($entry['custom'] ?? false) === true) {
+                // Vlastní předmět mimo pravidla (třeba „Robo pavouk na poplach“): jen název, druh a popis, jako ručně přidaný item.
+                $kind = $entry['kind'] ?? 'other';
+                if (!is_string($kind) || !in_array($kind, Items::KINDS, true)) {
+                    $fail("Položka \"$itemName\": druh " . json_encode($kind) . ' neznám (' . implode(', ', Items::KINDS) . ').');
+                    continue;
+                }
+                $items[] = [
+                    'qty' => $qty, 'equipped' => ($entry['equipped'] ?? false) === true, 'attuned' => false, 'consumable' => ($entry['consumable'] ?? null) === true,
+                    'ruleId' => null, 'ruleKey' => null, 'notes' => implode("\n", $itemNotes),
+                    'custom' => ['name' => $itemName, 'kind' => $kind, 'description' => is_string($entry['description'] ?? null) ? $entry['description'] : ''],
+                ];
+                continue;
+            }
             if (($entry['homebrew'] ?? false) === true) {
                 $lower = strtolower($itemName);
                 $weapon = self::HOMEBREW_DEFAULTS[$lower]['weapon'] ?? null;
+                if (is_array($entry['weapon'] ?? null)) {
+                    $given = $entry['weapon'];
+                    foreach (array_keys($given) as $k) {
+                        if (!in_array($k, self::WEAPON_KEYS, true)) {
+                            $fail("Homebrew \"$itemName\": pole weapon.$k neznám.");
+                        }
+                    }
+                    if (!is_string($given['damageDice'] ?? null) || preg_match('/^\d{1,2}d\d{1,3}$/', $given['damageDice']) !== 1
+                        || !in_array($given['category'] ?? null, ['simple', 'martial'], true) || !in_array($given['range'] ?? null, ['melee', 'ranged'], true)) {
+                        $fail("Homebrew \"$itemName\": weapon potřebuje damageDice (např. 1d6), category simple/martial a range melee/ranged.");
+                        continue;
+                    }
+                    $weapon = [
+                        'damageDice' => strtolower($given['damageDice']), 'damageType' => ucfirst(strtolower((string) ($given['damageType'] ?? 'Piercing'))),
+                        'category' => $given['category'], 'range' => $given['range'],
+                        'properties' => array_values(array_map('strval', is_array($given['properties'] ?? null) ? $given['properties'] : [])),
+                        'versatileDice' => is_string($given['versatileDice'] ?? null) ? $given['versatileDice'] : null,
+                    ];
+                }
                 if (isset(self::HOMEBREW_DEFAULTS[$lower]['itemNote'])) {
                     $itemNotes[] = self::HOMEBREW_DEFAULTS[$lower]['itemNote'];
                 }
@@ -391,7 +448,7 @@ final class CharacterSeeder
                         'versatileDice' => $d['two_handed_damage']['dice'] ?? null,
                     ];
                 }
-                if ($weapon !== null && !is_string($entry['base'] ?? null)) {
+                if ($weapon !== null && !is_string($entry['base'] ?? null) && !is_array($entry['weapon'] ?? null)) {
                     // Homebrew bez základní zbraně: kostka a typ zranění jsou na papíře v řádku útoku (např. "1d8+4", bludgeoning).
                     foreach ($attacks as $a) {
                         if (strtolower((string) ($a['name'] ?? '')) === $lower && preg_match('/^\s*(\d{1,2}d\d{1,3})/', (string) ($a['damage'] ?? ''), $dm) === 1) {
@@ -457,6 +514,22 @@ final class CharacterSeeder
         $inventoryNames = array_map(static fn (array $e): string => strtolower((string) ($e['item'] ?? '')), array_filter(is_array($seed['inventory'] ?? null) ? $seed['inventory'] : [], 'is_array'));
         $tactics = self::tacticsFrom($seed, $fail, $inventoryNames);
 
+        // trvalé bonusy (třeba Fighting Style: Archery = +2 k útokům na dálku): stejné cíle a trvání jako bonusy od DM
+        $effects = [];
+        foreach (is_array($seed['effects'] ?? null) ? $seed['effects'] : [] as $i => $e) {
+            try {
+                $effect = Items::effects([['target' => $e['target'] ?? null, 'value' => $e['value'] ?? null]])[0];
+                $duration = $e['duration'] ?? 'permanent';
+                $source = is_string($e['source'] ?? null) ? trim($e['source']) : '';
+                if (!in_array($duration, ['permanent', 'long_rest', 'manual'], true) || $source === '' || mb_strlen($source) > 60) {
+                    throw HttpError::validation('duration musí být permanent, long_rest nebo manual a source text do 60 znaků.');
+                }
+                $effects[] = ['target' => $effect['target'], 'value' => $effect['value'], 'source' => $source, 'duration' => $duration];
+            } catch (HttpError $err) {
+                $fail('Bonus #' . ($i + 1) . ': ' . $err->getMessage());
+            }
+        }
+
         // peníze (poslední zbylé TO_CONFIRM z openQuestions se do poznámek nepřenáší, jen vypíše)
         try {
             $currencyClean = Sheets::currency(['currency' => $currency]);
@@ -478,6 +551,7 @@ final class CharacterSeeder
             'tactics' => $tactics,
             'items' => $items,
             'spells' => $spells,
+            'effects' => $effects,
             'create' => [
                 'name' => $name,
                 'race' => (string) ($char['race'] ?? ''),

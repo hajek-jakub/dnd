@@ -147,7 +147,7 @@ export function TacticForm({
             {field('roll', 'Výraz pro hod zranění (prázdné = odvodí se ze zranění)', { placeholder: '1d8+5+1d4' })}
             {field('usage', 'Kdy použít', { area: true })}
             {field('note', 'Poznámka', { area: true })}
-            {check('hex', 'Přidat Hex (+1d6), když je soustředění na Hex')}
+            {check('hex', "Přidat Hex nebo Hunter's Mark (+1d6), když se na něj soustředíš")}
           </>
         )}
 
@@ -190,7 +190,7 @@ export function TacticForm({
             </div>
             {field('damage', 'Zranění (text, volitelné)', { placeholder: '1d6+4' })}
             {field('roll', 'Výraz pro hod zranění', { placeholder: '1d6+4' })}
-            {check('hex', 'Přidat Hex (+1d6), když je soustředění na Hex')}
+            {check('hex', "Přidat Hex nebo Hunter's Mark (+1d6), když se na něj soustředíš")}
             {field('description', 'Popis', { area: true })}
           </>
         )}
