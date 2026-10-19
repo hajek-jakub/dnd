@@ -450,6 +450,20 @@ describe('útoky', () => {
     expect(sheet.attacks.find((a) => a.id === 'b')).toMatchObject({ ability: 'dex' })
   })
 
+  it('proficiency se zbraní z extra proficiencies („Weapon: Longbow“, elfí výcvik u rogue)', () => {
+    const bow = item({
+      id: 'b',
+      name: 'Longbow',
+      kind: 'weapon',
+      weapon: { damageDice: '1d8', damageType: 'Piercing', category: 'martial', range: 'ranged', properties: ['Heavy', 'Two-Handed'] },
+    })
+    const rogue = (extra: string[]) => computeSheet(makeInput({ levels: levelsOf(['rogue', 6]), scores: { dex: 16 }, items: [bow], extraProficiencies: extra }), bundle).attacks.find((a) => a.id === 'b')!
+    expect(rogue([]).toHit.value).toBe(3) // rogue nemá martial zbraně ani longbow
+    expect(rogue(['Weapon: Longbow']).toHit.value).toBe(3 + 3)
+    expect(rogue(['Weapons: longbows']).proficient).toBe(true)
+    expect(rogue(['Language: Elvish', 'Tool: Flute']).proficient).toBe(false)
+  })
+
   it('Extra Attack se nesčítá mezi třídami, fighter dostává další útoky', () => {
     expect(computeSheet(makeInput({ levels: levelsOf(['fighter', 5]) }), bundle).attacksPerAction).toBe(2)
     expect(computeSheet(makeInput({ levels: levelsOf(['fighter', 11]) }), bundle).attacksPerAction).toBe(3)

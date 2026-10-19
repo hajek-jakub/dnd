@@ -7,6 +7,7 @@
 //   php api/bin/seed-hajos.php --check      jen ověří, že jde všechno namapovat, nic nezapíše
 //   SEED_CHARACTER_NAME=jméno  jen pro --tactics-only: postava se hledá pod tímhle jménem (když ji hráč v aplikaci přejmenoval)
 //   php api/bin/seed-hajos.php --tactics-only  jen smaže a znovu vloží taktiky už existující postavy (zbytek postavy se nemění)
+//   php api/bin/seed-hajos.php --update  doplní existující rozehranou postavu (staty, dovednosti, HP, chybějící itemy, taktiky), nic nesmaže
 //   php api/bin/seed-hajos.php [soubor.json]  jiný vstupní soubor (výchozí seed/hajos.json)
 declare(strict_types=1);
 
@@ -62,7 +63,17 @@ $db = Config::get('db', []);
 fwrite(STDOUT, 'Databáze: ' . ($db['name'] ?? '?') . ' @ ' . ($db['host'] ?? '?') . "\n");
 
 try {
-    if (in_array('--tactics-only', $flags, true)) {
+    if (in_array('--update', $flags, true)) {
+        $res = CharacterSeeder::update($seed, $owner, $campaignId, $get('SEED_CHARACTER_NAME'));
+        fwrite(STDOUT, "Postava {$res['characterId']} doplněna (staty, dovednosti, proficiencies, HP, taktiky).\n");
+        fwrite(STDOUT, 'Přidané itemy: ' . ($res['added'] === [] ? 'žádné' : implode(', ', $res['added'])) . "\n");
+        if ($res['skipped'] !== []) {
+            fwrite(STDOUT, 'Už je měla (nechané beze změny): ' . implode(', ', $res['skipped']) . "\n");
+        }
+        foreach ($res['warnings'] as $w) {
+            fwrite(STDOUT, "  ! $w\n");
+        }
+    } elseif (in_array('--tactics-only', $flags, true)) {
         $res = CharacterSeeder::replaceTactics($seed, $owner, $campaignId, $get('SEED_CHARACTER_NAME'));
         fwrite(STDOUT, "Taktiky postavy {$res['characterId']} nahrazeny: {$res['count']} položek.\n");
     } elseif (in_array('--check', $flags, true)) {

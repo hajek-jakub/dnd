@@ -336,7 +336,8 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
 
   // --- útoky
   const attacks: AttackInfo[] = []
-  const profKey = new Set(proficiencies.map(normalizeName))
+  // „Weapon: Longbow“ z extra proficiencies (rasa, seed, ruční zápis) je proficiency s longbow: předpona se při porovnání zahodí
+  const profKey = new Set(proficiencies.map((p) => normalizeName(p.replace(/^(weapons?|armou?r|tools?)\s*:\s*/i, ''))))
   const isProficientWith = (w: InventoryItem) => {
     const cat = w.weapon?.category === 'martial' ? 'martialweapons' : 'simpleweapons'
     if (profKey.has(cat)) return true

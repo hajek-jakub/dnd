@@ -83,8 +83,114 @@ final class CharacterSeeder
         $id = (string) ($res->body['character']['id'] ?? '');
         CharacterController::update(self::req($plan['update']), ['id' => $id], $user);
 
-        // 3) inventář a kouzla
+        // 3) inventář, bonusy, taktiky a kouzla
         $char = Db::one('SELECT * FROM characters WHERE id = ?', [$id]) ?? throw new \RuntimeException('Postava se nezaložila.');
+        self::addContent($char, $user, $plan, $ruleIds, false);
+        Tactics::replaceAll($id, $plan['tactics']);
+
+        return ['status' => 'created', 'characterId' => $id, 'campaignId' => $campaign, 'campaignCreated' => $campaignCreated, 'homebrew' => $homebrew, 'warnings' => $plan['warnings']];
+    }
+
+    /**
+     * Doplní EXISTUJÍCÍ postavu, kterou hráč už rozehrál (fotka, předměty, hody v logu), místo smazání a nového založení.
+     * Z papíru přepíše jen to, co je na něm jednoznačně: vlastnosti, dovednosti, savy, background, subclassy, hody HP a HP.
+     * Proficiencies sloučí, poznámky a popis doplní (nic nesmaže), itemy, kouzla a bonusy jen přidá, co chybí (podle názvu),
+     * peníze nastaví jen tehdy, když jsou v seedu, a taktiky nahradí. Rasu, jméno, inspiraci, stav (sloty, stavy) a fotku nechá.
+     * @param array<string, mixed> $seed
+     * @return array{status: string, characterId: string, added: list<string>, skipped: list<string>, homebrew: list<string>, warnings: list<string>}
+     */
+    public static function update(array $seed, string $ownerUsername, ?string $campaignId, ?string $characterName = null): array
+    {
+        if ($campaignId === null || $campaignId === '') {
+            throw new SeedStop(['Doplnění existující postavy potřebuje SEED_CAMPAIGN_ID.']);
+        }
+        $plan = self::plan($seed, $ownerUsername, $campaignId);
+        $user = ['id' => $plan['owner']['id'], 'username' => $plan['owner']['username']];
+        $name = $characterName !== null && trim($characterName) !== '' ? trim($characterName) : $plan['name'];
+        $row = Db::one('SELECT * FROM characters WHERE campaign_id = ? AND owner_id = ? AND name = ?', [$campaignId, $user['id'], $name]);
+        if ($row === null) {
+            throw new SeedStop(["Postava \"$name\" uživatele \"$ownerUsername\" v kampani neexistuje (založ ji bez --update, nebo nastav SEED_CHARACTER_NAME)."]);
+        }
+        $levels = Db::all('SELECT seq, class_idx FROM character_levels WHERE character_id = ? ORDER BY seq', [$row['id']]);
+        if (array_column($levels, 'class_idx') !== array_column($plan['create']['levels'], 'classIndex')) {
+            throw new SeedStop(['Levely postavy (' . implode(', ', array_column($levels, 'class_idx')) . ') nesedí se seedem; --update levely nemění. Nejdřív level up v aplikaci.']);
+        }
+
+        $homebrew = [];
+        $ruleIds = [];
+        foreach ($plan['homebrew'] as $key => $hb) {
+            $ruleIds[$key] = self::upsertHomebrew($user, $campaignId, $hb);
+            $homebrew[] = $hb['body']['name'];
+        }
+        $create = $plan['create'];
+        foreach ($plan['subclassKeys'] as $classIdx => $key) {
+            $create['subclasses'][$classIdx] = (string) Db::value('SELECT idx FROM rules_entries WHERE id = ?', [$ruleIds[$key]]);
+        }
+
+        $body = [
+            'rev' => (int) $row['rev'],
+            'abilityScores' => $create['abilityScores'],
+            'skillProficiencies' => $create['skillProficiencies'],
+            'extraSaveProficiencies' => $create['extraSaveProficiencies'],
+            'extraProficiencies' => array_values(array_unique([...Sheets::json($row['extra_proficiencies'], []), ...$create['extraProficiencies']])),
+            'subclasses' => $create['subclasses'] + Sheets::json($row['subclasses'], []),
+        ];
+        foreach (['background', 'alignment'] as $k) {
+            if ($create[$k] !== '') {
+                $body[$k] = $create[$k];
+            }
+        }
+        if (trim((string) $row['description']) === '' && $create['description'] !== '') {
+            $body['description'] = $create['description'];
+        }
+        $existingNotes = trim((string) $row['notes']);
+        if ($create['notes'] !== '' && !str_contains($existingNotes, $create['notes'])) {
+            $body['notes'] = $existingNotes === '' ? $create['notes'] : $existingNotes . "\n" . $create['notes'];
+        }
+        $personality = Sheets::json($row['personality'], []);
+        if (implode('', array_map('strval', is_array($personality) ? $personality : [])) === '' && $create['personality'] !== []) {
+            $body['personality'] = $create['personality'];
+        }
+        if (is_array($seed['character'] ?? null) && isset($seed['character']['baseSpeed'])) {
+            $body['baseSpeed'] = $create['baseSpeed'];
+        }
+        if (array_key_exists('currency', $seed)) {
+            $body['currency'] = $plan['update']['currency'];
+        }
+        $res = CharacterController::update(self::req($body), ['id' => (string) $row['id']], $user);
+        if ($res instanceof Response && $res->status === 409) {
+            throw new SeedStop(['Postavu mezitím někdo změnil, nic se nezapsalo. Spusť to znovu.']);
+        }
+
+        $char = Db::one('SELECT * FROM characters WHERE id = ?', [$row['id']]) ?? throw new \RuntimeException('Postava zmizela.');
+        Db::transaction(static function () use ($char, $plan, $levels): void {
+            // Hody HP z papíru a HP podle nich (stav postavy, sloty a stavy se nemění).
+            foreach ($plan['create']['levels'] as $i => $l) {
+                Db::exec('UPDATE character_levels SET hp_roll = ? WHERE character_id = ? AND seq = ?', [$i === 0 ? null : $l['hpRoll'], $char['id'], $levels[$i]['seq']]);
+            }
+            Db::exec('UPDATE characters SET hp_current = ? WHERE id = ?', [$plan['create']['state']['hpCurrent'], $char['id']]);
+        });
+        [$added, $skipped] = self::addContent($char, $user, $plan, $ruleIds, true);
+        if (is_array($seed['tactics'] ?? null) && $seed['tactics'] !== []) {
+            Tactics::replaceAll((string) $char['id'], $plan['tactics']);
+        }
+        return ['status' => 'updated', 'characterId' => (string) $char['id'], 'added' => $added, 'skipped' => $skipped, 'homebrew' => $homebrew, 'warnings' => $plan['warnings']];
+    }
+
+    /**
+     * Itemy, bonusy a kouzla z plánu. S `$skipExisting` přeskočí, co postava už má (item se stejným názvem, kouzlo, bonus se stejným cílem a zdrojem).
+     * @param array<string, mixed> $char @param array{id:string} $user @param array<string, mixed> $plan @param array<string, string> $ruleIds
+     * @return array{0: list<string>, 1: list<string>} přidané a přeskočené položky
+     */
+    private static function addContent(array $char, array $user, array $plan, array $ruleIds, bool $skipExisting): array
+    {
+        $id = (string) $char['id'];
+        $added = [];
+        $skipped = [];
+        $existing = Db::all('SELECT name, rule_id FROM character_items WHERE character_id = ?', [$id]);
+        $have = array_map('mb_strtolower', array_column($existing, 'name'));
+        // item z pravidel, který si hráč přejmenoval (Ring of Mind Shielding jako „Prsten Runové Vůle“), je pořád tentýž
+        $haveRules = array_values(array_filter(array_column($existing, 'rule_id')));
         foreach ($plan['items'] as $item) {
             $input = ['quantity' => $item['qty']];
             if (isset($item['custom'])) {
@@ -93,6 +199,11 @@ final class CharacterSeeder
                 $input['ruleId'] = $ruleIds[$item['ruleKey']];
             } else {
                 $input['ruleId'] = $item['ruleId'];
+            }
+            $label = (string) ($item['custom']['name'] ?? Db::value('SELECT name FROM rules_entries WHERE id = ?', [$input['ruleId']]));
+            if ($skipExisting && (in_array(mb_strtolower($label), $have, true) || (isset($input['ruleId']) && in_array($input['ruleId'], $haveRules, true)))) {
+                $skipped[] = $label;
+                continue;
             }
             if ($item['notes'] !== '') {
                 $input['notes'] = $item['notes'];
@@ -110,23 +221,28 @@ final class CharacterSeeder
                 // attunement má smysl jen u itemu, který ho vyžaduje
                 Db::exec('UPDATE character_items SET requires_attunement = 1, attuned = 1 WHERE id = ?', [$itemId]);
             }
+            $added[] = $label;
         }
         foreach ($plan['effects'] as $e) {
+            if ($skipExisting && Db::value('SELECT 1 FROM character_effects WHERE character_id = ? AND target = ? AND source = ?', [$id, $e['target'], $e['source']]) !== null) {
+                continue;
+            }
             Db::exec(
                 'INSERT INTO character_effects (id, character_id, target, value, source, duration, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())',
                 [Ids::uuid(), $id, $e['target'], $e['value'], $e['source'], $e['duration'], $user['id']],
             );
         }
-        Tactics::replaceAll($id, $plan['tactics']);
         foreach ($plan['spells'] as $spell) {
             $ruleId = $spell['ruleId'] ?? $ruleIds[$spell['ruleKey']];
+            if ($skipExisting && Db::value('SELECT 1 FROM character_spells WHERE character_id = ? AND rule_id = ?', [$id, $ruleId]) !== null) {
+                continue;
+            }
             InventoryController::addSpell(self::req(['ruleId' => $ruleId, 'classIdx' => $spell['classIdx'], 'prepared' => true]), ['id' => $id], $user);
             if ($spell['always'] ?? false) {
                 Db::exec("UPDATE character_spells SET always_prepared = 1, source = 'subclass' WHERE character_id = ? AND rule_id = ? AND class_idx = ?", [$id, $ruleId, $spell['classIdx']]);
             }
         }
-
-        return ['status' => 'created', 'characterId' => $id, 'campaignId' => $campaign, 'campaignCreated' => $campaignCreated, 'homebrew' => $homebrew, 'warnings' => $plan['warnings']];
+        return [$added, $skipped];
     }
 
     // ------------------------------------------------------------------ plán (nic nezapisuje)
@@ -525,12 +641,13 @@ final class CharacterSeeder
                 $warnings[] = "$itemName není v SRD: založeno jako homebrew zbraň kampaně.";
             } else {
                 $lookup = self::ALIASES[strtolower($itemName)] ?? $itemName;
+                // SRD má přednost, jinak katalog magických itemů mimo SRD (jen fakta, třeba Masquerade Tattoo z Tasha's)
                 $rule = Db::one(
-                    "SELECT id FROM rules_entries WHERE is_srd = 1 AND kind IN ('weapon', 'armor', 'equipment', 'magic_item') AND LOWER(name) = LOWER(?)",
+                    "SELECT id FROM rules_entries WHERE campaign_id IS NULL AND kind IN ('weapon', 'armor', 'equipment', 'magic_item') AND LOWER(name) = LOWER(?) ORDER BY is_srd DESC LIMIT 1",
                     [$lookup],
                 );
                 if ($rule === null) {
-                    $fail("Item \"$itemName\" není v SRD a seed ho neoznačuje jako homebrew.");
+                    $fail("Item \"$itemName\" není v SRD ani v katalogu a seed ho neoznačuje jako homebrew ani custom.");
                     continue;
                 }
                 $ruleId = (string) $rule['id'];

@@ -1,0 +1,271 @@
+{
+  "_info": "Seed data pro postavu Robinn (celým jménem Robinn' Winger, hráč „oces“, kampaň Mirabilis). Přepsáno z fotky strany 1/4 sheetu (19. 10. 2026), strany 2 až 4 (výbava, peníze, featury) zatím chybí. Pravidla D&D 5e 2014 (SRD 5.1). Postava už existuje (fotka, magické předměty): doplňuje se přes --update, nic se nemaže. Sekce sheetValues obsahuje čísla z papíru jako kontrolu enginu.",
+  "ruleset": "5e-2014 (SRD 5.1)",
+  "character": {
+    "name": "Robinn",
+    "race": "Drow elf",
+    "baseSpeed": 40,
+    "background": "Criminal (Spy)",
+    "alignment": null,
+    "description": "Celým jménem Robinn' Winger. Zloděj a špeh (Rogue 6, Thief).",
+    "notes": "Rasa: Darkvision 120 ft, Fey Ancestry (výhoda na savy proti charm, magie tě neuspí). Thieves' Tools s expertise (+9), dále Dice set a Flute.\nTO_CONFIRM: Iniciativa je na papíře +5, z DEX vychází +3. Odkud je +2 navíc (feat, item)?\nTO_CONFIRM: Rychlost 40 ft: drow má 30 ft. Odkud je +10 (Mobile, item)? V aplikaci je rychlost 40 ručně.\nTO_CONFIRM: Útoky na papíře: Shortsword +7, Longbow +8 a jedna dvojice dýk +7, z DEX a proficiency vychází +6. Jsou to magické zbraně (a mají bonus i ke zranění), nebo jiný bonus?\nTO_CONFIRM: HP maximum 29 z papíru, hody na levelech nejsou známé (rozdělené jako 6, 6, 5, 5, 5), průměr by dal 27.\nTO_CONFIRM: Strany 2 až 4 sheetu (výbava, šípy, peníze, featury) chybí."
+  },
+  "classes": [
+    {
+      "class": "Rogue",
+      "level": 6,
+      "subclass": "Thief",
+      "hpRolls": [null, 6, 6, 5, 5, 5]
+    }
+  ],
+  "abilityScores": {
+    "STR": 10,
+    "DEX": 16,
+    "CON": 8,
+    "INT": 13,
+    "WIS": 12,
+    "CHA": 16
+  },
+  "proficiencies": {
+    "savingThrows": ["DEX", "INT"],
+    "skills": ["Acrobatics", "Deception"],
+    "expertise": ["Perception", "Sleight of Hand", "Stealth"],
+    "languages": ["Common", "Elvish", "Thieves' Cant"],
+    "weapons": ["Longbow"],
+    "armor": [],
+    "tools": ["Thieves' Tools", "Dice set", "Flute"]
+  },
+  "hitPoints": {
+    "max": 29,
+    "current": 29,
+    "temp": 0,
+    "hitDice": {
+      "d8_rogue": 6
+    }
+  },
+  "resources": [
+    { "name": "Heroic Inspiration", "max": 1, "current": 1 }
+  ],
+  "attacks": [
+    { "name": "Shortsword", "toHit": 7, "damage": "1d6+3", "damageType": "piercing", "note": "Na papíře „2×“: dvě krátké meče (boj dvěma zbraněmi)." },
+    { "name": "Longbow", "toHit": 8, "damage": "1d8+3", "damageType": "piercing" },
+    { "name": "Dagger", "toHit": 7, "damage": "1d4+3", "damageType": "piercing", "note": "Na papíře dvě řádky dýk: +7 a +6." }
+  ],
+  "inventory": [
+    { "item": "Shortsword", "qty": 2 },
+    { "item": "Longbow", "qty": 1 },
+    { "item": "Dagger", "qty": 2 },
+    { "item": "Leather Armor", "qty": 1, "equipped": true, "note": "Podle AC 14 na papíře (11 + DEX 3); výbava je na chybějící straně sheetu." },
+    { "item": "Thieves' Tools", "qty": 1 },
+    { "item": "Boots of Elvenkind", "qty": 1, "equipped": true },
+    { "item": "Cloak of Elvenkind", "qty": 1, "equipped": true, "attunement": true },
+    { "item": "Masquerade Tattoo", "qty": 1, "attunement": true },
+    { "item": "Ring of Mind Shielding", "qty": 1, "equipped": true, "attunement": true },
+    { "item": "Magic Key", "qty": 1, "custom": true, "kind": "wondrous", "description": "Má 5% šanci otevřít jakýkoliv zámek." }
+  ],
+  "sheetValues": {
+    "_info": "Čísla z papíru. Iniciativa, rychlost a bonusy útoků se liší od pravidel (viz discrepancies a TO_CONFIRM), rychlost 40 je v seedu ručně jako základ.",
+    "proficiencyBonus": 3,
+    "modifiers": { "STR": 0, "DEX": 3, "CON": -1, "INT": 1, "WIS": 1, "CHA": 3 },
+    "savingThrows": { "STR": 0, "DEX": 6, "CON": -1, "INT": 4, "WIS": 1, "CHA": 3 },
+    "skills": {
+      "Acrobatics": 6,
+      "Animal Handling": 1,
+      "Arcana": 1,
+      "Athletics": 0,
+      "Deception": 6,
+      "History": 1,
+      "Insight": 1,
+      "Intimidation": 3,
+      "Investigation": 1,
+      "Medicine": 1,
+      "Nature": 1,
+      "Perception": 7,
+      "Performance": 3,
+      "Persuasion": 3,
+      "Religion": 1,
+      "Sleight of Hand": 9,
+      "Stealth": 9,
+      "Survival": 1
+    },
+    "passivePerception": 17,
+    "armorClass": 14,
+    "initiative": 5,
+    "speed": 40,
+    "hitPointMax": 29,
+    "discrepancies": [
+      "Iniciativa: na papíře +5, z DEX +3 (zdroj +2 není známý)",
+      "Útoky: Shortsword +7, Longbow +8 a dýka +7 na papíře, z pravidel +6 (zdroj bonusů není známý)"
+    ]
+  },
+  "openQuestions": [
+    "Strany 2 až 4 sheetu: výbava (šípy, zbroj), peníze, featury",
+    "Iniciativa +5 a rychlost 40 ft: odkud jsou bonusy?",
+    "Shortsword +7, Longbow +8, dýka +7: magické zbraně, nebo jiný bonus?",
+    "HP: jednotlivé hody (na papíře maximum 29)",
+    "Alignment"
+  ],
+  "tactics": {
+    "attacks": [
+      {
+        "title": "Shortsword (hlavní ruka)",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "1d6+3 piercing",
+        "roll": "1d6+3",
+        "range": "5 ft",
+        "usage": "Akce Attack. Při zásahu s výhodou, nebo když je u cíle spojenec, přidej Sneak Attack.",
+        "note": "Na papíře +7, z pravidel +6 (ověřuje se)."
+      },
+      {
+        "title": "Shortsword (druhá ruka)",
+        "actionType": "bonus",
+        "toHit": "d20+6",
+        "damage": "1d6 piercing",
+        "roll": "1d6",
+        "range": "5 ft",
+        "usage": "Boj dvěma zbraněmi: bonusovou akcí po útoku hlavní rukou. Druhá šance na Sneak Attack, když první útok minul.",
+        "note": "Bez DEX ke zranění. Bere bonusovou akci, kterou jinak potřebuješ na Cunning Action."
+      },
+      {
+        "title": "Longbow",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "1d8+3 piercing",
+        "roll": "1d8+3",
+        "range": "150/600 ft",
+        "usage": "Ze skrytu nebo z dálky: Attack, při zásahu s výhodou Sneak Attack.",
+        "note": "Na papíře +8, z pravidel +6 (ověřuje se). Šípy nejsou na straně 1 sheetu."
+      },
+      {
+        "title": "Dýka (hod)",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "1d4+3 piercing",
+        "roll": "1d4+3",
+        "range": "20/60 ft",
+        "usage": "Když nemáš luk v ruce a cíl je kousek daleko. Finesse i hod, Sneak Attack platí."
+      }
+    ],
+    "ki": [
+      {
+        "title": "Sneak Attack",
+        "actionType": "none",
+        "cost": "free",
+        "damage": "3d6",
+        "roll": "3d6",
+        "description": "Jednou za tah +3d6 k zásahu zbraní finesse nebo na dálku, když máš na útok výhodu, nebo když je do 5 ft od cíle tvůj spojenec (který není neschopný jednat) a nemáš nevýhodu. Funguje i v cizím tahu (příležitostný útok)."
+      },
+      {
+        "title": "Cunning Action",
+        "actionType": "bonus",
+        "cost": "free",
+        "description": "Bonusovou akcí Dash, Disengage nebo Hide. Hide se Cloak of Elvenkind (kápě nahoře) máš s výhodou na Stealth +9."
+      },
+      {
+        "title": "Fast Hands",
+        "actionType": "bonus",
+        "cost": "free",
+        "description": "Thief: bonusovou akcí Sleight of Hand (+9), thieves' tools na zámek nebo past (+9), nebo Use an Object."
+      }
+    ],
+    "passives": [
+      {
+        "title": "Uncanny Dodge",
+        "type": "reaction",
+        "description": "Reakcí poloviční zranění z útoku útočníka, kterého vidíš."
+      },
+      {
+        "title": "Expertise",
+        "type": "passive",
+        "description": "Dvojnásobná proficiency: Stealth +9, Sleight of Hand +9, Perception +7 (pasivní 17) a thieves' tools +9."
+      },
+      {
+        "title": "Second-Story Work",
+        "type": "passive",
+        "description": "Thief: šplhání tě nezpomaluje a skok s rozběhem je o DEX (3 ft) delší."
+      },
+      {
+        "title": "Elfí krev",
+        "type": "passive",
+        "description": "Darkvision 120 ft. Fey Ancestry: výhoda na savy proti charm, magie tě neuspí."
+      },
+      {
+        "title": "Elvenkind (boty a plášť)",
+        "type": "passive",
+        "description": "Boty: tvoje kroky nejsou slyšet, výhoda na Stealth při tichém pohybu. Plášť (kápě nahoře, nasazení stojí akci): Perception checky, jak tě uvidět, mají nevýhodu, a Stealth na schování máš s výhodou."
+      }
+    ],
+    "combos": [
+      {
+        "title": "Útok ze skrytu",
+        "steps": [
+          "Bonusová akce: Cunning Action Hide (Stealth +9 s výhodou z pláště)",
+          "Další tah: Attack z luku s výhodou (nepřítel tě nevidí)",
+          "Zásah: Sneak Attack +3d6, pak zase Hide"
+        ],
+        "expectedDamage": "~21 na zásah",
+        "cost": "free",
+        "highlight": true,
+        "description": "Potřebuješ kryt nebo tmu (darkvision 120 ft), jinak se schovat nejde.",
+        "uses": [{ "title": "Longbow" }, { "title": "Sneak Attack" }]
+      },
+      {
+        "title": "Dvě čepele se spojencem",
+        "steps": [
+          "Stůj u nepřítele, u kterého je i spojenec",
+          "Akce: Shortsword hlavní rukou, při zásahu Sneak Attack",
+          "Bonusová akce: Shortsword druhou rukou (když první minul, Sneak Attack jde ještě tady)"
+        ],
+        "expectedDamage": "~17 se Sneak Attack, ~20 když trefíš oba",
+        "cost": "free",
+        "description": "Bonusovou akci pak nemáš na Disengage, počítej s příležitostnými útoky.",
+        "uses": [{ "title": "Shortsword (hlavní ruka)" }, { "title": "Sneak Attack" }, { "title": "Shortsword (druhá ruka)" }]
+      },
+      {
+        "title": "Udeř a zmiz",
+        "steps": [
+          "Akce: Shortsword, při zásahu Sneak Attack",
+          "Bonusová akce: Cunning Action Disengage",
+          "Odejdi do bezpečí (40 ft) bez příležitostných útoků"
+        ],
+        "expectedDamage": "~17 se Sneak Attack",
+        "cost": "free",
+        "description": "Nejbezpečnější boj zblízka. Uncanny Dodge si nech na útok, který by bolel nejvíc.",
+        "uses": [{ "title": "Shortsword (hlavní ruka)" }, { "title": "Sneak Attack" }]
+      },
+      {
+        "title": "Rychlé ruce v boji",
+        "steps": [
+          "Bonusová akce: Fast Hands (otevři dveře, odjisti past, vytáhni věc z cizí kapsy)",
+          "Akce: útok, nebo Dash pryč"
+        ],
+        "cost": "free",
+        "description": "Thief zvládne zámek nebo past a ještě zaútočit ve stejném tahu.",
+        "uses": [{ "title": "Fast Hands" }]
+      }
+    ],
+    "rules": [
+      {
+        "title": "Kdy platí Sneak Attack",
+        "text": "Jednou za tah (ne za kolo), jen se zbraní finesse nebo na dálku. Potřebuješ výhodu, nebo spojence do 5 ft od cíle a nesmíš mít nevýhodu."
+      },
+      {
+        "title": "Schovávání",
+        "text": "Schovat se jde jen za krytem nebo ve tmě, kde tě nevidí. Útok ze skrytu má výhodu a prozradí tě, ať trefíš, nebo ne."
+      },
+      {
+        "title": "Boj dvěma zbraněmi",
+        "text": "Po útoku lehkou zbraní na blízko můžeš bonusovou akcí zaútočit druhou lehkou zbraní, bez bonusu DEX ke zranění. Bonusová akce je pak spotřebovaná."
+      },
+      {
+        "title": "Drow a slunce",
+        "text": "Drow má na přímém slunci nevýhodu na útoky a na Perception zrakem (Sunlight Sensitivity). Ve dne se drž ve stínu nebo pod střechou."
+      },
+      {
+        "title": "Reakce",
+        "text": "Jedna reakce do tvého dalšího tahu: buď Uncanny Dodge, nebo příležitostný útok (se Sneak Attack, pokud jsi ho v tom kole ještě nepoužil)."
+      }
+    ]
+  }
+}
