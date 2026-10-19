@@ -3,6 +3,7 @@ import { BellIcon, LibraryBigIcon, UserRoundCogIcon } from 'lucide-react'
 import { Link, Outlet } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { AiButton } from '@/features/ai/AiButton'
 import { DiceSlotContext } from '@/features/dice/dice-slot-context'
 import { RollOverlayProvider } from '@/features/dice/RollOverlay'
 import { RollSettingsProvider } from '@/features/dice/roll-settings'
@@ -34,6 +35,7 @@ export function AppLayout() {
           <div className="flex shrink-0 items-center">
             {/* Sem se vykreslí tlačítko kostek stránky (DiceDock), ať nic neplave nad obsahem. */}
             <div ref={setDiceSlot} className="contents" />
+            <AiButton className={iconLink} />
             <Link to="/rules" className={iconLink} aria-label="Pravidla" title="Pravidla a obsah (SRD, homebrew)">
               <LibraryBigIcon aria-hidden className="size-5" />
             </Link>

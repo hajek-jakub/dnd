@@ -22,6 +22,9 @@ async function waitForHealth(url: string, timeoutMs: number): Promise<void> {
 }
 
 let server: ChildProcess | undefined
+let claudeMock: ChildProcess | undefined
+/** Napodobený Claude API (scripts/claude-mock.mjs); port sedí s claude_base_url v api/config.test.php. */
+export const CLAUDE_MOCK_PORT = 8199
 
 export async function setup() {
   // Čistá testovací databáze + všechny migrace.
@@ -36,6 +39,9 @@ export async function setup() {
   const seed = spawnSync('php', ['api/bin/seed.php'], { cwd: root, env, encoding: 'utf8' })
   if (seed.status !== 0) throw new Error(`Seed pravidel selhal:\n${seed.stdout}\n${seed.stderr}`)
 
+  claudeMock = spawn('node', ['scripts/claude-mock.mjs', String(CLAUDE_MOCK_PORT)], { cwd: root, stdio: 'ignore' })
+  await waitForHealth(`http://127.0.0.1:${CLAUDE_MOCK_PORT}/__mock/health`, 10_000)
+
   server = spawn('php', ['-S', `127.0.0.1:${API_PORT}`, '-t', 'api', 'api/index.php'], {
     cwd: root,
     env,
@@ -46,4 +52,5 @@ export async function setup() {
 
 export async function teardown() {
   server?.kill()
+  claudeMock?.kill()
 }

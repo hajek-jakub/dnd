@@ -23,4 +23,14 @@ return [
 
     // true vypíše do odpovědi podrobnosti chyb (jen pro lokální vývoj!).
     'debug' => true,
+
+    // AI pomocník DM (Claude API). Bez klíče je vypnutý. Klíč z Claude Console (API Keys), nikdy ho necommituj.
+    // 'claude_api_key' => 'sk-ant-...',
+    // Kdo smí pomocníka používat (přihlašovací jména; jen v kampaních, kde je DM). Prázdné = nikdo.
+    // 'claude_users' => ['jakub'],
+    // Strop útraty za kalendářní měsíc v USD (všechna volání dohromady); pak AI do konce měsíce neodpoví.
+    // 'claude_monthly_budget_usd' => 10,
+    // Model a úsilí (low | medium | high | xhigh | max); výchozí claude-opus-5-5 a medium.
+    // 'claude_model' => 'claude-opus-5-5',
+    // 'claude_effort' => 'medium',
 ];

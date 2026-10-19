@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dnd;
 
+use Dnd\Controllers\AiController;
 use Dnd\Controllers\AuthController;
 use Dnd\Controllers\CampaignController;
 use Dnd\Controllers\CharacterController;
@@ -184,6 +185,16 @@ final class App
         $r->add('PATCH', '/rules/{id}', [RulesController::class, 'update']);
         $r->add('DELETE', '/rules/{id}', [RulesController::class, 'delete']);
         $r->add('POST', '/campaigns/{id}/homebrew', [RulesController::class, 'createHomebrew']);
+
+        // AI pomocník DM (Claude): konverzace a návrhy do lootu, které DM potvrdí
+        $r->add('GET', '/campaigns/{id}/ai', [AiController::class, 'status']);
+        $r->add('POST', '/campaigns/{id}/ai/conversations', [AiController::class, 'create']);
+        $r->add('GET', '/ai/conversations/{id}', [AiController::class, 'show']);
+        $r->add('POST', '/ai/conversations/{id}/messages', [AiController::class, 'message']);
+        $r->add('POST', '/ai/conversations/{id}/step', [AiController::class, 'step']);
+        $r->add('DELETE', '/ai/conversations/{id}', [AiController::class, 'delete']);
+        $r->add('POST', '/ai/proposals/{id}/apply', [AiController::class, 'applyProposal']);
+        $r->add('POST', '/ai/proposals/{id}/discard', [AiController::class, 'discardProposal']);
 
         // Správa (migrace databáze a seed pravidel z deploye)
         $r->add('POST', '/admin/migrate', [AdminController::class, 'migrate'], auth: false);

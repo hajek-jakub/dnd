@@ -111,6 +111,12 @@ if (!cfg.db || !cfg.db.name || !cfg.db.user || !cfg.db.password || /^(dnd|dnd_te
 if (JSON.stringify(cfg.db ?? {}).includes('DOPLN_')) {
   problems.push("v 'db' zbývají neuhrazené řádky DOPLN_... (doplň údaje k databázi z administrace Endory)")
 }
+if (cfg.claude_base_url) {
+  problems.push("'claude_base_url' patří jen do testů (API klíč by se posílal jinam než na api.anthropic.com), na ostrém serveru ho smaž")
+}
+if (cfg.claude_api_key && !(Array.isArray(cfg.claude_users) && cfg.claude_users.length > 0)) {
+  console.warn("POZOR: 'claude_api_key' je nastavený, ale 'claude_users' je prázdné, takže AI pomocníka nikdo neuvidí. Doplň svoje přihlašovací jméno.")
+}
 if (problems.length > 0) {
   fail(`api/config.production.php není připravený na ostrý server:\n  - ${problems.join('\n  - ')}`)
 }
@@ -259,6 +265,14 @@ if (!dryRun && !skipMigrate) {
     console.log(`Server: PHP ${d.php}, GD (obrázky) ${d.gd ? 'ano' : 'NE'}, složka pro nahrané soubory ${d.storageWritable ? 'zapisovatelná' : 'NENÍ ZAPISOVATELNÁ'}, limit uploadu ${d.uploadMaxFilesize}`)
     if (!d.gd) console.warn('POZOR: chybí rozšíření GD, nahrávání fotek a map nebude fungovat. Zapni GD v nastavení PHP na Endoře.')
     if (!d.storageWritable) console.warn('POZOR: PHP nemůže zapisovat do api/storage, nahrávání fotek a map nebude fungovat (zkontroluj oprávnění složky).')
+    console.log(`Časový limit PHP: ${d.maxExecutionTime === 0 ? 'bez limitu' : `${d.maxExecutionTime} s`}`)
+    if (d.claude?.configured) {
+      if (!d.curl) console.warn('POZOR: na serveru chybí rozšíření PHP cURL, AI pomocník nebude fungovat.')
+      else if (!d.claude.reachable) console.warn(`POZOR: server se nedostane na Claude API (${d.claude.error}). Hosting asi blokuje odchozí HTTPS.`)
+      else if (d.claude.status !== 200) console.warn(`POZOR: Claude API odpovídá chybou ${d.claude.status}: ${d.claude.error}`)
+      else console.log(`AI pomocník: Claude API dostupné, klíč platí, model ${d.claude.model}.`)
+      if (d.maxExecutionTime > 0 && d.maxExecutionTime < 60) console.warn(`POZOR: časový limit PHP ${d.maxExecutionTime} s je na delší odpovědi AI krátký.`)
+    }
   }
 
   console.log(`\nHotovo. Aplikace běží na ${siteUrl}`)

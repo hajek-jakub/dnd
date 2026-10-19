@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Dnd\Controllers;
 
+use Dnd\Assistant;
+use Dnd\Claude;
 use Dnd\Config;
 use Dnd\HttpError;
 use Dnd\Items;
@@ -46,7 +48,10 @@ final class AdminController
         return Response::json(Seeder::run($force) + ['repaired' => count($repaired), 'repairedItems' => $repaired]);
     }
 
-    /** Kontrola prostředí serveru: verze PHP, GD pro obrázky, zapisovatelnost složky pro nahrané soubory. */
+    /**
+     * Kontrola prostředí serveru: verze PHP, GD pro obrázky, zapisovatelnost složky pro nahrané soubory, časový limit
+     * a pro AI pomocníka cURL a spojení s Claude API (GET /v1/models nic nestojí; ukáže, jestli hosting pustí HTTPS ven a klíč platí).
+     */
     public static function diagnostics(Request $req): Response
     {
         self::requireKey($req);
@@ -63,6 +68,9 @@ final class AdminController
             'storageWritable' => $writable,
             'uploadMaxFilesize' => (string) ini_get('upload_max_filesize'),
             'postMaxSize' => (string) ini_get('post_max_size'),
+            'maxExecutionTime' => (int) ini_get('max_execution_time'),
+            'curl' => function_exists('curl_init'),
+            'claude' => Claude::configured() ? Claude::ping() + ['configured' => true, 'model' => Assistant::model()] : ['configured' => false],
         ]);
     }
 

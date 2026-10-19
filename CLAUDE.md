@@ -34,7 +34,7 @@ to na Endoře nejde, proto je backend **vlastní PHP API + MySQL**. Důsledky pr
 
 ```
 src/components/        sdílené komponenty (AppLayout, theme, ui/ = shadcn)
-src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about, dm, loot (dílna a loot DM), messages, maps, dice, journal, tactics, enemies, initiative
+src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about, dm, loot (dílna a loot DM), messages, maps, dice, journal, tactics, enemies, initiative, ai (AI pomocník DM)
 src/lib/               api.ts (fetch klient), types.ts (tvary API), utils.ts
 src/engine/            pravidlový engine (čisté TS, unit testy)
 api/                   PHP backend (index.php, src/, migrations/, bin/, data/, config*.php)
@@ -43,6 +43,7 @@ scripts/data/          build-item-catalog.mjs (jednorázové sestavení katalogu
 api-tests/             API testy autorizace (Vitest proti skutečnému PHP + MySQL)
 e2e/                   Playwright E2E (Chromium, desktop + mobil)
 scripts/deploy.mjs     FTP nasazení + migrace
+scripts/claude-mock.mjs napodobený Claude API pro API a E2E testy (port 8199)
 docker-compose.yml     lokální MySQL
 public/.htaccess       SPA routing + cache + hlavičky (kopíruje se do dist/)
 docs/NASAZENI.md       postup nastavení Endory (PHP, DB, HTTPS, deploy)
@@ -67,6 +68,7 @@ docs/NASAZENI.md       postup nastavení Endory (PHP, DB, HTTPS, deploy)
 | `npm run typecheck` / `npm run lint` | kontrola typů / oxlint |
 | `npm run build` | produkční build do `dist/` |
 | `npm run deploy` (`deploy:dry`) | build + FTP + migrace (suchý běh nic nemění) |
+| `DND_CONFIG=api/config.production.php php api/bin/ai-check.php` | ověří AI pomocníka proti skutečnému Claude API (krátký dotaz a kolo s nástrojem, ~5 centů, do DB nesahá) |
 
 `test:api` a `test:e2e` sdílejí DB `dnd_test`, nespouštět je souběžně (`test:all` je pouští po sobě).
 Nová migrace: přidat `api/migrations/00N_nazev.sql` (jen SQL, příkazy oddělené `;` na konci řádku, žádné procedury), `npm run db:migrate`.
@@ -80,6 +82,8 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - `.env.deploy` (v `.gitignore`): FTP údaje, viz `.env.deploy.example`. Nikdy se necommituje, heslo nepsat do chatu.
 - Env `DND_CONFIG` přepíše cestu ke konfiguraci (používají ho testy).
 - `VITE_BASE_PATH` (výchozí `/`): při nasazení do podsložky; uprav i `RewriteBase` v `public/.htaccess`.
+- AI pomocník (v `config.production.php`): `claude_api_key` (bez něj je vypnutý), `claude_users` (přihlašovací jména, která ho smí používat; prázdné = nikdo), `claude_monthly_budget_usd` (strop útraty za kalendářní měsíc, výchozí 10), volitelně `claude_model` (výchozí `claude-opus-5-5`) a `claude_effort` (výchozí `medium`).
+  `claude_base_url` je jen pro testy (napodobený server); deploy ho v ostré konfiguraci odmítne, protože by se klíč posílal jinam.
 
 ## Bezpečnostní model (místo RLS)
 
@@ -324,6 +328,18 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Oznámení: „Koupil(a) jsi: Lano za 1 gp, 5 sp“ místo „DM ti dal“. UI: přepínač **Nalezené / Kupuje** s mincemi (`PriceFields`) v dialogu lootu i v „Dát item“ Panelu DM; bez zadané ceny se u itemu z pravidel vezme cena z pravidel (`priceGp`).
 - Testy: `api-tests/loot-curse.test.ts` (kletby všude skryté a DM je vidí, loot, mutation check proveden), `api-tests/magic-gear.test.ts` (převody, druhy, automatické nasazení, oprava při seedu), engine (`engine.test.ts`, blok AC), `src/features/loot/distribution.test.ts`,
   E2E `e2e/loot.spec.ts` (DM počítač + hráč telefon: složky, tučný popis, kletba, přetažení, rozdání, odhalení; AC s magickou zbrojí) a stránka lootu v layout a a11y testech. Migrace ověřené i na MariaDB 11.8 (starý kód → nové migrace → oprava).
+
+### AI pomocník DM (Claude API)
+- **Jen pro DM a jen pro povolené účty** (`claude_users`): hráči ho nevidí ani nespustí (403), cizinec 404, anonym 401; DM mimo seznam dostane `enabled: false` a tlačítko se mu neukáže. Hráčům se záměrně nenabízí (šetří tokeny).
+- **Nic nezapisuje**: model má nástroje jen ke čtení (`search_rules`, `get_rule`, `get_loot`, `get_party`) a `propose_loot`, který návrh jen ověří a uloží (`ai_proposals`). DM ho v chatu uvidí jako kartu a **Vytvořit v lootu** ho vytvoří v jedné transakci stejnou validací a limity jako ruční loot (`LootController::entryData`, `insertFolder`, `insertEntry`, `ensurePath`). Chybný návrh (neznámé id, obecná magická zbroj bez `baseRuleId`) jde modelu zpět jako `is_error`, ať ho opraví.
+- **Vidí jen data kampaně**: nástroje volají stejné kontroly jako API (`RulesController` s kampaní konverzace), homebrew jiné kampaně nenajde ani nepřečte, ani když v ní je DM také DM. Konverzace jsou soukromé (cizí = 404, i pro jiného DM téže kampaně).
+- **Volání** (`api/src/Claude.php`): přímé HTTP přes cURL (PHP SDK potřebuje Composer), bez streamování, model `claude-opus-5-5`, effort `medium`, `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`), `thinking.block_binding.prefix_mismatch_behavior: "drop_block"` (beta `thinking-binding-controls-2026-08-01`, po nasazení nových pokynů se staré myšlenkové bloky zahodí místo chyby) a cache celého prefixu. Sestavuje se jen v `Assistant::request` (aplikace i `bin/ai-check.php`).
+- **Historie se jen přidává** (`ai_messages.content` = bloky přesně z API, dekódují se jako objekty, aby prázdné `{}` nezměnilo tvar). Odpověď modelu a výsledky nástrojů se ukládají v jedné transakci. **Každý HTTP požadavek = nejvýš jedno volání modelu** (časový limit PHP); prohlížeč posílá `POST /ai/conversations/{id}/step`, dokud je stav `working`, a jde zastavit.
+- **Pojistky**: zámek konverzace (`busy_until`, souběžný krok 409), nejvýš 16 kroků na zprávu DM, kontext nad 150 000 tokenů → nová konverzace, 60 volání za hodinu na uživatele, odmítnutí (`refusal`) se neukládá a čeká na novou zprávu (`halted`). Útrata každého volání je v `ai_calls` (bez cizích klíčů, smazání nevynuluje rozpočet), před každým voláním se hlídá `claude_monthly_budget_usd` (429 `ai_budget`). Chyby API jsou česky (přetížení, klíč, došlý kredit).
+- **API**: `GET /campaigns/{id}/ai` (stav, útrata, konverzace), `POST /campaigns/{id}/ai/conversations` (první zpráva a první krok; když krok selže, vrátí 201 s `error` a konverzací), `GET|DELETE /ai/conversations/{id}`, `POST /ai/conversations/{id}/messages|step`, `POST /ai/proposals/{id}/apply|discard`.
+- **UI** (`src/features/ai/`): tlačítko ✨ v horní liště (jen DM s povolením, panel se načte líně), na telefonu přes celou obrazovku, na počítači panel vpravo. Výběr konverzace, příklady, zprávy (`RichText`), co AI dělá („Hledám v pravidlech…“), karta návrhu se složkami a cenami, útrata za měsíc.
+- **Diagnostika**: `POST /admin/diagnostics` (volá ji deploy) ukáže cURL, časový limit PHP a spojení s Claude API (`GET /v1/models` nic nestojí, ověří odchozí HTTPS z Endory i klíč).
+- Testy: `api-tests/ai.test.ts` (17, napodobený server `scripts/claude-mock.mjs` řízený značkou `[[mock:klíč]]`; přístup, soukromí, tvar požadavku, zpětné odeslání historie, návrhy, rozpočet, kroky, odmítnutí, výpadek; mutation check proveden), audit tras zahrnuje AI trasy, E2E `e2e/ai.spec.ts` (počítač i telefon, axe ve světlém i tmavém režimu, hráč a nepovolený DM tlačítko nevidí). Testovací konfigurace povoluje účty začínající `aidm`.
 
 ### Další možná práce (mimo původní zadání)
 - Data SRD 5.2 (2024) a filtrování pravidel podle sady kampaně (dnes engine zná rozdíly 2014/2024 a prohlížeč pravidel na to upozorňuje).

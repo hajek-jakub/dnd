@@ -48,6 +48,9 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
    **Nepřátelé** jsou rovnou v Panelu DM (červené karty), ať nemusíš nikam překlikávat: jméno, životy, AC, bonus iniciativy a útoky s kostkami (bonus k zásahu a zranění nastavíš v „Upravit“). Přidáš víc kusů najednou („Nový nepřítel“ vpravo u nadpisu sekce Nepřátelé), zapisuješ zranění tlačítky nebo vlastním číslem, hážeš útok, zranění, krit a **Iniciativu** (výchozí skryté před hráči) a „Další“ udělá kopii s plným zdravím. Hráči o nepřátelích nic nevidí a nemůžou jim nic předat.
    **Iniciativa** (sekce v Panelu DM, jen pro tebe): hráči si ji hodí na svém sheetu (tlačítko Hod u iniciativy) a zapíše se sem sama, **Hodit za NPC a nepřátele** hodí zbytek najednou. Pořadí jde přetáhnout (na telefonu šipkami), hodnotu přepsat, „Další tah“ ukazuje, kdo je na řadě a které je kolo (padlé nepřátele přeskočí), „Nový souboj“ všechno smaže.
 9. **Kostky**: stejné jako hráči, navíc vidíš skryté hody hráčů a můžeš hodit za kteroukoli postavu.
+10. **AI pomocník** (tlačítko ✨ v horní liště, vidí ho jen DM s povoleným účtem): napiš mu, co chceš připravit, třeba „složka Hrobka krále, v první místnosti Bag of Holding a 50 gp, ve druhé Armor +1 (chain mail)“. Itemy dohledá v pravidlech, podívá se do lootu a na družinu, a když něco není jasné, zeptá se.
+   Hotový návrh ukáže jako kartu se složkami, položkami a cenami. **Nic se nevytvoří, dokud neklepneš na Vytvořit v lootu** (nebo návrh zahodíš). Pak ho v Lootu rozdáš jako obvykle. Ptát se můžeš i na pravidla.
+   Konverzace vidíš jen ty a pokračovat jde i v té minulé (výběr nahoře). Dole je vidět, kolik AI tento měsíc stála; po vyčerpání měsíčního limitu do konce měsíce neodpoví.
 
 ## Když něco nejde
 

@@ -54,6 +54,13 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
+      // Napodobený Claude API pro AI pomocníka (port sedí s claude_base_url v api/config.test.php).
+      command: 'node scripts/claude-mock.mjs 8199',
+      url: 'http://127.0.0.1:8199/__mock/health',
+      reuseExistingServer: false,
+      timeout: 20_000,
+    },
+    {
       command: `npm run dev -- --host localhost --port ${WEB_PORT} --strictPort`,
       url: `http://localhost:${WEB_PORT}`,
       env: { API_PROXY_TARGET: `http://127.0.0.1:${API_PORT}` },

@@ -44,17 +44,9 @@ final class LootController
         $in = $req->json();
         $name = Input::string($in, 'name', 1, 120, 'Název složky');
         $parent = self::parentId($in, $params['id']);
-        $id = Ids::uuid();
-        Db::transaction(static function () use ($params, $name, $parent, $id): void {
+        $id = Db::transaction(static function () use ($params, $name, $parent): string {
             Db::one('SELECT id FROM campaigns WHERE id = ? FOR UPDATE', [$params['id']]);
-            if ((int) Db::value('SELECT COUNT(*) FROM loot_folders WHERE campaign_id = ?', [$params['id']]) >= self::MAX_FOLDERS) {
-                throw HttpError::validation('Složek může být nejvýš ' . self::MAX_FOLDERS . '.', 'name');
-            }
-            if ($parent !== null && self::depth($parent) >= self::MAX_DEPTH) {
-                throw HttpError::validation('Složky lze vnořit nejvýš do ' . self::MAX_DEPTH . ' úrovní.', 'parentId');
-            }
-            $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM loot_folders WHERE campaign_id = ? AND parent_id <=> ?', [$params['id'], $parent]);
-            Db::exec('INSERT INTO loot_folders (id, campaign_id, parent_id, name, position, created_at) VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())', [$id, $params['id'], $parent, $name, $pos]);
+            return self::insertFolder($params['id'], $name, $parent);
         });
         return Response::json(['folder' => self::folderPayload(self::folder($id))], 201);
     }
@@ -107,17 +99,9 @@ final class LootController
         $folder = self::folderId($in, $params['id']);
         $data = self::entryData($in, $params['id'], $user);
         $price = self::price($in, $data['kind']);
-        $id = Ids::uuid();
-        Db::transaction(static function () use ($params, $folder, $data, $price, $id): void {
+        $id = Db::transaction(static function () use ($params, $folder, $data, $price): string {
             Db::one('SELECT id FROM campaigns WHERE id = ? FOR UPDATE', [$params['id']]);
-            if ((int) Db::value('SELECT COUNT(*) FROM loot_entries WHERE campaign_id = ?', [$params['id']]) >= self::MAX_ENTRIES) {
-                throw HttpError::validation('Položek lootu může být nejvýš ' . self::MAX_ENTRIES . '.', 'kind');
-            }
-            $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM loot_entries WHERE campaign_id = ? AND folder_id <=> ?', [$params['id'], $folder]);
-            Db::exec(
-                'INSERT INTO loot_entries (id, campaign_id, folder_id, kind, data, price_cp, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-                [$id, $params['id'], $folder, $data['kind'], json_encode($data['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $pos],
-            );
+            return self::insertEntry($params['id'], $folder, $data, $price);
         });
         return Response::json(['entry' => self::entryPayload(self::entry($id))], 201);
     }
@@ -212,10 +196,60 @@ final class LootController
         return ['given' => $result] + self::tree($params['id']);
     }
 
+    // ------------------------------------------------------------------ zápis (i pro návrhy AI pomocníka)
+
+    /** Založí složku na konci úrovně. Volat v transakci se zámkem kampaně (limity se nesmí předběhnout). */
+    public static function insertFolder(string $campaignId, string $name, ?string $parent): string
+    {
+        if ((int) Db::value('SELECT COUNT(*) FROM loot_folders WHERE campaign_id = ?', [$campaignId]) >= self::MAX_FOLDERS) {
+            throw HttpError::validation('Složek může být nejvýš ' . self::MAX_FOLDERS . '.', 'name');
+        }
+        if ($parent !== null && self::depth($parent) >= self::MAX_DEPTH) {
+            throw HttpError::validation('Složky lze vnořit nejvýš do ' . self::MAX_DEPTH . ' úrovní.', 'parentId');
+        }
+        $id = Ids::uuid();
+        $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM loot_folders WHERE campaign_id = ? AND parent_id <=> ?', [$campaignId, $parent]);
+        Db::exec('INSERT INTO loot_folders (id, campaign_id, parent_id, name, position, created_at) VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())', [$id, $campaignId, $parent, $name, $pos]);
+        return $id;
+    }
+
+    /**
+     * Najde složku podle cesty názvů od kořene (`['Hrobka', 'Místnost 1']`) a chybějící úrovně založí; prázdná cesta = Nezařazené (null).
+     * Volat v transakci se zámkem kampaně.
+     * @param list<string> $path
+     */
+    public static function ensurePath(string $campaignId, array $path): ?string
+    {
+        $parent = null;
+        foreach ($path as $name) {
+            $found = Db::value('SELECT id FROM loot_folders WHERE campaign_id = ? AND parent_id <=> ? AND name = ? ORDER BY position, created_at LIMIT 1', [$campaignId, $parent, $name]);
+            $parent = $found !== null ? (string) $found : self::insertFolder($campaignId, $name, $parent);
+        }
+        return $parent;
+    }
+
+    /**
+     * Uloží ověřenou položku (`entryData`) na konec složky. Volat v transakci se zámkem kampaně.
+     * @param array{kind: string, data: array<string, mixed>} $data
+     */
+    public static function insertEntry(string $campaignId, ?string $folder, array $data, ?int $price): string
+    {
+        if ((int) Db::value('SELECT COUNT(*) FROM loot_entries WHERE campaign_id = ?', [$campaignId]) >= self::MAX_ENTRIES) {
+            throw HttpError::validation('Položek lootu může být nejvýš ' . self::MAX_ENTRIES . '.', 'kind');
+        }
+        $id = Ids::uuid();
+        $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM loot_entries WHERE campaign_id = ? AND folder_id <=> ?', [$campaignId, $folder]);
+        Db::exec(
+            'INSERT INTO loot_entries (id, campaign_id, folder_id, kind, data, price_cp, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+            [$id, $campaignId, $folder, $data['kind'], json_encode($data['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $pos],
+        );
+        return $id;
+    }
+
     // ------------------------------------------------------------------ pomocné
 
     /** @return array{folders: list<array<string, mixed>>, entries: list<array<string, mixed>>} */
-    private static function tree(string $campaignId): array
+    public static function tree(string $campaignId): array
     {
         return [
             'folders' => array_map([self::class, 'folderPayload'], Db::all('SELECT * FROM loot_folders WHERE campaign_id = ? ORDER BY position, created_at, id', [$campaignId])),
@@ -229,7 +263,7 @@ final class LootController
      * @param array{id:string} $user
      * @return array{kind: string, data: array<string, mixed>}
      */
-    private static function entryData(array $in, string $campaignId, array $user): array
+    public static function entryData(array $in, string $campaignId, array $user): array
     {
         $kind = $in['kind'] ?? null;
         if ($kind === 'gold') {
@@ -267,7 +301,7 @@ final class LootController
      * Cena itemu na prodej v mědácích (null = nalezená věc zdarma). Zlato cenu mít nemůže.
      * @param array<string, mixed> $in
      */
-    private static function price(array $in, string $kind): ?int
+    public static function price(array $in, string $kind): ?int
     {
         $price = Money::priceCp($in['price'] ?? null);
         if ($price !== null && $kind !== 'item') {
