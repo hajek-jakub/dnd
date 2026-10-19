@@ -1,0 +1,301 @@
+{
+  "_info": "Seed data pro postavu Borys Chlupatý (hráč s účtem „123“, kampaň Mirabilis). Přepsáno z fotky papírového sheetu (19. 10. 2026). Pravidla D&D 5e 2014 (SRD 5.1). Level na papíře chybí: proficiency +3, Rage 4× a Mindless Rage znamenají Barbarian 6 (Feral Instinct ze 7. levelu na papíře není). Sekce sheetValues obsahuje čísla z papíru jako kontrolu enginu.",
+  "ruleset": "5e-2014 (SRD 5.1)",
+  "character": {
+    "name": "Borys Chlupatý",
+    "race": "Dwarf",
+    "subrace": "Mountain Dwarf",
+    "baseSpeed": 25,
+    "background": "Outlander (Forester)",
+    "alignment": "Neutral Good",
+    "description": "Horský trpaslík, berserker z divočiny.",
+    "personality": {
+      "traits": "I have a lesson for every situation, drawn from observing nature.",
+      "ideals": "Greater Good. It is each person's responsibility to make the most happiness for the whole tribe.",
+      "bonds": "An injury to the unspoiled wilderness of my home is an injury to me.",
+      "flaws": "There's no room for caution in a life lived to the fullest."
+    },
+    "notes": "Rasa Mountain Dwarf: Darkvision 60 ft, Dwarven Resilience (výhoda na save proti jedu a odolnost proti jedu), Stonecunning (o kameni a stavbách z něj víš všechno: dvojnásobná proficiency na History checky), Dwarven Combat Training, Dwarven Armor Training.\nLevel na papíře chybí, podle featur je to Barbarian 6.\nCON save je na papíře +5, správně je +7 (CON +4 a proficiency +3), aplikace počítá +7.\nTO_CONFIRM: HP maximum je na papíře přepsané ze 70 na 64. Jednotlivé hody nejsou známé (rozdělené jako 7, 6, 5, 5, 5), průměr by dal 71.\nTO_CONFIRM: Rudý meč: na papíře útok +7, ale zranění jen +3. V aplikaci je to meč +1 (útok +7, zranění 1d8+4, oběma rukama 1d10+4). Je to tak, nebo platí bonus jen někdy (třeba v poušti jako Pedrova dýka)?"
+  },
+  "classes": [
+    {
+      "class": "Barbarian",
+      "level": 6,
+      "subclass": "Path of the Berserker",
+      "hpRolls": [null, 7, 6, 5, 5, 5]
+    }
+  ],
+  "abilityScores": {
+    "STR": 17,
+    "DEX": 10,
+    "CON": 18,
+    "INT": 12,
+    "WIS": 13,
+    "CHA": 8
+  },
+  "proficiencies": {
+    "savingThrows": ["STR", "CON"],
+    "skills": ["Animal Handling", "Athletics", "Nature", "Survival"],
+    "expertise": [],
+    "languages": ["Common", "Dwarvish"],
+    "weapons": [],
+    "armor": [],
+    "tools": ["Smith's Tools", "Mason's Tools"]
+  },
+  "hitPoints": {
+    "max": 64,
+    "current": 64,
+    "temp": 0,
+    "hitDice": {
+      "d12_barbarian": 6
+    }
+  },
+  "resources": [],
+  "attacks": [
+    { "name": "Greataxe", "toHit": 6, "damage": "1d12+3", "damageType": "slashing" },
+    { "name": "Handaxe", "toHit": 6, "damage": "1d6+3", "damageType": "slashing", "note": "Dá se hodit (20/60 ft)." },
+    { "name": "Rudý meč", "toHit": 7, "damage": "1d8+3", "damageType": "slashing", "homebrew": true, "note": "Na papíře 1d8/1d10+3 (versatile)." },
+    { "name": "Quarterstaff", "toHit": 6, "damage": "1d6+3", "damageType": "bludgeoning", "note": "Oběma rukama 1d8+3." }
+  ],
+  "inventory": [
+    { "item": "Greataxe", "qty": 1 },
+    { "item": "Handaxe", "qty": 2 },
+    {
+      "item": "Rudý meč",
+      "qty": 1,
+      "homebrew": true,
+      "base": "Longsword",
+      "magicBonus": 1,
+      "description": "Meč z rudé oceli. Longsword +1 (versatile 1d8 / 1d10 oběma rukama)."
+    },
+    { "item": "Quarterstaff", "qty": 1 },
+    { "item": "Hunting trap", "qty": 1 },
+    { "item": "Backpack", "qty": 1 },
+    { "item": "Bedroll", "qty": 1 },
+    { "item": "Mess Kit", "qty": 1 },
+    { "item": "Torch", "qty": 10 },
+    { "item": "Tinderbox", "qty": 1 },
+    { "item": "Rations (1 day)", "qty": 10 },
+    { "item": "Waterskin", "qty": 1 },
+    { "item": "Rope, hempen (50 feet)", "qty": 1 },
+    { "item": "Trofej z tygra", "qty": 1, "custom": true, "kind": "other", "description": "Trofej z tygra, kterého Borys ulovil (Outlander)." }
+  ],
+  "currency": {
+    "cp": 0,
+    "sp": 11,
+    "ep": 0,
+    "gp": 1079,
+    "pp": 0
+  },
+  "sheetValues": {
+    "_info": "Čísla z papíru, engine je musí dopočítat ze vstupů výše. U položek v discrepancies platí opravená hodnota.",
+    "proficiencyBonus": 3,
+    "modifiers": { "STR": 3, "DEX": 0, "CON": 4, "INT": 1, "WIS": 1, "CHA": -1 },
+    "savingThrows": { "STR": 6, "DEX": 0, "CON": 7, "INT": 1, "WIS": 1, "CHA": -1 },
+    "skills": {
+      "Acrobatics": 0,
+      "Animal Handling": 4,
+      "Arcana": 1,
+      "Athletics": 6,
+      "Deception": -1,
+      "History": 1,
+      "Insight": 1,
+      "Intimidation": -1,
+      "Investigation": 1,
+      "Medicine": 1,
+      "Nature": 4,
+      "Perception": 1,
+      "Performance": -1,
+      "Persuasion": -1,
+      "Religion": 1,
+      "Sleight of Hand": 0,
+      "Stealth": 0,
+      "Survival": 4
+    },
+    "passivePerception": 11,
+    "armorClass": 14,
+    "initiative": 0,
+    "speed": 35,
+    "hitPointMax": 64,
+    "rageMax": 4,
+    "discrepancies": [
+      "CON save: na papíře +5, správně je +7 (CON +4, proficiency +3)",
+      "Rudý meč: na papíře zranění 1d8+3, jako meč +1 je to 1d8+4 (viz TO_CONFIRM)"
+    ]
+  },
+  "openQuestions": [
+    "HP: jednotlivé hody na levelech 2 až 6 (na papíře maximum přepsané ze 70 na 64)",
+    "Rudý meč: +1 k útoku i zranění, nebo jen k útoku, nebo jen někdy?",
+    "Fotka"
+  ],
+  "tactics": {
+    "attacks": [
+      {
+        "title": "Greataxe v Rage",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "1d12+5 slashing",
+        "roll": "1d12+5",
+        "range": "5 ft",
+        "usage": "Akce Attack: 2 údery (Extra Attack). S Reckless Attack hážeš s výhodou.",
+        "note": "+2 z Rage je už ve zranění, bez Rage 1d12+3. ~11,5 dmg na zásah.",
+        "count": 2
+      },
+      {
+        "title": "Frenzy: úder navíc",
+        "actionType": "bonus",
+        "toHit": "d20+6",
+        "damage": "1d12+5 slashing",
+        "roll": "1d12+5",
+        "range": "5 ft",
+        "usage": "Jen v Rage se zapnutým Frenzy: každé kolo bonusovou akcí jeden úder navíc.",
+        "note": "Po skončení Rage dostaneš 1 úroveň únavy (exhaustion)."
+      },
+      {
+        "title": "Rudý meč v Rage",
+        "actionType": "action",
+        "toHit": "d20+7",
+        "damage": "1d10+6 slashing (oběma rukama)",
+        "roll": "1d10+6",
+        "range": "5 ft",
+        "usage": "Alternativa k sekeře: o 1 lepší zásah, stejné průměrné zranění. Jednou rukou 1d8+6 (třeba se štítem).",
+        "note": "Meč +1 a Rage +2. Bez Rage 1d10+4.",
+        "count": 2
+      },
+      {
+        "title": "Handaxe (hod)",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "1d6+3 slashing",
+        "roll": "1d6+3",
+        "range": "20/60 ft",
+        "usage": "Na nepřítele, ke kterému se tento tah nedostaneš: Attack 2× (máš 2 sekery).",
+        "note": "Hod je útok na dálku, bonus z Rage ani Reckless Attack na něj neplatí. Sekery pak seber.",
+        "count": 2
+      }
+    ],
+    "ki": [
+      {
+        "title": "Rage",
+        "actionType": "bonus",
+        "cost": "free",
+        "description": "Bonusovou akcí, 4× za long rest (odečti ve Zdrojích na přehledu), na 1 minutu: +2 ke zranění útoků zbraní na blízko ze STR, odolnost proti bludgeoning, piercing a slashing, výhoda na STR checky a STR savy. Nesesíláš kouzla ani se nesoustředíš. Skončí dřív, když za celý tah nezaútočíš na nepřítele ani neutrpíš zranění, nebo padneš do bezvědomí."
+      },
+      {
+        "title": "Reckless Attack",
+        "actionType": "free",
+        "cost": "free",
+        "description": "Při prvním útoku v tahu se rozhodneš útočit bezohledně: výhoda na útoky na blízko ze STR po celý tah, ale do tvého dalšího tahu mají výhodu i útoky na tebe."
+      },
+      {
+        "title": "Frenzy",
+        "actionType": "bonus",
+        "cost": "free",
+        "description": "Když zapínáš Rage, můžeš ho zapnout jako Frenzy: po dobu Rage každé kolo bonusovou akcí jeden útok zbraní na blízko navíc. Až Rage skončí, dostaneš 1 úroveň únavy (exhaustion), kterou sundá až long rest."
+      }
+    ],
+    "passives": [
+      {
+        "title": "Extra Attack",
+        "type": "passive",
+        "description": "Akce Attack = 2 útoky."
+      },
+      {
+        "title": "Unarmored Defense",
+        "type": "passive",
+        "description": "Bez zbroje AC 10 + DEX + CON = 14. Štít smíš nosit (+2 AC, pak ale meč jen jednou rukou)."
+      },
+      {
+        "title": "Danger Sense",
+        "type": "passive",
+        "description": "Výhoda na DEX savy proti efektům, které vidíš (pasti, kouzla jako Fireball). Neplatí, když jsi oslepený, ohlušený nebo neschopný jednat."
+      },
+      {
+        "title": "Mindless Rage",
+        "type": "passive",
+        "description": "V Rage tě nejde okouzlit (Charmed) ani vystrašit (Frightened). Když tě to potká před Rage, zapnutím Rage to po dobu Rage přestane platit."
+      },
+      {
+        "title": "Fast Movement",
+        "type": "passive",
+        "description": "+10 ft rychlosti bez těžké zbroje: 35 ft (trpaslík má 25)."
+      },
+      {
+        "title": "Trpasličí odolnost",
+        "type": "passive",
+        "description": "Dwarven Resilience: výhoda na savy proti jedu a odolnost proti poison zranění. Darkvision 60 ft."
+      }
+    ],
+    "combos": [
+      {
+        "title": "Otevření: Rage a 2 bezohledné údery",
+        "steps": [
+          "Bonusová akce: Rage",
+          "Akce: Attack 2× Greataxe s Reckless Attack (výhoda)",
+          "Další kola: 2× Greataxe, Reckless jen když potřebuješ trefit"
+        ],
+        "expectedDamage": "~23 za kolo, když trefíš oba",
+        "cost": "free",
+        "highlight": true,
+        "description": "Základ každého boje. Rage odolnost polovičí zranění od zbraní, takže Reckless Attack tolik nebolí.",
+        "uses": [{ "title": "Rage" }, { "title": "Greataxe v Rage" }]
+      },
+      {
+        "title": "Berserk naplno (Frenzy)",
+        "steps": [
+          "Bonusová akce: Rage jako Frenzy",
+          "Akce: Attack 2× Greataxe (s Reckless)",
+          "Další kola: 2× Greataxe a bonusovou akcí úder navíc"
+        ],
+        "expectedDamage": "~23 v prvním kole, ~34 v dalších",
+        "cost": "free",
+        "highlight": true,
+        "description": "Na bosse a důležité souboje. Po Rage 1 úroveň únavy (nevýhoda na ability checky), druhá úroveň už půlí rychlost.",
+        "uses": [{ "title": "Rage" }, { "title": "Greataxe v Rage" }, { "title": "Frenzy: úder navíc" }]
+      },
+      {
+        "title": "Sekery a pak útok",
+        "steps": [
+          "Nepřítel je daleko: Attack 2× Handaxe hodem (20/60 ft)",
+          "Další tah: dojdi k němu (35 ft), bonusovou akcí Rage a 2× Greataxe"
+        ],
+        "cost": "free",
+        "description": "Rage zapni až ve chvíli, kdy můžeš hned útočit na blízko, jinak by mohl skončit dřív.",
+        "uses": [{ "title": "Handaxe (hod)" }]
+      },
+      {
+        "title": "Štít pro družinu",
+        "steps": [
+          "Bonusová akce: Rage (odolnost proti zbraním)",
+          "Postav se mezi nepřátele a slabší členy družiny",
+          "Akce: 2× Rudý meč nebo Greataxe, bez Reckless, ať na tebe útočí bez výhody"
+        ],
+        "cost": "free",
+        "description": "Když potřebuješ vydržet a krýt ostatní, ne co nejvíc zranit.",
+        "uses": [{ "title": "Rage" }, { "title": "Rudý meč v Rage" }]
+      }
+    ],
+    "rules": [
+      {
+        "title": "Kdy Rage skončí",
+        "text": "Po 1 minutě (10 kol), když padneš do bezvědomí, nebo když za celý svůj tah nezaútočíš na nepřítele ani neutrpíš zranění. Ukončit ho můžeš i sám bonusovou akcí. Zapnutý Rage = žádná kouzla a koncentrace."
+      },
+      {
+        "title": "Reckless Attack",
+        "text": "Rozhoduješ se při prvním útoku v tahu a platí na všechny útoky na blízko ze STR v tom tahu. Výhodu proti tobě mají nepřátelé až do začátku tvého dalšího tahu."
+      },
+      {
+        "title": "Únava (exhaustion)",
+        "text": "Frenzy dá po Rage 1 úroveň. 1: nevýhoda na ability checky. 2: poloviční rychlost. 3: nevýhoda na útoky a savy. 4: poloviční maximum HP. 5: rychlost 0. 6: smrt. Long rest s jídlem a pitím sundá 1 úroveň."
+      },
+      {
+        "title": "Hozená sekera",
+        "text": "Handaxe hodem je útok na dálku (ze STR, 20 ft normálně, do 60 ft s nevýhodou). Bonus z Rage a Reckless Attack platí jen na útoky na blízko."
+      },
+      {
+        "title": "Rage za den",
+        "text": "4 Rage do long restu. Nezapínej ho na každou drobnost, na 6. levelu je to tvůj hlavní zdroj síly."
+      }
+    ]
+  }
+}

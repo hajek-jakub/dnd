@@ -27,7 +27,7 @@ final class CharacterSeeder
     public const TEST_CAMPAIGN_NAME = 'Testovací kampaň (seed)';
 
     private const TOP_KEYS = ['_info', 'character', 'ruleset', 'classes', 'abilityScores', 'proficiencies', 'hitPoints', 'resources', 'spells', 'attacks', 'inventory', 'currency', 'effects', 'sheetValues', 'tactics', 'openQuestions'];
-    private const CHARACTER_KEYS = ['name', 'race', 'background', 'alignment', 'notes', 'description'];
+    private const CHARACTER_KEYS = ['name', 'race', 'subrace', 'background', 'alignment', 'notes', 'description', 'personality', 'baseSpeed'];
     private const PROF_KEYS = ['savingThrows', 'skills', 'expertise', 'languages', 'weapons', 'armor', 'tools'];
     private const ITEM_KEYS = ['item', 'qty', 'equipped', 'homebrew', 'custom', 'kind', 'weapon', 'base', 'magicBonus', 'damageDice', 'extraDamage', 'attunement', 'consumable', 'description', 'note'];
     /** Hodnoty homebrew zbraně zadané přímo v seedu (`weapon`), když v SRD není žádný základ (např. pistole). */
@@ -164,6 +164,14 @@ final class CharacterSeeder
         $name = is_string($char['name'] ?? null) ? trim($char['name']) : '';
         if ($name === '') {
             $fail('Chybí character.name.');
+        }
+        try {
+            Sheets::personality(['personality' => $char['personality'] ?? []]);
+        } catch (HttpError $e) {
+            $fail('character.personality: ' . $e->getMessage());
+        }
+        if (isset($char['baseSpeed']) && (!is_int($char['baseSpeed']) || $char['baseSpeed'] < 0 || $char['baseSpeed'] > 200)) {
+            $fail('character.baseSpeed musí být rychlost ve stopách (celé číslo).');
         }
 
         // majitel a kampaň
@@ -576,6 +584,10 @@ final class CharacterSeeder
             'create' => [
                 'name' => $name,
                 'race' => (string) ($char['race'] ?? ''),
+                'subrace' => (string) ($char['subrace'] ?? ''),
+                // rychlost rasy (trpaslík 25 ft); Fast Movement a Unarmored Movement přičte engine
+                'baseSpeed' => is_int($char['baseSpeed'] ?? null) ? $char['baseSpeed'] : 30,
+                'personality' => is_array($char['personality'] ?? null) ? $char['personality'] : [],
                 'background' => (string) ($char['background'] ?? ''),
                 'alignment' => (string) ($char['alignment'] ?? ''),
                 'description' => (string) ($char['description'] ?? ''),
