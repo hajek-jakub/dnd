@@ -61,7 +61,7 @@ test('DM si nechá od AI připravit loot a návrh potvrdí (počítač i telefon
 
   await page.getByRole('button', { name: 'AI pomocník' }).click()
   const panel = page.getByRole('dialog', { name: 'AI pomocník' })
-  await expect(panel.getByText('Zkus třeba:')).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Šablona: Dungeon' })).toBeVisible()
   for (const theme of ['light', 'dark'] as const) await audit(page, `prázdný panel (${theme})`, theme)
 
   await panel.getByLabel('Zpráva pro AI').fill(`[[mock:${key}]] Připrav hrobku`)
@@ -95,6 +95,72 @@ test('DM si nechá od AI připravit loot a návrh potvrdí (počítač i telefon
   await expect(panel.getByRole('region', { name: 'Návrh: Loot: Hrobka' }).getByText('Vytvořeno', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Zavřít' }).click()
   await expect(panel).toBeHidden()
+})
+
+test('šablona složí zadání a návrh setkání ukáže nepřátele a jejich loot', async ({ page }) => {
+  test.setTimeout(90_000)
+  await registerDm(page, 'aidm')
+  await newCampaign(page, 'AI setkání')
+  const monsters = await (await page.request.get('/api/rules?q=Goblin&kinds=monster')).json()
+  const goblin = monsters.entries.find((e: { name: string }) => e.name === 'Goblin').id as string
+
+  await page.getByRole('button', { name: 'AI pomocník' }).click()
+  const panel = page.getByRole('dialog', { name: 'AI pomocník' })
+  await panel.getByRole('button', { name: 'Šablona: Dungeon' }).click()
+  const template = panel.getByRole('form', { name: 'Šablona: Dungeon' })
+  await template.getByLabel('Počet místností').fill('3')
+  await template.getByLabel('Obtížnost setkání').selectOption('těžká')
+  await template.getByRole('button', { name: 'Vložit do zprávy' }).click()
+  const message = panel.getByLabel('Zpráva pro AI')
+  await expect(message).toHaveValue(/Připrav dungeon „Hrobka krále“ s 3 místnostmi/)
+  await expect(message).toHaveValue(/Obtížnost setkání: těžká/)
+  await expect(message).toBeFocused()
+
+  const key = uniqueName('e2eenc')
+  await page.request.post(`${MOCK}/__mock/script`, {
+    data: {
+      key,
+      responses: [
+        {
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tu_1',
+              name: 'propose_loot',
+              input: {
+                title: 'Hrobka: 1. Vstup',
+                entries: [
+                  { folder: ['Hrobka krále', '1. Vstup'], type: 'enemy', key: 'g', ruleId: goblin, count: 3 },
+                  { folder: ['Hrobka krále', '1. Vstup'], type: 'gold', coins: { sp: 15 }, name: 'Měšce', dropFrom: 'g' },
+                ],
+              },
+            },
+          ],
+        },
+        { content: [{ type: 'text', text: 'Hotovo: **3× Goblin** u vstupu.' }] },
+      ],
+    },
+  })
+  await message.fill(`[[mock:${key}]] ${await message.inputValue()}`)
+  await message.press('Enter')
+  const proposal = panel.getByRole('region', { name: 'Návrh: Hrobka: 1. Vstup' })
+  await expect(proposal.getByText('3× Goblin')).toBeVisible()
+  await expect(proposal.getByText('CR 1/4 · AC 15 · HP 7')).toBeVisible()
+  await expect(proposal.getByText('padá z: Goblin')).toBeVisible()
+  await proposal.getByRole('button', { name: 'Vytvořit v lootu' }).click()
+  await expect(proposal.getByText('Vytvořeno', { exact: true })).toBeVisible()
+  await proposal.getByRole('link', { name: 'Otevřít loot' }).click()
+  const tree = page.getByRole('navigation', { name: 'Složky lootu' })
+  await tree.getByRole('button', { name: /^Hrobka krále/ }).click()
+  await tree.getByRole('button', { name: /^1\. Vstup/ }).click()
+  await expect(page.getByTestId('loot-enemy-Goblin').getByText('Měšce')).toBeVisible()
+
+  // šablony jdou otevřít i v rozběhnuté konverzaci
+  await page.getByRole('button', { name: 'AI pomocník' }).click()
+  await panel.getByRole('button', { name: 'Šablony' }).click()
+  await expect(panel.getByRole('button', { name: 'Šablona: Obchod' })).toBeVisible()
+  await panel.getByRole('button', { name: 'Zavřít šablony' }).click()
+  await expect(panel.getByRole('button', { name: 'Šablona: Obchod' })).toHaveCount(0)
 })
 
 test('hráč ani DM bez povolení tlačítko AI nevidí', async ({ page, browser, baseURL, isMobile }) => {

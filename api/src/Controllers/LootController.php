@@ -20,6 +20,8 @@ use Dnd\Response;
  * Item v lootu je samostatná kopie ve tvaru vstupu vlastního itemu (včetně kletby): i item z pravidel se uloží celý, takže jde upravit
  * a rozdá se stejnou cestou jako vlastní item (nic se znovu nedohledává, smazaný homebrew ho nerozbije). Je to zároveň „dílna“ DM.
  * Item může mít cenu (`price_cp`): pak je na prodej (obchod) a příjemce ji při rozdání zaplatí; bez ceny je to nalezená věc zdarma.
+ * Nepřítel (`kind = 'enemy'`) je šablona do boje (stat blok a počet kusů): „Do boje“ ho pošle do Panelu DM. Item nebo zlato může z nepřítele
+ * padat (`drop_from`): v přípravě je u něj vidět a v Panelu DM ho DM uvidí na kartě nepřítele, až padne. Rozdává se jako každý jiný loot.
  */
 final class LootController
 {
@@ -99,9 +101,10 @@ final class LootController
         $folder = self::folderId($in, $params['id']);
         $data = self::entryData($in, $params['id'], $user);
         $price = self::price($in, $data['kind']);
-        $id = Db::transaction(static function () use ($params, $folder, $data, $price): string {
+        $dropFrom = self::dropFrom($in['dropFrom'] ?? null, $params['id'], $data['kind'], null);
+        $id = Db::transaction(static function () use ($params, $folder, $data, $price, $dropFrom): string {
             Db::one('SELECT id FROM campaigns WHERE id = ? FOR UPDATE', [$params['id']]);
-            return self::insertEntry($params['id'], $folder, $data, $price);
+            return self::insertEntry($params['id'], $folder, $data, $price, $dropFrom);
         });
         return Response::json(['entry' => self::entryPayload(self::entry($id))], 201);
     }
@@ -118,7 +121,7 @@ final class LootController
             $folder = self::folderId($in, $campaignId);
         }
         $data = json_decode((string) $row['data'], true);
-        if (array_key_exists('item', $in) || array_key_exists('currency', $in) || array_key_exists('name', $in)) {
+        if (array_key_exists('item', $in) || array_key_exists('currency', $in) || array_key_exists('name', $in) || array_key_exists('enemy', $in)) {
             $merged = $in + ['kind' => $row['kind']];
             if ($merged['kind'] !== $row['kind']) {
                 throw HttpError::validation('Druh položky nejde změnit.', 'kind');
@@ -127,9 +130,10 @@ final class LootController
         }
         $given = array_key_exists('givenTo', $in) && $in['givenTo'] === '' ? '' : (string) $row['given_to'];
         $price = array_key_exists('price', $in) ? self::price($in, (string) $row['kind']) : ($row['price_cp'] === null ? null : (int) $row['price_cp']);
+        $dropFrom = array_key_exists('dropFrom', $in) ? self::dropFrom($in['dropFrom'], $campaignId, (string) $row['kind'], (string) $row['id']) : $row['drop_from'];
         Db::exec(
-            'UPDATE loot_entries SET folder_id = ?, data = ?, price_cp = ?, given_to = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
-            [$folder, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $given, $row['id']],
+            'UPDATE loot_entries SET folder_id = ?, drop_from = ?, data = ?, price_cp = ?, given_to = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+            [$folder, $dropFrom, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $given, $row['id']],
         );
         return ['entry' => self::entryPayload(self::entry($params['id']))];
     }
@@ -139,7 +143,11 @@ final class LootController
     {
         $row = self::entry($params['id']);
         Access::requireDm($user, (string) $row['campaign_id']);
-        Db::exec('DELETE FROM loot_entries WHERE id = ?', [$row['id']]);
+        Db::transaction(static function () use ($row): void {
+            // Loot smazaného nepřítele zůstane ve složce, jen už z nikoho nepadá.
+            Db::exec('UPDATE loot_entries SET drop_from = NULL WHERE drop_from = ?', [$row['id']]);
+            Db::exec('DELETE FROM loot_entries WHERE id = ?', [$row['id']]);
+        });
         return null;
     }
 
@@ -175,6 +183,9 @@ final class LootController
                 $data = json_decode((string) $row['data'], true);
                 $data = is_array($data) ? $data : [];
                 $priceCp = $row['kind'] === 'item' && $row['price_cp'] !== null ? (int) $row['price_cp'] : null;
+                if ($row['kind'] === 'enemy') {
+                    throw HttpError::validation('Nepřítele nejde rozdat. Pošli ho do boje, rozdává se loot, který z něj padá.', 'assignments');
+                }
                 if ($row['kind'] === 'item') {
                     // Item na prodej: každý příjemce zaplatí cenu (kdo nemá dost, celé rozdání se zruší).
                     $labels = DmController::grantItem($params['id'], $user, $p['characterIds'], $data, $priceCp);
@@ -194,6 +205,33 @@ final class LootController
             return $out;
         });
         return ['given' => $result] + self::tree($params['id']);
+    }
+
+    /**
+     * Pošle nepřátele z přípravy do boje (Panel DM). Tělo: `{entryIds: [...]}` (položky druhu 'enemy' z této kampaně).
+     * Každá šablona vytvoří tolik nepřátel, kolik má kusů; všechno v jedné transakci. @param array{id:string} $user
+     */
+    public static function deploy(Request $req, array $params, array $user): array
+    {
+        Access::requireDm($user, $params['id']);
+        $ids = $req->json()['entryIds'] ?? null;
+        if (!is_array($ids) || $ids === [] || count($ids) > 50) {
+            throw HttpError::validation('Pošli 1 až 50 nepřátel v poli entryIds.', 'entryIds');
+        }
+        $names = Db::transaction(static function () use ($params, $ids): array {
+            Db::one('SELECT id FROM campaigns WHERE id = ? FOR UPDATE', [$params['id']]);
+            $out = [];
+            foreach (array_values(array_unique($ids, SORT_REGULAR)) as $id) {
+                $row = is_string($id) && Ids::isUuid($id) ? Db::one("SELECT * FROM loot_entries WHERE id = ? AND campaign_id = ? AND kind = 'enemy'", [$id, $params['id']]) : null;
+                if ($row === null) {
+                    throw HttpError::validation('Nepřítel není z přípravy této kampaně.', 'entryIds');
+                }
+                $data = json_decode((string) $row['data'], true);
+                array_push($out, ...EnemyController::spawn($params['id'], is_array($data) ? $data : [], (string) $row['id']));
+            }
+            return $out;
+        });
+        return ['created' => $names];
     }
 
     // ------------------------------------------------------------------ zápis (i pro návrhy AI pomocníka)
@@ -232,7 +270,7 @@ final class LootController
      * Uloží ověřenou položku (`entryData`) na konec složky. Volat v transakci se zámkem kampaně.
      * @param array{kind: string, data: array<string, mixed>} $data
      */
-    public static function insertEntry(string $campaignId, ?string $folder, array $data, ?int $price): string
+    public static function insertEntry(string $campaignId, ?string $folder, array $data, ?int $price, ?string $dropFrom = null): string
     {
         if ((int) Db::value('SELECT COUNT(*) FROM loot_entries WHERE campaign_id = ?', [$campaignId]) >= self::MAX_ENTRIES) {
             throw HttpError::validation('Položek lootu může být nejvýš ' . self::MAX_ENTRIES . '.', 'kind');
@@ -240,8 +278,8 @@ final class LootController
         $id = Ids::uuid();
         $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM loot_entries WHERE campaign_id = ? AND folder_id <=> ?', [$campaignId, $folder]);
         Db::exec(
-            'INSERT INTO loot_entries (id, campaign_id, folder_id, kind, data, price_cp, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-            [$id, $campaignId, $folder, $data['kind'], json_encode($data['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $pos],
+            'INSERT INTO loot_entries (id, campaign_id, folder_id, drop_from, kind, data, price_cp, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+            [$id, $campaignId, $folder, $dropFrom, $data['kind'], json_encode($data['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $price, $pos],
         );
         return $id;
     }
@@ -251,10 +289,36 @@ final class LootController
     /** @return array{folders: list<array<string, mixed>>, entries: list<array<string, mixed>>} */
     public static function tree(string $campaignId): array
     {
+        $entries = Db::all('SELECT * FROM loot_entries WHERE campaign_id = ? ORDER BY position, created_at, id', [$campaignId]);
+        // Odkaz „padá z“ na nepřítele, který zmizel se smazanou složkou, se ignoruje.
+        $enemies = array_flip(array_column(array_filter($entries, static fn (array $e): bool => $e['kind'] === 'enemy'), 'id'));
         return [
             'folders' => array_map([self::class, 'folderPayload'], Db::all('SELECT * FROM loot_folders WHERE campaign_id = ? ORDER BY position, created_at, id', [$campaignId])),
-            'entries' => array_map([self::class, 'entryPayload'], Db::all('SELECT * FROM loot_entries WHERE campaign_id = ? ORDER BY position, created_at, id', [$campaignId])),
+            'entries' => array_map(static fn (array $e): array => self::entryPayload($e, isset($enemies[$e['drop_from'] ?? ''])), $entries),
         ];
+    }
+
+    /** Krátký popisek položky („Scimitar ×2“, „Měšec: 12 sp“, „3× Goblin“) pro Panel DM a AI. @param array<string, mixed> $r */
+    public static function label(array $r): string
+    {
+        $d = json_decode((string) $r['data'], true);
+        $d = is_array($d) ? $d : [];
+        if ($r['kind'] === 'gold') {
+            $coins = [];
+            foreach (['pp', 'gp', 'ep', 'sp', 'cp'] as $c) {
+                if ((int) ($d['currency'][$c] ?? 0) > 0) {
+                    $coins[] = (int) $d['currency'][$c] . ' ' . $c;
+                }
+            }
+            $name = trim((string) ($d['name'] ?? ''));
+            return ($name !== '' ? $name . ': ' : '') . implode(', ', $coins);
+        }
+        if ($r['kind'] === 'enemy') {
+            $count = (int) ($d['count'] ?? 1);
+            return ($count > 1 ? $count . '× ' : '') . (string) ($d['name'] ?? 'Nepřítel');
+        }
+        $q = (int) ($d['quantity'] ?? 1);
+        return (string) ($d['name'] ?? 'Item') . ($q > 1 ? ' ×' . $q : '');
     }
 
     /**
@@ -286,8 +350,15 @@ final class LootController
             }
             return ['kind' => 'gold', 'data' => ['name' => Input::optionalString($in, 'name', 120, 'Název') ?? '', 'currency' => $coins]];
         }
+        if ($kind === 'enemy') {
+            $enemy = $in['enemy'] ?? null;
+            if (!is_array($enemy)) {
+                throw HttpError::validation('Zadej nepřítele (jméno, HP, AC, útoky).', 'enemy');
+            }
+            return ['kind' => 'enemy', 'data' => EnemyController::template($enemy)];
+        }
         if ($kind !== 'item') {
-            throw HttpError::validation("Druh položky musí být 'item' nebo 'gold'.", 'kind');
+            throw HttpError::validation("Druh položky musí být 'item', 'gold' nebo 'enemy'.", 'kind');
         }
         $item = $in['item'] ?? null;
         if (!is_array($item)) {
@@ -305,9 +376,27 @@ final class LootController
     {
         $price = Money::priceCp($in['price'] ?? null);
         if ($price !== null && $kind !== 'item') {
-            throw HttpError::validation('Cenu může mít jen item, zlato ne.', 'price');
+            throw HttpError::validation('Cenu může mít jen item, zlato ani nepřítel ne.', 'price');
         }
         return $price;
+    }
+
+    /**
+     * Ověří odkaz „padá z“: nepřítel z přípravy téže kampaně; z nepřítele může padat jen item nebo zlato. null = z nikoho.
+     */
+    public static function dropFrom(mixed $value, string $campaignId, string $kind, ?string $selfId): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($kind === 'enemy') {
+            throw HttpError::validation('Nepřítel nemůže padat z jiného nepřítele.', 'dropFrom');
+        }
+        if (!is_string($value) || !Ids::isUuid($value) || $value === $selfId
+            || Db::one("SELECT id FROM loot_entries WHERE id = ? AND campaign_id = ? AND kind = 'enemy'", [$value, $campaignId]) === null) {
+            throw HttpError::validation('Loot může padat jen z nepřítele v přípravě této kampaně.', 'dropFrom');
+        }
+        return $value;
     }
 
     /** @param array<string, mixed> $in */
@@ -368,12 +457,17 @@ final class LootController
     }
 
     /** @param array<string, mixed> $r @return array<string, mixed> */
-    private static function entryPayload(array $r): array
+    private static function entryPayload(array $r, ?bool $dropValid = null): array
     {
         $data = json_decode((string) $r['data'], true);
+        $dropFrom = $r['drop_from'] ?? null;
+        if ($dropFrom !== null && $dropValid === null) {
+            $dropValid = Db::value("SELECT id FROM loot_entries WHERE id = ? AND kind = 'enemy'", [$dropFrom]) !== null;
+        }
         return [
             'id' => $r['id'],
             'folderId' => $r['folder_id'],
+            'dropFrom' => $dropFrom !== null && $dropValid ? $dropFrom : null,
             'kind' => $r['kind'],
             'data' => is_array($data) ? $data : new \stdClass(),
             'priceCp' => $r['price_cp'] === null ? null : (int) $r['price_cp'],

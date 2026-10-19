@@ -28,7 +28,7 @@ final class EnemyController
     {
         Access::requireDm($user, $params['id']);
         $rows = Db::all('SELECT * FROM enemies WHERE campaign_id = ? ORDER BY position, created_at, id', [$params['id']]);
-        return ['enemies' => array_map([self::class, 'payload'], $rows)];
+        return ['enemies' => self::payloads($rows)];
     }
 
     /** @param array{id:string} $user */
@@ -46,7 +46,7 @@ final class EnemyController
             $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM enemies WHERE campaign_id = ?', [$params['id']]);
             self::insert($id, $params['id'], $v, $pos);
         });
-        return Response::json(['enemy' => self::payload(self::find($id))], 201);
+        return Response::json(['enemy' => self::payloads([self::find($id)])[0]], 201);
     }
 
     /** @param array{id:string} $user */
@@ -59,7 +59,7 @@ final class EnemyController
             'UPDATE enemies SET name = ?, hp_max = ?, hp_current = ?, ac = ?, initiative = ?, attacks = ?, notes = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?',
             [$v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], $v['initiative'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $row['id']],
         );
-        return ['enemy' => self::payload(self::find($params['id']))];
+        return ['enemy' => self::payloads([self::find($params['id'])])[0]];
     }
 
     /** Zranění (záporné) nebo léčení (kladné); výsledek se ořízne na 0 až maximum. @param array{id:string} $user */
@@ -76,7 +76,7 @@ final class EnemyController
             $new = max(0, min((int) $cur['hp_max'], (int) $cur['hp_current'] + $delta));
             Db::exec('UPDATE enemies SET hp_current = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$new, $row['id']]);
         });
-        return ['enemy' => self::payload(self::find($params['id']))];
+        return ['enemy' => self::payloads([self::find($params['id'])])[0]];
     }
 
     /** Kopie nepřítele s plným zdravím a očíslovaným jménem ("Goblin" -> "Goblin 2"). @param array{id:string} $user */
@@ -101,9 +101,9 @@ final class EnemyController
             self::insert($newId, (string) $row['campaign_id'], [
                 'name' => mb_substr("$base $n", 0, 100), 'hpMax' => (int) $row['hp_max'], 'hpCurrent' => (int) $row['hp_max'],
                 'ac' => $row['ac'] === null ? null : (int) $row['ac'], 'initiative' => (int) $row['initiative'], 'attacks' => is_array($attacks) ? $attacks : [], 'notes' => (string) $row['notes'],
-            ], $pos);
+            ], $pos, $row['source_entry_id'] === null ? null : (string) $row['source_entry_id']);
         });
-        return Response::json(['enemy' => self::payload(self::find($newId))], 201);
+        return Response::json(['enemy' => self::payloads([self::find($newId)])[0]], 201);
     }
 
     /** @param array{id:string} $user */
@@ -221,19 +221,100 @@ final class EnemyController
     }
 
     /** @param array<string, mixed> $v */
-    private static function insert(string $id, string $campaignId, array $v, int $position): void
+    private static function insert(string $id, string $campaignId, array $v, int $position, ?string $sourceEntryId = null): void
     {
         Db::exec(
-            'INSERT INTO enemies (id, campaign_id, name, hp_max, hp_current, ac, initiative, attacks, notes, position, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-            [$id, $campaignId, $v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], $v['initiative'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $position],
+            'INSERT INTO enemies (id, campaign_id, source_entry_id, name, hp_max, hp_current, ac, initiative, attacks, notes, position, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+            [$id, $campaignId, $sourceEntryId, $v['name'], $v['hpMax'], $v['hpCurrent'], $v['ac'], $v['initiative'], json_encode($v['attacks'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $v['notes'], $position],
         );
+    }
+
+    // ------------------------------------------------------------------ šablony z přípravy (loot) a nasazení do boje
+
+    /**
+     * Ověří šablonu nepřítele pro přípravu: stejné hodnoty jako nový nepřítel (jméno, HP, AC, iniciativa, útoky, poznámka) a navíc
+     * počet kusů, CR a XP (jen pro přehled DM a AI).
+     * @param array<string, mixed> $in
+     * @return array<string, mixed>
+     */
+    public static function template(array $in): array
+    {
+        $v = self::validate($in, null);
+        unset($v['hpCurrent']);
+        $count = Input::optionalInt($in, 'count', 1, 20, 'Počet kusů') ?? 1;
+        $cr = $in['cr'] ?? null;
+        if ($cr !== null && (!is_string($cr) || preg_match('#^(0|1/8|1/4|1/2|[1-9]\d?)$#', $cr) !== 1)) {
+            throw HttpError::validation('CR musí být 0, 1/8, 1/4, 1/2 nebo celé číslo do 99.', 'cr');
+        }
+        $xp = Input::optionalInt($in, 'xp', 0, 1_000_000, 'XP');
+        return $v + ['count' => $count, 'cr' => $cr, 'xp' => $xp];
+    }
+
+    /**
+     * Pošle šablonu z přípravy do boje: vytvoří `count` nepřátel s plným zdravím („Goblin 1“, „Goblin 2“…), kteří si pamatují šablonu
+     * (a tím i loot, který z nich padá). Volat v transakci se zámkem kampaně. Vrací jména nových nepřátel.
+     * @param array<string, mixed> $template
+     * @return list<string>
+     */
+    public static function spawn(string $campaignId, array $template, string $sourceEntryId): array
+    {
+        $count = max(1, min(20, (int) ($template['count'] ?? 1)));
+        if ((int) Db::value('SELECT COUNT(*) FROM enemies WHERE campaign_id = ?', [$campaignId]) + $count > self::MAX_PER_CAMPAIGN) {
+            throw HttpError::validation('V kampani může být nejvýš ' . self::MAX_PER_CAMPAIGN . ' nepřátel. Smaž v Panelu DM ty, kteří už padli.');
+        }
+        $v = self::validate($template, null);
+        $base = mb_substr($v['name'], 0, 96);
+        $names = array_column(Db::all('SELECT name FROM enemies WHERE campaign_id = ?', [$campaignId]), 'name');
+        $created = [];
+        $n = 1;
+        for ($i = 0; $i < $count; $i++) {
+            if ($count === 1 && !in_array($base, $names, true)) {
+                $name = $base;
+            } else {
+                while (in_array("$base $n", $names, true)) {
+                    $n++;
+                }
+                $name = "$base $n";
+            }
+            $names[] = $name;
+            $pos = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM enemies WHERE campaign_id = ?', [$campaignId]);
+            self::insert(Ids::uuid(), $campaignId, ['name' => $name, 'hpCurrent' => $v['hpMax']] + $v, $pos, $sourceEntryId);
+            $created[] = $name;
+        }
+        return $created;
     }
 
     /** @return array<string, mixed> */
     private static function find(string $id): array
     {
         return (Ids::isUuid($id) ? Db::one('SELECT * FROM enemies WHERE id = ?', [$id]) : null) ?? throw HttpError::notFound('Nepřítel nenalezen.');
+    }
+
+    /**
+     * Nepřátelé pro odpověď, u nepřítele z přípravy i s lootem, který z něj padá (položky přípravy s `drop_from` na jeho šablonu).
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
+     */
+    private static function payloads(array $rows): array
+    {
+        $sources = array_values(array_unique(array_filter(array_column($rows, 'source_entry_id'), static fn (mixed $v): bool => $v !== null)));
+        $folders = [];
+        $drops = [];
+        if ($sources !== []) {
+            $in = implode(',', array_fill(0, count($sources), '?'));
+            foreach (Db::all("SELECT id, folder_id FROM loot_entries WHERE id IN ($in)", $sources) as $e) {
+                $folders[$e['id']] = $e['folder_id'];
+            }
+            foreach (Db::all("SELECT * FROM loot_entries WHERE drop_from IN ($in) ORDER BY position, created_at, id", $sources) as $e) {
+                $drops[$e['drop_from']][] = ['id' => $e['id'], 'label' => LootController::label($e), 'givenTo' => (string) $e['given_to']];
+            }
+        }
+        return array_map(static fn (array $r): array => self::payload($r) + [
+            'sourceEntryId' => $r['source_entry_id'],
+            'sourceFolderId' => $r['source_entry_id'] !== null ? ($folders[$r['source_entry_id']] ?? null) : null,
+            'drops' => $r['source_entry_id'] !== null ? ($drops[$r['source_entry_id']] ?? []) : [],
+        ], $rows);
     }
 
     /** @param array<string, mixed> $r @return array<string, mixed> */

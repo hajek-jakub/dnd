@@ -10,7 +10,7 @@ import type { LootEntry, LootFolder } from './api'
 import { entryLabel, entryMeta, folderPath } from './labels'
 
 function EntryIcon({ entry }: { entry: LootEntry }) {
-  const kind = entry.kind === 'gold' ? 'gold' : entry.data.kind
+  const kind = entry.kind === 'item' ? entry.data.kind : entry.kind
   const Icon = kind === 'gold' ? CoinsIcon : kind === 'weapon' ? SwordIcon : kind === 'armor' || kind === 'shield' ? ShieldIcon : GemIcon
   return <Icon aria-hidden className={cn('mt-0.5 size-4 shrink-0', kind === 'gold' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')} />
 }
@@ -29,6 +29,7 @@ export function LootEntryRow({
   onMove,
   onClearGiven,
   onDelete,
+  dropLabel,
 }: {
   entry: LootEntry
   folders: LootFolder[]
@@ -43,6 +44,8 @@ export function LootEntryRow({
   onMove: (folderId: string | null) => void
   onClearGiven: () => void
   onDelete: () => void
+  /** Jméno nepřítele, ze kterého položka padá, když řádek není přímo pod ním (nepřítel je v jiné složce). */
+  dropLabel?: string
 }) {
   const [open, setOpen] = useState(false)
   const label = entryLabel(entry)
@@ -70,6 +73,7 @@ export function LootEntryRow({
           </p>
           <p className="text-xs text-muted-foreground">{entryMeta(entry)}</p>
           {entry.priceCp !== null && <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Na prodej za {formatCp(entry.priceCp)} (kupující zaplatí)</p>}
+          {dropLabel && <p className="text-xs font-medium text-red-700 dark:text-red-400">Padá z: {dropLabel}</p>}
           {given && <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Rozdáno: {entry.givenTo}</p>}
           {assignedTo.length > 0 && <p className="text-xs font-medium text-primary">Připraveno pro: {assignedTo.join(', ')}</p>}
         </div>

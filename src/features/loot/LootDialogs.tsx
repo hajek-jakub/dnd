@@ -12,6 +12,7 @@ import { ItemSourcePicker } from '@/features/sheet/ItemSourcePicker'
 import { formValuesFromInput } from '@/features/sheet/item-form-values'
 import { PriceFields, type PriceMode } from '@/features/sheet/PriceFields'
 import { COINS, coinsFromFields, cpOf, fieldsFromCp, formatCoins, formatCp, fromCp, type Coin } from '@/features/sheet/money'
+import { EnemyEditor } from '@/features/enemies/EnemyForm'
 import {
   folderWithDescendants,
   useCreateEntry,
@@ -21,11 +22,14 @@ import {
   type LootEntry,
   type LootFolder,
 } from './api'
-import { folderPath } from './labels'
+import { entryLabel, folderPath } from './labels'
+
+type EnemyEntry = Extract<LootEntry, { kind: 'enemy' }>
 
 export type LootDialog =
-  | { type: 'item'; entry?: Extract<LootEntry, { kind: 'item' }> }
-  | { type: 'gold'; entry?: Extract<LootEntry, { kind: 'gold' }> }
+  | { type: 'item'; entry?: Extract<LootEntry, { kind: 'item' }>; dropFrom?: string | null }
+  | { type: 'gold'; entry?: Extract<LootEntry, { kind: 'gold' }>; dropFrom?: string | null }
+  | { type: 'enemy'; entry?: EnemyEntry }
   | { type: 'folder'; folder?: LootFolder; parentId: string | null }
   | { type: 'moveFolder'; folder: LootFolder }
 
@@ -37,23 +41,32 @@ export function LootDialogs({
   dialog,
   folderId,
   folders,
+  enemies,
   onClose,
 }: {
   campaignId: string
   dialog: LootDialog | null
   folderId: string | null
   folders: LootFolder[]
+  /** Nepřátelé v přípravě, ze kterých může item nebo zlato padat. */
+  enemies: EnemyEntry[]
   onClose: () => void
 }) {
   const where = folderPath(folders, folderId)
+  const dropProps = { enemies, folders }
   return (
     <>
       <Modal open={dialog?.type === 'item'} onClose={onClose} title={dialog?.type === 'item' && dialog.entry ? 'Upravit item' : `Nový item: ${where}`}>
-        {dialog?.type === 'item' && <ItemEntryForm campaignId={campaignId} folderId={folderId} entry={dialog.entry} onClose={onClose} />}
+        {dialog?.type === 'item' && (
+          <ItemEntryForm campaignId={campaignId} folderId={folderId} entry={dialog.entry} initialDrop={dialog.entry?.dropFrom ?? dialog.dropFrom ?? null} {...dropProps} onClose={onClose} />
+        )}
       </Modal>
       <Modal open={dialog?.type === 'gold'} onClose={onClose} title={dialog?.type === 'gold' && dialog.entry ? 'Upravit zlato' : `Zlato: ${where}`}>
-        {dialog?.type === 'gold' && <GoldForm campaignId={campaignId} folderId={folderId} entry={dialog.entry} onClose={onClose} />}
+        {dialog?.type === 'gold' && (
+          <GoldForm campaignId={campaignId} folderId={folderId} entry={dialog.entry} initialDrop={dialog.entry?.dropFrom ?? dialog.dropFrom ?? null} {...dropProps} onClose={onClose} />
+        )}
       </Modal>
+      {dialog?.type === 'enemy' && <EnemyEntryForm campaignId={campaignId} folderId={folderId} where={where} entry={dialog.entry} onClose={onClose} />}
       <Modal open={dialog?.type === 'folder'} onClose={onClose} title={dialog?.type === 'folder' && dialog.folder ? 'Přejmenovat složku' : 'Nová složka'}>
         {dialog?.type === 'folder' && <FolderForm campaignId={campaignId} folder={dialog.folder} parentId={dialog.parentId} folders={folders} onClose={onClose} />}
       </Modal>
@@ -69,25 +82,37 @@ function ItemEntryForm({
   campaignId,
   folderId,
   entry,
+  initialDrop,
+  enemies,
+  folders,
   onClose,
 }: {
   campaignId: string
   folderId: string | null
   entry?: Extract<LootEntry, { kind: 'item' }>
+  initialDrop: string | null
+  enemies: EnemyEntry[]
+  folders: LootFolder[]
   onClose: () => void
 }) {
   const create = useCreateEntry(campaignId)
   const update = useUpdateEntry(campaignId)
   const [mode, setMode] = useState<PriceMode>(entry?.priceCp ? 'sale' : 'found')
   const [price, setPrice] = useState(() => fieldsFromCp(entry?.priceCp ?? null))
-  const priceFields = <PriceFields idPrefix="loot-price" mode={mode} onMode={setMode} values={price} onValues={setPrice} />
+  const [dropFrom, setDropFrom] = useState<string | null>(initialDrop)
+  const priceFields = (
+    <>
+      <PriceFields idPrefix="loot-price" mode={mode} onMode={setMode} values={price} onValues={setPrice} />
+      <DropSelect id="loot-item-drop" value={dropFrom} onChange={setDropFrom} enemies={enemies} folders={folders} />
+    </>
+  )
 
-  /** Cena v mědácích (null = nalezené zdarma); bez zadané ceny vezme cenu z pravidel. `undefined` = chybí cena. */
-  function priceCp(rulePriceGp?: number | null): number | null | undefined {
+  /** Cena v mědácích (null = nalezené zdarma); bez zadané ceny vezme cenu z pravidel (za kus nebo balení, krát počet). `undefined` = chybí cena. */
+  function priceCp(rulePriceGp?: number | null, quantity = 1): number | null | undefined {
     if (mode === 'found') return null
     const typed = cpOf(coinsFromFields(price))
     if (typed > 0) return typed
-    return rulePriceGp ? Math.round(rulePriceGp * 100) : undefined
+    return rulePriceGp ? Math.round(rulePriceGp * 100) * Math.max(1, quantity) : undefined
   }
 
   if (entry) {
@@ -103,7 +128,7 @@ function ItemEntryForm({
             const cp = priceCp()
             if (cp === undefined) return void toast.error('Zadej cenu, nebo zvol Nalezené.')
             update.mutate(
-              { id: entry.id, item, price: cp === null ? null : fromCp(cp) },
+              { id: entry.id, item, price: cp === null ? null : fromCp(cp), dropFrom },
               {
                 onSuccess: () => {
                   toast.success('Uloženo')
@@ -128,10 +153,10 @@ function ItemEntryForm({
         submitLabel="Přidat do lootu"
         note="Item z pravidel se uloží jako kopie: můžeš ho pak upravit (popis, kletbu, bonusy, cenu) a rozdat."
         onPick={(item, label, rule) => {
-          const cp = priceCp(rule?.priceGp)
+          const cp = priceCp(rule?.priceGp, item.quantity)
           if (cp === undefined) return void toast.error('Zadej cenu (item nemá cenu v pravidlech), nebo zvol Nalezené.')
           create.mutate(
-            { folderId, kind: 'item', item, ...(cp !== null ? { price: fromCp(cp) } : {}) },
+            { folderId, kind: 'item', item, dropFrom, ...(cp !== null ? { price: fromCp(cp) } : {}) },
             {
               onSuccess: () => {
                 toast.success(`Přidáno do lootu: ${label}${cp !== null ? ` (na prodej za ${formatCp(cp)})` : ''}`)
@@ -146,8 +171,25 @@ function ItemEntryForm({
   )
 }
 
-function GoldForm({ campaignId, folderId, entry, onClose }: { campaignId: string; folderId: string | null; entry?: Extract<LootEntry, { kind: 'gold' }>; onClose: () => void }) {
+function GoldForm({
+  campaignId,
+  folderId,
+  entry,
+  initialDrop,
+  enemies,
+  folders,
+  onClose,
+}: {
+  campaignId: string
+  folderId: string | null
+  entry?: Extract<LootEntry, { kind: 'gold' }>
+  initialDrop: string | null
+  enemies: EnemyEntry[]
+  folders: LootFolder[]
+  onClose: () => void
+}) {
   const [name, setName] = useState(entry?.data.name ?? '')
+  const [dropFrom, setDropFrom] = useState<string | null>(initialDrop)
   const [values, setValues] = useState<Record<Coin, string>>(
     () => Object.fromEntries(COINS.map((c) => [c, entry?.data.currency[c] ? String(entry.data.currency[c]) : ''])) as Record<Coin, string>,
   )
@@ -167,8 +209,8 @@ function GoldForm({ campaignId, folderId, entry, onClose }: { campaignId: string
       },
       onError: (err: unknown) => toast.error(errorText(err, 'Zlato se nepodařilo uložit.')),
     }
-    if (entry) update.mutate({ id: entry.id, name: name.trim(), currency }, done)
-    else create.mutate({ folderId, kind: 'gold', name: name.trim(), currency }, done)
+    if (entry) update.mutate({ id: entry.id, name: name.trim(), currency, dropFrom }, done)
+    else create.mutate({ folderId, kind: 'gold', name: name.trim(), currency, dropFrom }, done)
   }
 
   return (
@@ -178,6 +220,7 @@ function GoldForm({ campaignId, folderId, entry, onClose }: { campaignId: string
         <Input id="loot-gold-name" value={name} maxLength={120} placeholder="Truhla v hrobce, měšec banditů…" onChange={(e) => setName(e.target.value)} />
       </div>
       <CoinFields idPrefix="loot-coin" values={values} onChange={(c, v) => setValues((s) => ({ ...s, [c]: v }))} />
+      <DropSelect id="loot-gold-drop" value={dropFrom} onChange={setDropFrom} enemies={enemies} folders={folders} />
       <p className="text-sm text-muted-foreground" aria-live="polite">
         {valid ? `Celkem: ${formatCoins(currency)}. Při rozdání víc postavám se rozdělí rovným dílem.` : 'Zadej aspoň jednu minci.'}
       </p>
@@ -185,6 +228,56 @@ function GoldForm({ campaignId, folderId, entry, onClose }: { campaignId: string
         {entry ? 'Uložit' : 'Přidat do lootu'}
       </Button>
     </form>
+  )
+}
+
+/** Volba nepřítele, ze kterého item nebo zlato padá (v Panelu DM ho DM uvidí na kartě nepřítele, až padne). */
+function DropSelect({
+  id,
+  value,
+  onChange,
+  enemies,
+  folders,
+}: {
+  id: string
+  value: string | null
+  onChange: (id: string | null) => void
+  enemies: EnemyEntry[]
+  folders: LootFolder[]
+}) {
+  if (enemies.length === 0) return null
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>Padá z nepřítele</Label>
+      <NativeSelect id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
+        <option value="">Z nikoho (leží ve složce)</option>
+        {enemies.map((e) => (
+          <option key={e.id} value={e.id}>
+            {entryLabel(e)} ({folderPath(folders, e.folderId)})
+          </option>
+        ))}
+      </NativeSelect>
+    </div>
+  )
+}
+
+/** Nepřítel v přípravě: šablona s počtem kusů (z nestvůry SRD nebo vlastní), „Do boje“ ji pošle do Panelu DM. */
+function EnemyEntryForm({ campaignId, folderId, where, entry, onClose }: { campaignId: string; folderId: string | null; where: string; entry?: EnemyEntry; onClose: () => void }) {
+  const create = useCreateEntry(campaignId)
+  const update = useUpdateEntry(campaignId)
+  return (
+    <EnemyEditor
+      title={entry ? `Upravit: ${entry.data.name}` : `Nový nepřítel: ${where}`}
+      initial={entry?.data}
+      withCount
+      note={entry ? undefined : 'Nepřítel se zatím jen připraví. Do Panelu DM ho pošleš tlačítkem Do boje, až na něj družina narazí.'}
+      onClose={onClose}
+      onSubmit={async (enemy) => {
+        if (entry) await update.mutateAsync({ id: entry.id, enemy })
+        else await create.mutateAsync({ folderId, kind: 'enemy', enemy })
+        toast.success(entry ? 'Uloženo' : `Přidáno do přípravy: ${enemy.count > 1 ? `${enemy.count}× ` : ''}${enemy.name}`)
+      }}
+    />
   )
 }
 

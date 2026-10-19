@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { CopyIcon, DicesIcon, EyeOffIcon, PencilIcon, PlusIcon, ShieldIcon, SkullIcon, Trash2Icon } from 'lucide-react'
+import { CopyIcon, DicesIcon, EyeOffIcon, GiftIcon, PencilIcon, PlusIcon, ShieldIcon, SkullIcon, Trash2Icon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { RichText } from '@/components/RichText'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -143,7 +145,34 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
         </ul>
       )}
 
-      {enemy.notes && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{enemy.notes}</p>}
+      {enemy.notes && <RichText text={enemy.notes} className="break-words text-sm text-muted-foreground" />}
+
+      {enemy.drops.length > 0 && (
+        <div
+          className={cn('space-y-1 rounded-lg border px-3 py-2 text-sm', down ? 'border-amber-500/60 bg-amber-500/10' : 'bg-background/60')}
+          data-testid={`enemy-loot-${enemy.name}`}
+        >
+          <p className="flex items-center gap-1 font-medium">
+            <GiftIcon aria-hidden className="size-4 shrink-0" /> {down ? 'Padl, loot k rozdání:' : 'Loot, který z něj padá:'}
+          </p>
+          <ul className="list-disc pl-5">
+            {enemy.drops.map((d) => (
+              <li key={d.id} className={cn(d.givenTo && 'text-muted-foreground line-through')}>
+                {d.label}
+                {d.givenTo && <span className="sr-only"> (rozdáno: {d.givenTo})</span>}
+              </li>
+            ))}
+          </ul>
+          {down && (
+            <Link
+              to={`/campaigns/${campaignId}/dm/loot${enemy.sourceFolderId ? `?folder=${enemy.sourceFolderId}` : ''}`}
+              className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-2"
+            >
+              Rozdat v Lootu
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1 border-t border-red-500/20 pt-2">
         <Button variant="outline" onClick={onEdit} aria-label={`Upravit ${enemy.name} (útoky, kostky, iniciativa)`}>

@@ -43,6 +43,7 @@ describe('použití taktik: počet útoků, munice, kombo, spotřebitelné itemy
       const rule = async (q: string) => (await bob.client.get(`/rules?kinds=equipment&q=${encodeURIComponent(q)}`)).body.entries.find((e: any) => e.name === q)
       const bolt = await addItem(bob, bobChar, { ruleId: (await rule('Crossbow bolt')).id })
       expect(bolt.consumable).toBe(true)
+      expect(bolt.quantity).toBe(20) // balení po 20 kusech
       const backpack = await addItem(bob, bobChar, { ruleId: (await rule('Backpack')).id })
       expect(backpack.consumable).toBe(false)
     })

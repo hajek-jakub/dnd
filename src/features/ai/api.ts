@@ -23,8 +23,8 @@ export interface AiProposalEntry {
   /** Cesta složky („Hrobka / Místnost 1“), prázdná = Nezařazené. */
   folder: string
   label: string
-  /** Druh itemu (wondrous, weapon, …), u zlata 'gold'. */
-  kind: ItemKind | 'gold'
+  /** Druh itemu (wondrous, weapon, …), u zlata 'gold', u nepřítele 'enemy'. */
+  kind: ItemKind | 'gold' | 'enemy'
   rarity: string | null
   attunement: boolean
   quantity: number
@@ -33,6 +33,13 @@ export interface AiProposalEntry {
   /** Cena v obchodě jako text, null = nalezená věc zdarma. */
   price: string | null
   curse: boolean
+  /** Nepřítel: počet kusů, CR, AC a HP. */
+  count: number
+  cr: string | null
+  ac: number | null
+  hpMax: number | null
+  /** Loot: jméno nepřítele, ze kterého padá. */
+  dropFrom: string | null
 }
 
 export interface AiProposal {

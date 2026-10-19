@@ -15,6 +15,7 @@ export const GROUPS: RuleGroup[] = [
   { id: 'features', label: 'Featury', kinds: ['feature', 'feat'], homebrewKind: 'feature' },
   { id: 'classes', label: 'Třídy', kinds: ['class', 'subclass'], homebrewKind: 'subclass' },
   { id: 'races', label: 'Rasy', kinds: ['race', 'subrace', 'trait'] },
+  { id: 'monsters', label: 'Nestvůry', kinds: ['monster'] },
   { id: 'other', label: 'Ostatní', kinds: ['condition', 'background', 'skill', 'language', 'weapon_property', 'ability'] },
 ]
 
@@ -37,6 +38,7 @@ export const KIND_LABELS: Record<RuleKind, string> = {
   language: 'Jazyk',
   weapon_property: 'Vlastnost zbraně',
   ability: 'Vlastnost',
+  monster: 'Nestvůra',
 }
 
 export const HOMEBREW_KIND_LABELS: Record<HomebrewKind, string> = {
@@ -91,6 +93,9 @@ export function metaLine(entry: RuleSummary): string {
     case 'feature':
       if (entry.category) parts.push(entry.category)
       if (entry.level) parts.push(`level ${entry.level}`)
+      break
+    case 'monster':
+      if (entry.category) parts.push(entry.category)
       break
     default:
       parts.push(KIND_LABELS[entry.kind])

@@ -19,6 +19,11 @@ export interface Enemy {
   attacks: EnemyAttack[]
   notes: string
   position: number
+  /** Šablona z přípravy (Loot), ze které nepřítel vznikl „Do boje“; null = přidaný ručně. */
+  sourceEntryId: string | null
+  sourceFolderId: string | null
+  /** Loot, který z nepřítele padá (položky přípravy u jeho šablony). */
+  drops: { id: string; label: string; givenTo: string }[]
 }
 
 export interface EnemyInput {

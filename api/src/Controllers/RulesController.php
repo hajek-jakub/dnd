@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
 use Dnd\Items;
+use Dnd\Monsters;
 use Dnd\Request;
 use Dnd\Response;
 
@@ -26,7 +27,7 @@ final class RulesController
     /** Druhy, které se dají procházet. (class_level a proficiency jsou jen data pro engine.) */
     private const BROWSABLE = [
         'spell', 'magic_item', 'equipment', 'weapon', 'armor', 'feature', 'feat', 'class', 'subclass',
-        'race', 'subrace', 'trait', 'condition', 'background', 'skill', 'language', 'weapon_property', 'ability',
+        'race', 'subrace', 'trait', 'condition', 'background', 'skill', 'language', 'weapon_property', 'ability', 'monster',
     ];
     /** Druhy, které smí uživatel vytvořit jako homebrew. */
     private const HOMEBREW_KINDS = ['spell', 'magic_item', 'feature', 'subclass', 'weapon'];
@@ -670,6 +671,8 @@ final class RulesController
             'data' => is_array($data) && $data !== [] ? $data : new \stdClass(),
             'canEdit' => $canEdit,
             'itemBase' => self::itemBase($r),
+            // Nestvůra: hodnoty pro nového nepřítele (Panel DM, příprava v lootu, AI pomocník).
+            'enemyTemplate' => $r['kind'] === 'monster' && is_array($data) ? Monsters::enemy($data + ['name' => $r['name']]) : null,
         ];
     }
 

@@ -91,6 +91,14 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     data: { kind: 'item', item: { name: 'Démonické kopí s hodně dlouhým názvem, aby se zalomilo', kind: 'weapon', description: '**Ďábelský šepot**: slyší tě.', curse: 'Kletba', weapon: { damageDice: '1d8', damageType: 'Piercing', category: 'martial', range: 'melee' } } },
   })
   await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, { data: { kind: 'gold', name: 'Truhla', currency: { gp: 100, sp: 5 } } })
+  // nepřítel v přípravě s lootem, poslaný do boje; jeden padne, ať je vidět i karta s lootem k rozdání
+  const lootEnemy = (await (await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, {
+    data: { kind: 'enemy', enemy: { name: 'Náčelník goblinů s hodně dlouhým jménem', hpMax: 7, ac: 15, initiative: 2, count: 2, cr: '1/4', xp: 50, notes: '**Nimble Escape.** Disengage nebo Hide jako bonusová akce.', attacks: [{ name: 'Scimitar', toHit: 4, damage: '1d6+2' }] } },
+  })).json()).entry.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/loot/entries`, { data: { kind: 'gold', name: 'Měšec náčelníka s dlouhým názvem', currency: { sp: 12 }, dropFrom: lootEnemy } })
+  await page.request.post(`/api/campaigns/${campaignId}/loot/deploy`, { data: { entryIds: [lootEnemy] } })
+  const fallen = (await (await page.request.get(`/api/campaigns/${campaignId}/enemies`)).json()).enemies.find((e: { sourceEntryId: string | null }) => e.sourceEntryId === lootEnemy)
+  await page.request.post(`/api/enemies/${fallen.id}/hp`, { data: { delta: -7 } })
 
   const pages: [string, string][] = [
     ['domů', '/'],

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { CheckIcon, FolderIcon, LoaderCircleIcon, PlusIcon, SendHorizontalIcon, SparklesIcon, SquareIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { CheckIcon, FolderIcon, LayoutTemplateIcon, LoaderCircleIcon, PlusIcon, SendHorizontalIcon, SkullIcon, SparklesIcon, SquareIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { RichText } from '@/components/RichText'
@@ -23,12 +23,8 @@ import {
   type AiProposal,
   type AiProposalEntry,
 } from './api'
+import { TemplatePanel } from './TemplatePanel'
 
-const EXAMPLES = [
-  'Připrav složku „Hrobka krále“ se dvěma místnostmi. V první Bag of Holding a 50 gp, ve druhé Armor +1 (chain mail) a 3× Potion of Healing.',
-  'Udělej obchod „Kovárna“: longsword, shield a chain mail za ceny z pravidel.',
-  'Co přesně dělá Bag of Holding a co se stane, když se do něj dá Portable Hole?',
-]
 /** Pojistka proti nekonečné smyčce kroků v prohlížeči (server má vlastní limit). */
 const MAX_CLIENT_STEPS = 30
 
@@ -48,6 +44,15 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
   const [pendingText, setPendingText] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const messageRef = useRef<HTMLTextAreaElement>(null)
+
+  /** Šablona složí zprávu do pole; DM ji může upravit a pak odeslat. */
+  function insertTemplate(text: string) {
+    setDraft(text)
+    setShowTemplates(false)
+    requestAnimationFrame(() => messageRef.current?.focus())
+  }
 
   useEffect(() => {
     const dialog = ref.current
@@ -174,21 +179,12 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
 
         <div role="log" aria-label="Konverzace s AI" className="scroll-area min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {selected === null && pendingText === null && (
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Napiš, co chceš připravit. AI dohledá itemy v pravidlech a navrhne složky a položky do <strong className="text-foreground">lootu</strong>. Nic se nevytvoří,
-                dokud návrh nepotvrdíš. Ptát se můžeš i na pravidla.
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Napiš, co chceš připravit, nebo vyber šablonu. AI dohledá nestvůry a itemy v pravidlech a navrhne přípravu do <strong className="text-foreground">Lootu</strong>: složky,
+                nepřátele a loot, který z nich padá. Nic se nevytvoří, dokud návrh nepotvrdíš. Ptát se můžeš i na pravidla.
               </p>
-              <p>Zkus třeba:</p>
-              <ul className="space-y-2">
-                {EXAMPLES.map((ex) => (
-                  <li key={ex}>
-                    <button type="button" onClick={() => setDraft(ex)} className="min-h-11 w-full rounded-lg border bg-card px-3 py-2 text-left text-foreground hover:bg-muted">
-                      {ex}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <TemplatePanel onInsert={insertTemplate} />
             </div>
           )}
           {selected !== null && loadingConv && <p className="text-sm text-muted-foreground">Načítám…</p>}
@@ -244,6 +240,7 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
               </Button>
             </div>
           )}
+          {showTemplates && selected !== null && <TemplatePanel onInsert={insertTemplate} onClose={() => setShowTemplates(false)} />}
           <div ref={endRef} />
         </div>
 
@@ -260,6 +257,7 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
             </label>
             <Textarea
               id="ai-message"
+              ref={messageRef}
               value={draft}
               maxLength={4000}
               onChange={(e) => setDraft(e.target.value)}
@@ -271,11 +269,18 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
               <SendHorizontalIcon aria-hidden />
             </Button>
           </div>
-          {status && (
-            <p className="text-xs text-muted-foreground">
-              Útrata tento měsíc ${status.spentUsd.toFixed(2)} z ${status.budgetUsd.toFixed(2)} · {status.model}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-x-3">
+            {status && (
+              <p className="text-xs text-muted-foreground">
+                Útrata tento měsíc ${status.spentUsd.toFixed(2)} z ${status.budgetUsd.toFixed(2)} · {status.model}
+              </p>
+            )}
+            {selected !== null && (
+              <Button type="button" variant="ghost" size="sm" className="min-h-11" aria-expanded={showTemplates} onClick={() => setShowTemplates((v) => !v)}>
+                <LayoutTemplateIcon aria-hidden /> Šablony
+              </Button>
+            )}
+          </div>
         </form>
       </div>
     </dialog>
@@ -284,6 +289,7 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
 
 function entryDetail(e: AiProposalEntry): string {
   if (e.kind === 'gold') return e.coins ?? ''
+  if (e.kind === 'enemy') return [e.cr ? `CR ${e.cr}` : null, e.ac !== null ? `AC ${e.ac}` : null, e.hpMax !== null ? `HP ${e.hpMax}` : null].filter(Boolean).join(' · ')
   return [ITEM_KIND_SHORT[e.kind] ?? e.kind, e.rarity, e.attunement ? 'attunement' : null, e.quantity > 1 ? `${e.quantity} ks` : null].filter(Boolean).join(', ')
 }
 
@@ -297,7 +303,8 @@ function ProposalCard({ proposal, campaignId, conversationId, onNavigate }: { pr
   const discard = useDiscardProposal(conversationId)
   const groups = new Map<string, AiProposalEntry[]>()
   for (const f of proposal.folders) groups.set(f, [])
-  for (const e of proposal.entries) groups.set(e.folder, [...(groups.get(e.folder) ?? []), e])
+  // ve složce nejdřív nepřátelé, pak loot
+  for (const e of [...proposal.entries].sort((a, b) => Number(b.kind === 'enemy') - Number(a.kind === 'enemy'))) groups.set(e.folder, [...(groups.get(e.folder) ?? []), e])
   const busy = apply.isPending || discard.isPending
   const fail = (e: unknown) => toast.error(e instanceof ApiError ? e.message : 'Nepodařilo se.')
 
@@ -319,8 +326,13 @@ function ProposalCard({ proposal, campaignId, conversationId, onNavigate }: { pr
               <ul className="space-y-1 border-l pl-3 text-sm">
                 {list.map((e, i) => (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-medium break-words">{e.label}</span>
+                    {e.kind === 'enemy' && <SkullIcon aria-label="nepřítel" className="size-3.5 shrink-0 self-center text-red-600 dark:text-red-400" />}
+                    <span className={cn('font-medium break-words', e.kind === 'enemy' && 'text-red-700 dark:text-red-400')}>
+                      {e.kind === 'enemy' && e.count > 1 ? `${e.count}× ` : ''}
+                      {e.label}
+                    </span>
                     <span className="text-muted-foreground">{entryDetail(e)}</span>
+                    {e.dropFrom && <span className="text-xs text-muted-foreground">padá z: {e.dropFrom}</span>}
                     {e.price && <span className="font-medium text-amber-700 dark:text-amber-400">za {e.price}</span>}
                     {e.curse && <span className="text-destructive">kletba</span>}
                   </li>

@@ -70,11 +70,14 @@ final class Items
                 break;
         }
 
+        // Munice se v SRD prodává v balení (Arrow: 20 kusů za 1 gp); jeden kus z pravidel je pak celé balení.
+        $bundle = $rule['kind'] === 'equipment' ? max(1, (int) (self::ruleData($rule)['quantity'] ?? 1)) : 1;
         return [
             'name' => $name,
             'description' => (string) $rule['desc_text'],
             'kind' => $kind,
-            'quantity' => 1,
+            'quantity' => $bundle,
+            'bundle' => $bundle,
             'requiresAttunement' => $requires,
             // munice, lektvary a svitky se používáním spotřebují
             'consumable' => in_array($kind, ['potion', 'scroll'], true) || ($gear['type'] ?? null) === 'ammunition'

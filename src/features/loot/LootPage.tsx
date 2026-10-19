@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, CoinsIcon, FolderInputIcon, FolderPlusIcon, PackagePlusIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeftIcon, CoinsIcon, FolderInputIcon, FolderPlusIcon, PackagePlusIcon, PencilIcon, SkullIcon, SwordsIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,10 +11,11 @@ import { useCharacters } from '@/features/sheet/api'
 import { formatCp } from '@/features/sheet/money'
 import { ApiError } from '@/lib/api'
 import { usePageTitle } from '@/lib/page-title'
-import { useCreateEntry, useDeleteEntry, useDeleteFolder, useGiveLoot, useLoot, useUpdateEntry, type LootEntry } from './api'
+import { useCreateEntry, useDeleteEntry, useDeleteFolder, useDeployEnemies, useGiveLoot, useLoot, useUpdateEntry, type LootEntry } from './api'
 import { assign, toRequest, unassign, type Assignments } from './distribution'
 import { FolderTree } from './FolderTree'
 import { LootDialogs, type LootDialog } from './LootDialogs'
+import { LootEnemyRow } from './LootEnemyRow'
 import { LootEntryRow } from './LootEntryRow'
 import { entryLabel, folderPath } from './labels'
 import { PARTY, PartyBar, type PartyMember } from './PartyBar'
@@ -22,8 +23,9 @@ import { PARTY, PartyBar, type PartyMember } from './PartyBar'
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback)
 
 /**
- * Loot a dílna itemů DM: složky (dungeon → místnosti) s připravenými itemy a zlatem. Hráči o nich nevědí, dokud jim je DM nerozdá:
+ * Loot a dílna itemů DM: složky (dungeon → místnosti) s připravenými nepřáteli, itemy a zlatem. Hráči o nich nevědí, dokud jim je DM nerozdá:
  * přetažením na ikonu postavy nebo zaškrtnutím a klepnutím na ikonu se položky připraví k rozdání, tlačítko Rozdat je pošle najednou.
+ * Nepřátelé jsou šablony do boje („Do boje“ je pošle do Panelu DM) a pod každým je loot, který z něj padá.
  */
 export function LootPage() {
   const { campaignId = '' } = useParams<{ campaignId: string }>()
@@ -32,7 +34,9 @@ export function LootPage() {
   const isDm = campaign?.role === 'dm'
   const loot = useLoot(campaignId, isDm)
   const { data: characters } = useCharacters(isDm ? campaignId : undefined, { pollMs: 30_000 })
-  const [folderId, setFolderId] = useState<string | null>(null)
+  // Panel DM odkazuje na složku padlého nepřítele (?folder=…), ať je jeho loot rovnou po ruce.
+  const [searchParams] = useSearchParams()
+  const [folderId, setFolderId] = useState<string | null>(() => searchParams.get('folder'))
   const [ticked, setTicked] = useState<Set<string>>(new Set())
   const [assignments, setAssignments] = useState<Assignments>({})
   const [dragIds, setDragIds] = useState<string[] | null>(null)
@@ -43,6 +47,8 @@ export function LootPage() {
   const createEntry = useCreateEntry(campaignId)
   const deleteEntry = useDeleteEntry(campaignId)
   const deleteFolder = useDeleteFolder(campaignId)
+  const deploy = useDeployEnemies(campaignId)
+  const navigate = useNavigate()
 
   const folders = useMemo(() => loot.data?.folders ?? [], [loot.data])
   const entries = useMemo(() => loot.data?.entries ?? [], [loot.data])
@@ -63,7 +69,14 @@ export function LootPage() {
   const current = folderId !== null && folders.some((f) => f.id === folderId) ? folderId : null
   const currentFolder = folders.find((f) => f.id === current)
   const subfolders = folders.filter((f) => f.parentId === current)
-  const shown = entries.filter((e) => e.folderId === current && (!hideGiven || e.givenTo === ''))
+  const allEnemies = entries.filter((e): e is Extract<LootEntry, { kind: 'enemy' }> => e.kind === 'enemy')
+  const enemyNames = new Map(allEnemies.map((e) => [e.id, e.data.name]))
+  const here = entries.filter((e) => e.folderId === current)
+  const enemiesHere = here.filter((e): e is Extract<LootEntry, { kind: 'enemy' }> => e.kind === 'enemy')
+  const enemyIdsHere = new Set(enemiesHere.map((e) => e.id))
+  const visible = (e: LootEntry) => !hideGiven || e.givenTo === ''
+  // Loot nepřítele z této složky se ukáže pod ním; ostatní (i loot nepřítele z jiné složky) v seznamu složky.
+  const shown = here.filter((e) => e.kind !== 'enemy' && !(e.dropFrom !== null && enemyIdsHere.has(e.dropFrom)) && visible(e))
   const names = new Map(members.map((m) => [m.id, m.name]))
 
   function openFolder(id: string | null) {
@@ -72,7 +85,7 @@ export function LootPage() {
   }
 
   function assignTo(target: string) {
-    const ids = dragIds ?? [...ticked]
+    const ids = (dragIds ?? [...ticked]).filter((id) => entries.find((e) => e.id === id)?.kind !== 'enemy')
     if (ids.length === 0) {
       toast.info('Nejdřív zaškrtni položky (nebo je přetáhni na postavu).')
       return
@@ -118,9 +131,43 @@ export function LootPage() {
 
   function duplicate(entry: LootEntry) {
     const done = { onSuccess: () => toast.success(`Zkopírováno: ${entryLabel(entry)}`), onError: (e: unknown) => toast.error(errorText(e, 'Kopie se nepodařila.')) }
-    if (entry.kind === 'item') createEntry.mutate({ folderId: entry.folderId, kind: 'item', item: entry.data }, done)
-    else createEntry.mutate({ folderId: entry.folderId, kind: 'gold', name: entry.data.name, currency: entry.data.currency }, done)
+    if (entry.kind === 'item') createEntry.mutate({ folderId: entry.folderId, kind: 'item', item: entry.data, dropFrom: entry.dropFrom }, done)
+    else if (entry.kind === 'gold') createEntry.mutate({ folderId: entry.folderId, kind: 'gold', name: entry.data.name, currency: entry.data.currency, dropFrom: entry.dropFrom }, done)
+    else createEntry.mutate({ folderId: entry.folderId, kind: 'enemy', enemy: entry.data }, done)
   }
+
+  function sendToFight(ids: string[]) {
+    deploy.mutate(ids, {
+      onSuccess: (res) => toast.success(`Do boje: ${res.created.join(', ')}. Najdeš je v Panelu DM.`, { action: { label: 'Panel DM', onClick: () => navigate(`/campaigns/${campaignId}/dm`) } }),
+      onError: (e) => toast.error(errorText(e, 'Nepřátele se nepodařilo poslat do boje.')),
+    })
+  }
+
+  const row = (entry: LootEntry) => (
+    <LootEntryRow
+      key={entry.id}
+      entry={entry}
+      folders={folders}
+      ticked={ticked.has(entry.id)}
+      assignedTo={(assignments[entry.id] ?? []).map((id) => names.get(id) ?? 'postava')}
+      dropLabel={entry.dropFrom !== null && !enemyIdsHere.has(entry.dropFrom) ? enemyNames.get(entry.dropFrom) : undefined}
+      onTick={(on) =>
+        setTicked((s) => {
+          const next = new Set(s)
+          if (on) next.add(entry.id)
+          else next.delete(entry.id)
+          return next
+        })
+      }
+      onDragStart={(e) => startDrag(entry, e)}
+      onDragEnd={() => setDragIds(null)}
+      onEdit={() => setDialog(entry.kind === 'item' ? { type: 'item', entry } : entry.kind === 'gold' ? { type: 'gold', entry } : { type: 'enemy', entry })}
+      onDuplicate={() => duplicate(entry)}
+      onMove={(target) => moveEntries([entry.id], target)}
+      onClearGiven={() => updateEntry.mutate({ id: entry.id, givenTo: '' })}
+      onDelete={() => removeEntry(entry)}
+    />
+  )
 
   function removeEntry(entry: LootEntry) {
     if (!window.confirm(`Smazat „${entryLabel(entry)}“ z lootu?`)) return
@@ -129,7 +176,7 @@ export function LootPage() {
   }
 
   function removeFolder() {
-    if (!currentFolder || !window.confirm(`Smazat složku „${currentFolder.name}“ i se vším, co je v ní (podsložky, itemy, zlato)?`)) return
+    if (!currentFolder || !window.confirm(`Smazat složku „${currentFolder.name}“ i se vším, co je v ní (podsložky, nepřátelé, itemy, zlato)?`)) return
     deleteFolder.mutate(currentFolder.id, { onError: (e) => toast.error(errorText(e, 'Složku se nepodařilo smazat.')) })
     openFolder(currentFolder.parentId)
   }
@@ -150,7 +197,8 @@ export function LootPage() {
           }
         />
         <p className="text-sm text-muted-foreground">
-          Dílna DM: itemy a zlato si připrav dopředu do složek (třeba dungeon a v něm místnosti) a rozdej je, až je družina najde. Hráči nic z toho nevidí, dokud jim to nedáš.
+          Příprava DM: nepřátele, itemy a zlato si připrav dopředu do složek (třeba dungeon a v něm místnosti). Nepřátele pošleš do boje, loot rozdáš, až ho družina najde. Hráči nic z toho
+          nevidí, dokud jim to nedáš.
         </p>
       </div>
 
@@ -193,6 +241,9 @@ export function LootPage() {
               <Button variant="secondary" onClick={() => setDialog({ type: 'gold' })}>
                 <CoinsIcon aria-hidden /> Zlato
               </Button>
+              <Button variant="secondary" onClick={() => setDialog({ type: 'enemy' })}>
+                <SkullIcon aria-hidden /> Nepřítel
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -214,6 +265,12 @@ export function LootPage() {
               </div>
             )}
 
+            {enemiesHere.length > 1 && (
+              <Button variant="secondary" disabled={deploy.isPending} onClick={() => sendToFight(enemiesHere.map((e) => e.id))}>
+                <SwordsIcon aria-hidden /> Všechny do boje ({enemiesHere.reduce((n, e) => n + e.data.count, 0)})
+              </Button>
+            )}
+
             {subfolders.length > 0 && (
               <nav aria-label="Podsložky" className="flex flex-wrap gap-2">
                 {subfolders.map((f) => (
@@ -224,6 +281,27 @@ export function LootPage() {
               </nav>
             )}
 
+            {enemiesHere.length > 0 && (
+              <ul className="space-y-3" aria-label="Nepřátelé ve složce">
+                {enemiesHere.map((enemy) => (
+                  <LootEnemyRow
+                    key={enemy.id}
+                    entry={enemy}
+                    folders={folders}
+                    drops={here.filter((e) => e.dropFrom === enemy.id && visible(e)).map(row)}
+                    deploying={deploy.isPending}
+                    onDeploy={() => sendToFight([enemy.id])}
+                    onEdit={() => setDialog({ type: 'enemy', entry: enemy })}
+                    onDuplicate={() => duplicate(enemy)}
+                    onMove={(target) => moveEntries([enemy.id], target)}
+                    onDelete={() => removeEntry(enemy)}
+                    onAddItem={() => setDialog({ type: 'item', dropFrom: enemy.id })}
+                    onAddGold={() => setDialog({ type: 'gold', dropFrom: enemy.id })}
+                  />
+                ))}
+              </ul>
+            )}
+
             {entries.some((e) => e.folderId === current && e.givenTo !== '') && (
               <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm">
                 <input type="checkbox" className="size-5" checked={hideGiven} onChange={(e) => setHideGiven(e.target.checked)} />
@@ -231,42 +309,19 @@ export function LootPage() {
               </label>
             )}
 
-            <ul className="space-y-2" aria-label="Položky ve složce">
-              {shown.map((entry) => (
-                <LootEntryRow
-                  key={entry.id}
-                  entry={entry}
-                  folders={folders}
-                  ticked={ticked.has(entry.id)}
-                  assignedTo={(assignments[entry.id] ?? []).map((id) => names.get(id) ?? 'postava')}
-                  onTick={(on) =>
-                    setTicked((s) => {
-                      const next = new Set(s)
-                      if (on) next.add(entry.id)
-                      else next.delete(entry.id)
-                      return next
-                    })
-                  }
-                  onDragStart={(e) => startDrag(entry, e)}
-                  onDragEnd={() => setDragIds(null)}
-                  onEdit={() => setDialog(entry.kind === 'item' ? { type: 'item', entry } : { type: 'gold', entry })}
-                  onDuplicate={() => duplicate(entry)}
-                  onMove={(target) => moveEntries([entry.id], target)}
-                  onClearGiven={() => updateEntry.mutate({ id: entry.id, givenTo: '' })}
-                  onDelete={() => removeEntry(entry)}
-                />
-              ))}
-            </ul>
-            {!loot.isPending && shown.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                {entries.some((e) => e.folderId === current) ? 'Všechno odsud už je rozdané.' : 'Tady zatím nic není. Přidej item nebo zlato.'}
-              </p>
+            {shown.length > 0 && (
+              <ul className="space-y-2" aria-label="Položky ve složce">
+                {shown.map(row)}
+              </ul>
+            )}
+            {!loot.isPending && shown.length === 0 && enemiesHere.length === 0 && (
+              <p className="text-sm text-muted-foreground">{here.length > 0 ? 'Všechno odsud už je rozdané.' : 'Tady zatím nic není. Přidej nepřítele, item nebo zlato.'}</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <LootDialogs campaignId={campaignId} dialog={dialog} folderId={current} folders={folders} onClose={() => setDialog(null)} />
+      <LootDialogs campaignId={campaignId} dialog={dialog} folderId={current} folders={folders} enemies={allEnemies} onClose={() => setDialog(null)} />
     </>
   )
 }

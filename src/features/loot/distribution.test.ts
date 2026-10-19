@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { LootEntry } from './api'
 import { assign, countFor, goldShare, toRequest, unassign } from './distribution'
 
-const item = (id: string): LootEntry => ({ id, folderId: null, priceCp: null, position: 0, givenTo: '', kind: 'item', data: { name: `Item ${id}` } })
-const gold = (id: string, gp: number): LootEntry => ({ id, folderId: null, priceCp: null, position: 0, givenTo: '', kind: 'gold', data: { name: 'Truhla', currency: { gp } } })
+const item = (id: string): LootEntry => ({ id, folderId: null, priceCp: null, position: 0, givenTo: '', dropFrom: null, kind: 'item', data: { name: `Item ${id}` } })
+const gold = (id: string, gp: number): LootEntry => ({ id, folderId: null, priceCp: null, position: 0, givenTo: '', dropFrom: null, kind: 'gold', data: { name: 'Truhla', currency: { gp } } })
 
 describe('rozdávání lootu: přiřazení před rozdáním', () => {
   it('přiřadí víc položek jedné postavě a stejnou položku víc postavám bez duplicit', () => {

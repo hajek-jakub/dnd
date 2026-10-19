@@ -65,6 +65,7 @@ export type RuleKind =
   | 'language'
   | 'weapon_property'
   | 'ability'
+  | 'monster'
 
 export interface RuleSummary {
   id: string
@@ -111,6 +112,22 @@ export interface RuleDetail {
   canEdit: boolean
   /** Magická zbroj, štít nebo zbraň: typ a základ z SRD, který se nabídne při přidání itemu (null = vybrat). */
   itemBase: { type: 'armor' | 'shield' | 'weapon'; baseRuleId: string | null } | null
+  /** Nestvůra: hodnoty pro nového nepřítele (HP, AC, iniciativa, útoky, poznámka, CR a XP). */
+  enemyTemplate: EnemyTemplate | null
+}
+
+/** Šablona nepřítele (nestvůra z pravidel, nepřítel v přípravě lootu). */
+export interface EnemyTemplate {
+  name: string
+  hpMax: number
+  ac: number | null
+  initiative: number
+  attacks: { name: string; toHit: number; damage: string }[]
+  notes: string
+  cr: string | null
+  xp: number | null
+  /** jen v přípravě: kolik nepřátel tohoto druhu */
+  count?: number
 }
 
 export interface RuleFacets {

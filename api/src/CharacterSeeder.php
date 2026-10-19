@@ -90,6 +90,8 @@ final class CharacterSeeder
                 $input['notes'] = $item['notes'];
             }
             $itemId = InventoryController::createItem($char, $user, $input);
+            // Seed počítá kusy (20 šipek), kdežto u balení z pravidel je zadaný počet počtem balení: počet se zapíše přesně.
+            Db::exec('UPDATE character_items SET quantity = ? WHERE id = ?', [$item['qty'], $itemId]);
             if ($item['equipped']) {
                 Db::exec('UPDATE character_items SET equipped = 1 WHERE id = ?', [$itemId]);
             }

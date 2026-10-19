@@ -112,6 +112,7 @@ final class App
         $r->add('PATCH', '/loot/entries/{id}', [LootController::class, 'updateEntry']);
         $r->add('DELETE', '/loot/entries/{id}', [LootController::class, 'deleteEntry']);
         $r->add('POST', '/campaigns/{id}/loot/give', [LootController::class, 'give']);
+        $r->add('POST', '/campaigns/{id}/loot/deploy', [LootController::class, 'deploy']);
         $r->add('GET', '/campaigns/{id}/initiative', [InitiativeController::class, 'index']);
         $r->add('POST', '/campaigns/{id}/initiative', [InitiativeController::class, 'set']);
         $r->add('POST', '/campaigns/{id}/initiative/order', [InitiativeController::class, 'reorder']);

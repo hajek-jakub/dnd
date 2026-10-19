@@ -267,7 +267,8 @@ function ItemPicker({ campaignId, targets, onClose }: DialogProps) {
         onPick={(item, label, rule) => {
           // Kupuje: zadaná cena, jinak cena z pravidel; nalezené je zdarma.
           const typed = cpOf(coinsFromFields(price))
-          const cp = mode === 'found' ? null : typed > 0 ? typed : rule?.priceGp ? Math.round(rule.priceGp * 100) : undefined
+          // cena z pravidel je za kus (u munice za balení), celkem tedy krát počet
+          const cp = mode === 'found' ? null : typed > 0 ? typed : rule?.priceGp ? Math.round(rule.priceGp * 100) * Math.max(1, item.quantity ?? 1) : undefined
           if (cp === undefined) return void toast.error('Zadej cenu (item nemá cenu v pravidlech), nebo zvol Nalezené.')
           give.mutate(
             { characterIds: targets.map((t) => t.id), item, ...(cp !== null ? { price: fromCp(cp) } : {}) },

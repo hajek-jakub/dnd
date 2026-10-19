@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { useRefreshCharacters } from '@/features/dm/api'
 import type { ItemInput } from '@/features/sheet/api'
 import type { Currency } from '@/features/sheet/types'
+import type { EnemyTemplate } from '@/lib/types'
 
 export interface LootFolder {
   id: string
@@ -26,8 +27,15 @@ interface EntryBase {
   position: number
   /** Komu už byla položka rozdána (jen pro DM, položka zůstává k dalšímu použití). */
   givenTo: string
+  /** Z kterého nepřítele (položky 'enemy') item nebo zlato padá; null = leží ve složce. */
+  dropFrom: string | null
 }
-export type LootEntry = (EntryBase & { kind: 'item'; data: LootItemData }) | (EntryBase & { kind: 'gold'; data: LootGoldData })
+/** Nepřítel v přípravě: šablona do boje s počtem kusů („Do boje“ ho pošle do Panelu DM). */
+export type LootEnemyData = EnemyTemplate & { count: number }
+export type LootEntry =
+  | (EntryBase & { kind: 'item'; data: LootItemData })
+  | (EntryBase & { kind: 'gold'; data: LootGoldData })
+  | (EntryBase & { kind: 'enemy'; data: LootEnemyData })
 
 export interface LootTree {
   folders: LootFolder[]
@@ -121,8 +129,9 @@ export function useDeleteFolder(campaignId: string) {
 }
 
 export type NewLootEntry =
-  | { folderId: string | null; kind: 'item'; item: ItemInput; price?: Partial<Currency> | null }
-  | { folderId: string | null; kind: 'gold'; name: string; currency: Partial<Currency> }
+  | { folderId: string | null; kind: 'item'; item: ItemInput; price?: Partial<Currency> | null; dropFrom?: string | null }
+  | { folderId: string | null; kind: 'gold'; name: string; currency: Partial<Currency>; dropFrom?: string | null }
+  | { folderId: string | null; kind: 'enemy'; enemy: LootEnemyData }
 
 export function useCreateEntry(campaignId: string) {
   const cache = useTreeCache(campaignId)
@@ -142,6 +151,9 @@ export interface LootEntryPatch {
   price?: Partial<Currency> | null
   /** '' smaže poznámku „rozdáno“. */
   givenTo?: ''
+  enemy?: LootEnemyData
+  /** Z kterého nepřítele padá; null = z nikoho. */
+  dropFrom?: string | null
 }
 
 /** Úprava položky; přesun do jiné složky a smazání poznámky „rozdáno“ se ukážou hned. */
@@ -167,8 +179,18 @@ export function useDeleteEntry(campaignId: string) {
   const cache = useTreeCache(campaignId)
   return useMutation({
     mutationFn: (id: string) => api.delete(`/loot/entries/${id}`),
-    onMutate: (id) => cache.patch((t) => ({ ...t, entries: t.entries.filter((e) => e.id !== id) })),
+    // loot smazaného nepřítele zůstane ve složce, jen už z nikoho nepadá (stejně jako na serveru)
+    onMutate: (id) => cache.patch((t) => ({ ...t, entries: t.entries.filter((e) => e.id !== id).map((e) => (e.dropFrom === id ? { ...e, dropFrom: null } : e)) })),
     onError: (_e, _id, context) => cache.restore(context),
+  })
+}
+
+/** Pošle nepřátele z přípravy do boje (Panel DM); vrátí jména nových nepřátel. */
+export function useDeployEnemies(campaignId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (entryIds: string[]) => api.post<{ created: string[] }>(`/campaigns/${campaignId}/loot/deploy`, { entryIds }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['enemies', campaignId] }),
   })
 }
 

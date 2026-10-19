@@ -94,6 +94,8 @@ export function ItemSourcePicker({
             </NativeSelect>
             <Input aria-label="Počet kusů" type="number" min={1} max={9999} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
           </div>
+          {/* SRD prodává munici v balení; server pak zapíše skutečný počet kusů (2 balení Arrow = 40 šípů). */}
+          {(kind === '' || kind === 'equipment') && <p className="text-xs text-muted-foreground">U munice v balení (Arrow, Crossbow bolt, Sling bullet po 20, Blowgun needle po 50) je počet kusů počtem balení.</p>}
           <ul className="scroll-area max-h-[40dvh] space-y-2 pr-2">
             {entries.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border p-2">

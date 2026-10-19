@@ -199,6 +199,19 @@ final class Seeder
                 self::strip($r, ['index', 'name', 'full_name', 'desc', 'url']),
             );
         }
+        foreach (self::load($dir, 'Monsters') as $r) {
+            $rows[] = self::entry(
+                'monster',
+                $r,
+                [
+                    'name' => $r['name'],
+                    'desc' => Monsters::statBlock($r),
+                    'category' => ucfirst((string) ($r['type'] ?? '')),
+                    'tags' => self::tags(['CR ' . Monsters::cr($r['challenge_rating'] ?? 0), (string) ($r['size'] ?? '')]),
+                ],
+                self::strip($r, ['index', 'name', 'url', 'image']),
+            );
+        }
         foreach (self::load($dir, 'Proficiencies') as $r) {
             $rows[] = self::entry('proficiency', $r, ['name' => $r['name'], 'category' => $r['type'] ?? null], self::strip($r, ['index', 'name', 'url']));
         }

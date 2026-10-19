@@ -45,23 +45,32 @@ final class Assistant
         'claude-opus-4-8' => [5.0, 6.25, 0.50, 25.0],
         'claude-fable-5-1' => [10.0, 12.5, 0.25, 50.0],
     ];
-    private const SEARCH_KINDS = ['magic_item', 'equipment', 'weapon', 'armor', 'spell', 'feature', 'feat', 'condition', 'race', 'subrace', 'trait', 'class', 'subclass', 'background'];
+    private const SEARCH_KINDS = ['magic_item', 'equipment', 'weapon', 'armor', 'monster', 'spell', 'feature', 'feat', 'condition', 'race', 'subrace', 'trait', 'class', 'subclass', 'background'];
     private const COIN_ORDER = ['pp', 'gp', 'ep', 'sp', 'cp'];
 
     private const SYSTEM = <<<'TXT'
-        Jsi pomocník Dungeon Mastera (DM) v aplikaci pro kampaň D&D 5e. Mluvíš jen s DM této kampaně. Odpovídej česky; názvy z pravidel (itemy, kouzla, třídy, stavy) nech anglicky, jak jsou v aplikaci (SRD 5.1).
+        Jsi pomocník Dungeon Mastera (DM) v aplikaci pro kampaň D&D 5e. Mluvíš jen s DM této kampaně. Odpovídej česky; názvy z pravidel (itemy, nestvůry, kouzla, třídy, stavy) nech anglicky, jak jsou v aplikaci (SRD 5.1).
 
         Co umíš:
-        - Hledat v pravidlech aplikace (search_rules, get_rule): SRD 5.1, katalog magických itemů mimo SRD a homebrew této kampaně. U itemů mimo SRD má aplikace jen fakta (název, typ, vzácnost, attunement, zdroj, cena), ne popisy z knih; popisy z nich nepřepisuj zpaměti.
-        - Číst loot DM (get_loot: složky a připravené položky) a družinu (get_party: postavy, třídy, levely, peníze, výbava).
-        - Navrhnout složky a položky do lootu (propose_loot). Návrh nic nevytvoří: DM ho uvidí jako kartu a sám ho potvrdí nebo zahodí. Jinak do aplikace nic nezapisuješ, a když DM chce něco, co neumíš (rozdat itemy, měnit postavy), řekni mu, kde to v aplikaci udělá.
+        - Hledat v pravidlech aplikace (search_rules, get_rule): SRD 5.1 včetně nestvůr (kind monster, se stat bloky), katalog magických itemů mimo SRD a homebrew této kampaně. U itemů mimo SRD má aplikace jen fakta (název, typ, vzácnost, attunement, zdroj, cena), ne popisy z knih; popisy z nich nepřepisuj zpaměti.
+        - Číst přípravu DM (get_loot: složky, nepřátele, itemy a zlato) a družinu (get_party: postavy, třídy, levely, peníze, výbava).
+        - Navrhnout přípravu (propose_loot): složky, nepřátele a loot, včetně toho, co z kterého nepřítele padá. Návrh nic nevytvoří: DM ho uvidí jako kartu a sám ho potvrdí nebo zahodí. Jinak do aplikace nic nezapisuješ, a když DM chce něco, co neumíš (rozdat itemy, měnit postavy), řekni mu, kde to v aplikaci udělá.
 
-        Příprava lootu:
-        - Každou věc, kterou DM jmenuje, dohledej přes search_rules a použij záznam z pravidel (type rule_item s ruleId). Vlastní item (custom_item) dej jen tam, kde v pravidlech nic nesedí nebo kde to DM chce, a napiš to.
+        Jak aplikace funguje (ať DM radíš správně):
+        - Příprava je ve stránce Loot a itemy (Panel DM): strom složek, třeba dungeon a v něm místnosti. Ve složce jsou nepřátelé (šablony do boje), itemy a zlato.
+        - Tlačítko „Do boje“ pošle nepřátele ze složky do Panelu DM (s plnými HP, pojmenované Goblin 1, Goblin 2…). Když nepřítel padne, DM na jeho kartě vidí loot, který z něj padá, a rozdá ho hráčům v Lootu.
+
+        Příprava:
+        - Každou věc a nestvůru, kterou DM jmenuje, dohledej přes search_rules a použij záznam z pravidel: item jako rule_item s ruleId, nestvůru jako enemy s ruleId (hodnoty HP, AC a útoky se doplní z pravidel samy). Vlastní item nebo nepřítele dej jen tam, kde v pravidlech nic nesedí nebo kde to DM chce, a napiš to.
+        - Nepřátele vybírej podle družiny (get_party: počet postav a level) a obtížnosti, kterou DM chce (lehká, střední, těžká, smrtící podle pravidel pro setkání z DMG 2014). Když obtížnost neřekne, ber střední. V shrnutí uveď, proč to tak vychází (XP a hranice obtížnosti).
+        - Ke každému setkání dej rozumný loot, který z nepřátel padá (dropFrom = key nepřítele): jejich zbraně a výbavu jen tehdy, když dávají smysl jako kořist, a hlavně mince a drobnosti odpovídající CR. Větší poklad patří do místnosti (bez dropFrom). Magické itemy dávej střídmě, podle levelu družiny.
+        - Když DM zadá počet místností, vytvoř přesně tolik místností jako podsložky (např. „Hrobka krále / 1. Vstupní síň“). Do chatu ke každé místnosti napiš jednu až dvě věty popisu a případnou past nebo hádanku; do návrhu patří nepřátelé a loot.
+        - Velkou přípravu (víc lokací nebo setkání) rozděl do samostatných návrhů po lokacích, ať je DM může potvrdit nebo zahodit zvlášť.
         - Když název sedí na víc záznamů nebo není jasné, co DM myslí (varianta, počet, do které složky), zeptej se dřív, než navrhneš. U drobností zvol rozumnou možnost a řekni, co jsi zvolil.
         - Obecné magické zbroje a zbraně (Armor, +1; Weapon, +2 ...) potřebují základ: baseRuleId je id konkrétní zbroje nebo zbraně ze search_rules (např. Chain Mail, Longsword).
-        - Strukturu složek ber od DM (např. dungeon a v něm místnosti). Před návrhem se podívej do get_loot, ať použiješ existující složky a nezdvojíš položky, které už tam jsou.
-        - Nalezené věci jsou zdarma. Věci z obchodu mají cenu (price), kterou hráč zaplatí při rozdání; ber ji z pravidel (priceGp), pokud DM neřekne jinak.
+        - Munice v balení (search_rules u ní ukáže bundle, např. Arrow po 20 kusech): quantity je počet balení, tedy 20 šípů = quantity 1.
+        - Strukturu složek ber od DM. Před návrhem se podívej do get_loot, ať použiješ existující složky a nezdvojíš to, co už tam je.
+        - Nalezené věci jsou zdarma. Věci z obchodu mají cenu (price), kterou hráč zaplatí při rozdání: je to cena za celou položku (všechny kusy dohromady), ber ji z pravidel (priceGp za kus nebo balení, krát počet), pokud DM neřekne jinak.
         - Kletbu (curse) přidej jen tehdy, když o ni DM požádá; hráči ji neuvidí, dokud ji DM neodhalí.
         - Když propose_loot vrátí chybu, oprav návrh a pošli ho znovu. Po úspěšném návrhu stručně shrň, co v něm je a co jsi nenašel.
 
@@ -360,27 +369,28 @@ final class Assistant
         return [
             [
                 'name' => 'search_rules',
-                'description' => 'Hledá v pravidlech aplikace podřetězec anglického názvu (na velikosti písmen nezáleží): SRD 5.1, katalog magických itemů mimo SRD (jen fakta bez popisu) a homebrew této kampaně. Vrací id, název, druh, kategorii, vzácnost, attunement, cenu v gp a začátek popisu. Obecné magické zbraně a zbroje se jmenují „Weapon, +1“, „Armor, +2“, lektvary „Potion of Healing“; když nic nenajdeš, zkus kratší část názvu.',
+                'description' => 'Hledá v pravidlech aplikace podřetězec anglického názvu (na velikosti písmen nezáleží): SRD 5.1 včetně 334 nestvůr, katalog magických itemů mimo SRD (jen fakta bez popisu) a homebrew této kampaně. Vrací id, název, druh, kategorii (u nestvůr typ), vzácnost, attunement, cenu v gp, u munice velikost balení (bundle) a začátek popisu (u nestvůr CR, XP, AC a HP). Obecné magické zbraně a zbroje se jmenují „Weapon, +1“, „Armor, +2“, lektvary „Potion of Healing“; když nic nenajdeš, zkus kratší část názvu. Nestvůry jdou hledat i bez názvu podle CR a typu (kinds ["monster"], cr "1/2", monsterType "Undead").',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
-                        'query' => ['type' => 'string', 'description' => 'Část anglického názvu, např. "Bag of Holding".'],
-                        'kinds' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => self::SEARCH_KINDS], 'description' => 'Druhy záznamů; výchozí magic_item, equipment, weapon, armor.'],
+                        'query' => ['type' => 'string', 'description' => 'Část anglického názvu, např. "Bag of Holding" nebo "Goblin". U nestvůr hledaných podle CR nebo typu může chybět.'],
+                        'kinds' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => self::SEARCH_KINDS], 'description' => 'Druhy záznamů; výchozí magic_item, equipment, weapon, armor. Nestvůry: ["monster"].'],
                         'rarity' => ['type' => 'string', 'enum' => Items::RARITIES],
+                        'cr' => ['type' => 'string', 'description' => 'Jen nestvůry s tímto challenge ratingem: "0", "1/8", "1/4", "1/2", "1" až "30".'],
+                        'monsterType' => ['type' => 'string', 'description' => 'Jen nestvůry tohoto typu anglicky: Aberration, Beast, Celestial, Construct, Dragon, Elemental, Fey, Fiend, Giant, Humanoid, Monstrosity, Ooze, Plant, Undead.'],
                         'limit' => ['type' => 'integer', 'description' => 'Počet výsledků, 1 až 25 (výchozí 10).'],
                     ],
-                    'required' => ['query'],
                     'additionalProperties' => false,
                 ],
             ],
             [
                 'name' => 'get_rule',
-                'description' => 'Celý záznam pravidel podle id ze search_rules: popis (u SRD a homebrew), hodnoty zbraně, zbroje nebo kouzla, cena, a u obecných magických zbraní a zbrojí, jaký základ potřebují (itemBase.type).',
+                'description' => 'Celý záznam pravidel podle id ze search_rules: popis (u SRD a homebrew; u nestvůry celý stat blok), hodnoty zbraně, zbroje nebo kouzla, cena, u obecných magických zbraní a zbrojí, jaký základ potřebují (itemBase.type), a u nestvůry hodnoty nepřítele pro aplikaci (enemy: HP, AC, iniciativa, útoky s kostkami).',
                 'input_schema' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string']], 'required' => ['id'], 'additionalProperties' => false],
             ],
             [
                 'name' => 'get_loot',
-                'description' => 'Současný loot DM: všechny složky (cesty) a položky v nich (itemy a zlato, ceny, komu už byly rozdány).',
+                'description' => 'Současná příprava DM: všechny složky (cesty) a položky v nich (nepřátelé, itemy a zlato, ceny, z kterého nepřítele co padá, komu už byly rozdány).',
                 'input_schema' => $none,
             ],
             [
@@ -390,7 +400,7 @@ final class Assistant
             ],
             [
                 'name' => 'propose_loot',
-                'description' => 'Navrhne DM složky a položky do lootu. Nic se hned nevytvoří: DM návrh uvidí jako kartu a potvrdí ho nebo zahodí. Aplikace návrh ověří stejně jako ruční zadání a případné chyby vrátí, ať je opravíš.',
+                'description' => 'Navrhne DM přípravu: složky, nepřátele, itemy a zlato, včetně lootu, který z nepřátel padá. Nic se hned nevytvoří: DM návrh uvidí jako kartu a potvrdí ho nebo zahodí. Aplikace návrh ověří stejně jako ruční zadání a případné chyby vrátí, ať je opravíš.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
@@ -403,11 +413,28 @@ final class Assistant
                                 'type' => 'object',
                                 'properties' => [
                                     'folder' => $path,
-                                    'type' => ['type' => 'string', 'enum' => ['rule_item', 'custom_item', 'gold'], 'description' => 'rule_item = item z pravidel (ruleId), custom_item = vlastní item, gold = mince.'],
-                                    'ruleId' => ['type' => 'string', 'description' => 'rule_item: id ze search_rules.'],
+                                    'type' => ['type' => 'string', 'enum' => ['enemy', 'rule_item', 'custom_item', 'gold'], 'description' => 'enemy = nepřítel (nestvůra z pravidel přes ruleId, nebo vlastní s hpMax, ac a attacks), rule_item = item z pravidel (ruleId), custom_item = vlastní item, gold = mince.'],
+                                    'key' => ['type' => 'string', 'description' => 'enemy: krátký klíč nepřítele v tomto návrhu (např. "goblini"), na který odkazuje dropFrom.'],
+                                    'dropFrom' => ['type' => 'string', 'description' => 'rule_item, custom_item, gold: z kterého nepřítele loot padá: key nepřítele z tohoto návrhu, nebo id nepřítele z get_loot. Bez dropFrom leží ve složce (poklad místnosti).'],
+                                    'ruleId' => ['type' => 'string', 'description' => 'rule_item: id itemu ze search_rules; enemy: id nestvůry ze search_rules (HP, AC, iniciativa a útoky se vezmou z pravidel).'],
                                     'baseRuleId' => ['type' => 'string', 'description' => 'rule_item: id základní zbroje nebo zbraně u obecné magické zbroje či zbraně (Armor, +1 na Chain Mail).'],
-                                    'quantity' => ['type' => 'integer', 'description' => 'Počet kusů (výchozí 1).'],
-                                    'name' => ['type' => 'string', 'description' => 'custom_item: název; gold: popisek, např. "Truhla u oltáře".'],
+                                    'quantity' => ['type' => 'integer', 'description' => 'Počet kusů (výchozí 1); u munice v balení počet balení.'],
+                                    'count' => ['type' => 'integer', 'description' => 'enemy: kolik nepřátel tohoto druhu (1 až 20); do boje přijdou jako Goblin 1, Goblin 2…'],
+                                    'hpMax' => ['type' => 'integer', 'description' => 'enemy bez ruleId (nebo úprava): maximum HP.'],
+                                    'ac' => ['type' => 'integer', 'description' => 'enemy bez ruleId (nebo úprava): AC.'],
+                                    'initiative' => ['type' => 'integer', 'description' => 'enemy bez ruleId (nebo úprava): bonus k iniciativě.'],
+                                    'attacks' => [
+                                        'type' => 'array',
+                                        'description' => 'enemy bez ruleId (nebo úprava): útoky, nejvýš 12.',
+                                        'items' => [
+                                            'type' => 'object',
+                                            'properties' => ['name' => ['type' => 'string'], 'toHit' => ['type' => 'integer'], 'damage' => ['type' => 'string', 'description' => 'Kostky, např. "1d6+2" nebo "2d8+3+1d6".']],
+                                            'required' => ['name', 'toHit'],
+                                            'additionalProperties' => false,
+                                        ],
+                                    ],
+                                    'notes' => ['type' => 'string', 'description' => 'enemy: poznámka pro DM (taktika, kde stojí, co dělá); připojí se k poznámce z pravidel.'],
+                                    'name' => ['type' => 'string', 'description' => 'enemy: jméno (u nestvůry z pravidel nepovinné, např. "Goblin lučištník"); custom_item: název; gold: popisek, např. "Truhla u oltáře".'],
                                     'itemKind' => ['type' => 'string', 'enum' => Items::KINDS, 'description' => 'custom_item: druh (výchozí other).'],
                                     'description' => ['type' => 'string', 'description' => 'custom_item: popis; **tučně** pro názvy schopností.'],
                                     'rarity' => ['type' => 'string', 'enum' => Items::RARITIES],
@@ -461,10 +488,15 @@ final class Assistant
     private static function searchRules(array $in, string $campaignId, array $user): array
     {
         $q = is_string($in['query'] ?? null) ? trim($in['query']) : '';
-        if ($q === '' || mb_strlen($q) > 100) {
-            throw HttpError::validation('query musí být text o 1 až 100 znacích.', 'query');
+        $cr = is_string($in['cr'] ?? null) ? trim($in['cr']) : '';
+        $type = is_string($in['monsterType'] ?? null) ? ucfirst(strtolower(trim($in['monsterType']))) : '';
+        if (mb_strlen($q) > 100 || ($q === '' && $cr === '' && $type === '')) {
+            throw HttpError::validation('query musí být text o 1 až 100 znacích (u nestvůr stačí cr nebo monsterType).', 'query');
         }
         $kinds = is_array($in['kinds'] ?? null) && $in['kinds'] !== [] ? array_values(array_intersect(array_map('strval', $in['kinds']), self::SEARCH_KINDS)) : ['magic_item', 'equipment', 'weapon', 'armor'];
+        if ($cr !== '' || $type !== '') {
+            $kinds = ['monster'];
+        }
         if ($kinds === []) {
             throw HttpError::validation('Neznámé druhy záznamů.', 'kinds');
         }
@@ -472,7 +504,24 @@ final class Assistant
         if (is_string($in['rarity'] ?? null) && $in['rarity'] !== '') {
             $query['rarity'] = $in['rarity'];
         }
+        if ($cr !== '') {
+            $query['tag'] = 'CR ' . $cr;
+        }
+        if ($type !== '') {
+            $query['category'] = $type;
+        }
         $res = RulesController::index(new Request('GET', '/rules', [], [], $query, '', '', false), [], $user);
+        // Munice v balení (Arrow po 20): jeden kus z pravidel je celé balení.
+        $bundles = [];
+        $equipment = array_column(array_filter($res['entries'], static fn (array $e): bool => $e['kind'] === 'equipment'), 'id');
+        if ($equipment !== []) {
+            foreach (Db::all('SELECT id, data FROM rules_entries WHERE id IN (' . implode(',', array_fill(0, count($equipment), '?')) . ')', $equipment) as $r) {
+                $n = (int) (json_decode((string) $r['data'], true)['quantity'] ?? 1);
+                if ($n > 1) {
+                    $bundles[$r['id']] = $n;
+                }
+            }
+        }
         return [
             'total' => $res['total'],
             'results' => array_map(static fn (array $e): array => array_filter([
@@ -483,6 +532,7 @@ final class Assistant
                 'rarity' => $e['rarity'],
                 'attunement' => $e['attunement'],
                 'priceGp' => $e['priceGp'],
+                'bundle' => $bundles[$e['id']] ?? null,
                 'source' => $e['source'],
                 'srd' => $e['isSrd'],
                 'homebrew' => $e['isHomebrew'] ?: null,
@@ -517,7 +567,9 @@ final class Assistant
             'homebrew' => $e['isHomebrew'] ?: null,
             'description' => (string) $e['description'] !== '' ? mb_substr((string) $e['description'], 0, 6000) : 'Popis aplikace nemá (item mimo SRD, jen fakta).',
             'itemBase' => $e['itemBase'],
-            'data' => $data !== [] && is_string($dataJson) && strlen($dataJson) <= 3000 ? $data : null,
+            'enemy' => $e['enemyTemplate'],
+            // U nestvůry je všechno ve stat bloku (description) a v `enemy`.
+            'data' => $e['kind'] !== 'monster' && $data !== [] && is_string($dataJson) && strlen($dataJson) <= 3000 ? $data : null,
         ], static fn (mixed $v): bool => $v !== null);
     }
 
@@ -526,9 +578,28 @@ final class Assistant
     {
         $tree = LootController::tree($campaignId);
         $paths = self::folderPaths($tree['folders']);
-        $entries = array_map(static function (array $e) use ($paths): array {
+        $enemyNames = [];
+        foreach ($tree['entries'] as $e) {
+            if ($e['kind'] === 'enemy' && is_array($e['data'])) {
+                $enemyNames[$e['id']] = (string) ($e['data']['name'] ?? 'Nepřítel');
+            }
+        }
+        $entries = array_map(static function (array $e) use ($paths, $enemyNames): array {
             $d = is_array($e['data']) ? $e['data'] : [];
             $base = ['id' => $e['id'], 'folder' => $paths[$e['folderId']] ?? 'Nezařazené'];
+            if ($e['dropFrom'] !== null) {
+                $base['dropFrom'] = $e['dropFrom'] . ' (' . ($enemyNames[$e['dropFrom']] ?? '?') . ')';
+            }
+            if ($e['kind'] === 'enemy') {
+                return $base + array_filter([
+                    'type' => 'enemy',
+                    'name' => (string) ($d['name'] ?? ''),
+                    'count' => (int) ($d['count'] ?? 1),
+                    'cr' => $d['cr'] ?? null,
+                    'ac' => $d['ac'] ?? null,
+                    'hpMax' => $d['hpMax'] ?? null,
+                ], static fn (mixed $v): bool => $v !== null);
+            }
             if ($e['kind'] === 'gold') {
                 return $base + ['type' => 'gold', 'name' => (string) ($d['name'] ?? ''), 'coins' => self::coinsText(is_array($d['currency'] ?? null) ? $d['currency'] : [])];
             }
@@ -613,6 +684,35 @@ final class Assistant
                 $errors[] = 'Položka ' . ($i + 1) . ': ' . $err->getMessage() . ($err->field !== null ? ' (pole ' . $err->field . ')' : '');
             }
         }
+        // Klíče nepřátel a odkazy „padá z“: na nepřítele z tohoto návrhu (key), nebo z přípravy (id z get_loot).
+        $keys = [];
+        foreach ($entries as $i => $e) {
+            if ($e['kind'] === 'enemy' && $e['key'] !== null) {
+                if (isset($keys[$e['key']])) {
+                    $errors[] = 'Položka ' . ($i + 1) . ": key '" . $e['key'] . "' už má jiný nepřítel v návrhu.";
+                }
+                $keys[$e['key']] = $e;
+            }
+        }
+        foreach ($entries as $i => &$e) {
+            $drop = $e['drop'] ?? null;
+            unset($e['drop']);
+            if ($drop === null) {
+                continue;
+            }
+            if (isset($keys[$drop])) {
+                $e['dropKey'] = $drop;
+                $e['dropLabel'] = $keys[$drop]['label'];
+                continue;
+            }
+            try {
+                $e['dropEntryId'] = LootController::dropFrom($drop, $campaignId, 'item', null);
+                $e['dropLabel'] = LootController::label(Db::one('SELECT * FROM loot_entries WHERE id = ?', [$drop]) ?? []);
+            } catch (HttpError) {
+                $errors[] = 'Položka ' . ($i + 1) . ": dropFrom '$drop' není key nepřítele z návrhu ani id nepřítele z get_loot.";
+            }
+        }
+        unset($e);
         if ($errors !== []) {
             throw HttpError::validation("Návrh neprošel kontrolou, nic se neuložilo:\n" . implode("\n", $errors));
         }
@@ -651,6 +751,46 @@ final class Assistant
         $folder = self::path($e['folder'] ?? []);
         $type = $e['type'] ?? null;
         $optional = static fn (array $keys): array => array_intersect_key($e, array_flip($keys));
+        $drop = isset($e['dropFrom']) && is_string($e['dropFrom']) && trim($e['dropFrom']) !== '' ? trim($e['dropFrom']) : null;
+        if ($type === 'enemy') {
+            if ($drop !== null) {
+                throw HttpError::validation('Nepřítel nemůže padat z jiného nepřítele.', 'dropFrom');
+            }
+            if (isset($e['price'])) {
+                throw HttpError::validation('Nepřítel nemá cenu.', 'price');
+            }
+            $template = [];
+            if (is_string($e['ruleId'] ?? null) && $e['ruleId'] !== '') {
+                $rule = RulesController::visibleEntry($e['ruleId'], $user);
+                if ($rule['kind'] !== 'monster' || ($rule['campaign_id'] !== null && $rule['campaign_id'] !== $campaignId)) {
+                    throw HttpError::validation('ruleId u nepřítele musí být nestvůra ze search_rules (kind monster).', 'ruleId');
+                }
+                $data = json_decode((string) $rule['data'], true);
+                $template = Monsters::enemy((is_array($data) ? $data : []) + ['name' => $rule['name']]);
+            }
+            foreach (['name', 'hpMax', 'ac', 'initiative', 'attacks', 'count'] as $k) {
+                if (array_key_exists($k, $e)) {
+                    $template[$k] = $e[$k];
+                }
+            }
+            if (is_string($e['notes'] ?? null) && trim($e['notes']) !== '') {
+                $template['notes'] = mb_substr(trim($e['notes'] . "\n" . ($template['notes'] ?? '')), 0, 4000);
+            }
+            $key = is_string($e['key'] ?? null) && trim($e['key']) !== '' ? mb_substr(trim($e['key']), 0, 60) : null;
+            $built = LootController::entryData(['kind' => 'enemy', 'enemy' => $template], $campaignId, $user);
+            $d = $built['data'];
+            return [
+                'folder' => $folder,
+                'input' => ['kind' => 'enemy', 'enemy' => $d],
+                'label' => (string) $d['name'],
+                'kind' => 'enemy',
+                'key' => $key,
+                'count' => (int) $d['count'],
+                'cr' => $d['cr'],
+                'ac' => $d['ac'],
+                'hpMax' => (int) $d['hpMax'],
+            ];
+        }
         if ($type === 'gold') {
             $input = ['kind' => 'gold', 'currency' => $e['coins'] ?? null] + (isset($e['name']) ? ['name' => $e['name']] : []);
         } elseif ($type === 'rule_item') {
@@ -661,7 +801,7 @@ final class Assistant
         } elseif ($type === 'custom_item') {
             $input = ['kind' => 'item', 'item' => ['kind' => $e['itemKind'] ?? 'other'] + $optional(['name', 'description', 'rarity', 'requiresAttunement', 'quantity', 'curse'])];
         } else {
-            throw HttpError::validation("type musí být rule_item, custom_item nebo gold.", 'type');
+            throw HttpError::validation("type musí být enemy, rule_item, custom_item nebo gold.", 'type');
         }
         if (isset($e['price']) && $type !== 'gold') {
             $input['price'] = $e['price'];
@@ -671,11 +811,12 @@ final class Assistant
         $d = $built['data'];
         if ($built['kind'] === 'gold') {
             $coins = self::coinsText(is_array($d['currency'] ?? null) ? $d['currency'] : []);
-            return ['folder' => $folder, 'input' => $input, 'label' => (string) ($d['name'] ?? '') !== '' ? (string) $d['name'] : 'Zlato', 'kind' => 'gold', 'coins' => $coins];
+            return ['folder' => $folder, 'input' => $input, 'label' => (string) ($d['name'] ?? '') !== '' ? (string) $d['name'] : 'Zlato', 'kind' => 'gold', 'coins' => $coins, 'drop' => $drop];
         }
         return [
             'folder' => $folder,
             'input' => $input,
+            'drop' => $drop,
             'label' => (string) ($d['name'] ?? 'Item'),
             'kind' => (string) ($d['kind'] ?? 'other'),
             'rarity' => $d['rarity'] ?? null,
@@ -703,14 +844,23 @@ final class Assistant
             foreach (is_array($data['folders'] ?? null) ? $data['folders'] : [] as $path) {
                 LootController::ensurePath($campaignId, self::path($path));
             }
-            foreach (is_array($data['entries'] ?? null) ? $data['entries'] : [] as $e) {
+            $entries = is_array($data['entries'] ?? null) ? $data['entries'] : [];
+            // Nejdřív nepřátelé (loot na ně odkazuje), pak itemy a zlato.
+            usort($entries, static fn (array $a, array $b): int => (($a['kind'] ?? '') === 'enemy' ? 0 : 1) <=> (($b['kind'] ?? '') === 'enemy' ? 0 : 1));
+            $enemyIds = [];
+            foreach ($entries as $e) {
                 try {
                     $built = LootController::entryData((array) $e['input'], $campaignId, $user);
                     $price = LootController::price((array) $e['input'], $built['kind']);
+                    $dropFrom = isset($e['dropKey']) ? ($enemyIds[$e['dropKey']] ?? null)
+                        : (isset($e['dropEntryId']) ? LootController::dropFrom($e['dropEntryId'], $campaignId, $built['kind'], null) : null);
                 } catch (HttpError $err) {
                     throw HttpError::validation('Položka „' . (string) $e['label'] . '“: ' . $err->getMessage(), 'proposal');
                 }
-                LootController::insertEntry($campaignId, LootController::ensurePath($campaignId, self::path($e['folder'] ?? [])), $built, $price);
+                $id = LootController::insertEntry($campaignId, LootController::ensurePath($campaignId, self::path($e['folder'] ?? [])), $built, $price, $dropFrom);
+                if ($built['kind'] === 'enemy' && isset($e['key'])) {
+                    $enemyIds[$e['key']] = $id;
+                }
             }
             Db::exec("UPDATE ai_proposals SET status = 'applied', decided_at = UTC_TIMESTAMP() WHERE id = ?", [$proposal['id']]);
         });
@@ -767,7 +917,9 @@ final class Assistant
     private static function activity(string $tool, array $in): string
     {
         return match ($tool) {
-            'search_rules' => 'Hledám v pravidlech: „' . mb_substr((string) ($in['query'] ?? ''), 0, 100) . '“',
+            'search_rules' => trim((string) ($in['query'] ?? '')) !== ''
+                ? 'Hledám v pravidlech: „' . mb_substr((string) $in['query'], 0, 100) . '“'
+                : 'Hledám nestvůry: ' . implode(', ', array_filter([isset($in['cr']) ? 'CR ' . mb_substr((string) $in['cr'], 0, 10) : null, isset($in['monsterType']) ? mb_substr((string) $in['monsterType'], 0, 30) : null])),
             'get_rule' => 'Čtu záznam z pravidel',
             'get_loot' => 'Dívám se do lootu',
             'get_party' => 'Dívám se na družinu',
@@ -795,6 +947,12 @@ final class Assistant
                 'coins' => $e['coins'] ?? null,
                 'price' => isset($e['priceCp']) ? Money::text((int) $e['priceCp']) : null,
                 'curse' => (bool) ($e['curse'] ?? false),
+                // nepřítel: počet, CR, AC a HP; loot: z koho padá
+                'count' => (int) ($e['count'] ?? 1),
+                'cr' => $e['cr'] ?? null,
+                'ac' => $e['ac'] ?? null,
+                'hpMax' => $e['hpMax'] ?? null,
+                'dropFrom' => $e['dropLabel'] ?? null,
             ], is_array($data['entries'] ?? null) ? $data['entries'] : []),
         ];
     }

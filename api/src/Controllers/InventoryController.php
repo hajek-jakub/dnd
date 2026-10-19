@@ -104,7 +104,11 @@ final class InventoryController
 
         $given = Items::validate($in, create: $base === []);
         self::requireDmForCurse($user, $campaignId, $given);
-        return self::merge($base, $given);
+        $item = self::merge($base, $given);
+        if ($item['quantity'] > 9999) {
+            throw HttpError::validation('Množství může být nejvýš 9999 kusů.', 'quantity');
+        }
+        return $item;
     }
 
     /**
@@ -485,7 +489,8 @@ final class InventoryController
             'name' => $given['name'] ?? $base['name'],
             'description' => $given['description'] ?? ($base['description'] ?? ''),
             'kind' => $given['kind'] ?? ($base['kind'] ?? 'other'),
-            'quantity' => $given['quantity'] ?? 1,
+            // U balení (Arrow po 20) je zadaný počet počtem balení.
+            'quantity' => ($given['quantity'] ?? 1) * (int) ($base['bundle'] ?? 1),
             'requires_attunement' => $given['requires_attunement'] ?? (int) ($base['requiresAttunement'] ?? false),
             'consumable' => $given['consumable'] ?? (int) ($base['consumable'] ?? false),
             'rarity' => array_key_exists('rarity', $given) ? $given['rarity'] : ($base['rarity'] ?? null),
