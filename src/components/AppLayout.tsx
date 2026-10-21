@@ -10,6 +10,7 @@ import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useActiveCampaign } from '@/features/campaigns/active-campaign'
 import { useNewMessageToasts, useUnreadMessages } from '@/features/messages/api'
 import { useNotifications } from '@/features/notifications/api'
+import { PushPrompt } from '@/features/push/PushPrompt'
 import { usePushLinks } from '@/features/push/usePushLinks'
 
 const iconLink = 'relative inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
@@ -56,6 +57,7 @@ export function AppLayout() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 tab:max-w-6xl tab:p-6 tab:pb-28 xl:max-w-7xl">
+        <PushPrompt />
         <DiceSlotContext.Provider value={diceSlot}>
           <RollSettingsProvider>
             <RollOverlayProvider>

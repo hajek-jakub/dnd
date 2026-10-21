@@ -372,6 +372,8 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   `push_test_hosts` (jen testy, napodobená push služba `scripts/push-mock.mjs` na 8198) deploy v ostré konfiguraci odmítne.
 - **Klient** (`src/features/push/`, `public/sw.js`): service worker jen zobrazí notifikaci (tag + renotify) a po klepnutí otevřené aplikaci pošle cestu (`usePushLinks` přejde bez znovunačtení), jinak otevře okno. `PushCard` v profilu (zapnout, kategorie, zkušební push, vypnout); odhlášení zruší odběr zařízení na serveru. `sw.js` se nesmí cachovat (`public/.htaccess`), CSP má `worker-src 'self'`.
   iPhone a iPad dostávají push jen z aplikace přidané na plochu (iOS 16.4+); karta to vysvětlí.
+- **Nabídka při otevření aplikace** (`PushPrompt` v `AppLayout`): když prohlížeč push umí, oprávnění není zablokované a zařízení nemá odběr, ukáže se nahoře karta „Zapnout upozornění?“ (Zapnout / Později = 7 dní / Nechci = nadobro; volba v `localStorage` `dnd.pushPrompt`). Okno s oprávněním smí vzniknout jen po klepnutí, proto tlačítko a ne automatické vyžádání. V profilu se nezobrazuje, na iPhonu a iPadu mimo aplikaci na ploše ukáže návod „Přidat na plochu“.
+  E2E testy mají nabídku vypnutou (`e2e/fixtures.ts` a `newContext` nastaví `never`), jinak by měnila rozložení všech stránek; `push.spec.ts` ji zapíná zpět.
 - Testy: `api-tests/push.test.ts` (19: oprávnění, adresy, kategorie, přítomnost, přenos; **obsah se rozšifruje nezávislou implementací v Node** a ověří se podpis VAPID; mutation check proveden), `src/features/push/push.test.ts`, `e2e/push.spec.ts`. Skutečné doručení přes Google/Apple/Mozillu se v testech ověřit nedá, po nasazení: Profil → Zapnout → Poslat zkušební notifikaci.
 
 ### Další možná práce (mimo původní zadání)

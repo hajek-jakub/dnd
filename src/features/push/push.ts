@@ -127,3 +127,25 @@ export function sendTestPush(): Promise<{ sent: number; failed: number }> {
 export function fetchPushConfig(): Promise<{ available: boolean; publicKey: string | null }> {
   return api.get('/push/config')
 }
+
+export type State =
+  | { kind: 'loading' }
+  | { kind: 'unsupported'; ios: boolean }
+  | { kind: 'server-off' }
+  | { kind: 'denied' }
+  | { kind: 'off'; publicKey: string }
+  | { kind: 'on'; publicKey: string; subscription: ServerSubscription; endpoint: string }
+
+/** Zjistí, v jakém stavu jsou push notifikace na tomto zařízení (prohlížeč, oprávnění, odběr na serveru). */
+export async function readState(): Promise<State> {
+  try {
+    const config = await fetchPushConfig()
+    if (!config.available || !config.publicKey) return { kind: 'server-off' }
+    if (Notification.permission === 'denied') return { kind: 'denied' }
+    const sub = await currentSubscription()
+    const server = sub && Notification.permission === 'granted' ? await fetchServerSubscription(sub.endpoint) : null
+    return sub && server ? { kind: 'on', publicKey: config.publicKey, subscription: server, endpoint: sub.endpoint } : { kind: 'off', publicKey: config.publicKey }
+  } catch {
+    return { kind: 'server-off' }
+  }
+}

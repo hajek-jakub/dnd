@@ -5,6 +5,8 @@ import { randomTestIp } from './helpers'
 export const test = base.extend({
   context: async ({ context }, use) => {
     await context.setExtraHTTPHeaders({ 'x-test-ip': randomTestIp() })
+    // Nabídka push notifikací při otevření aplikace by měnila rozložení všech testů; vlastní test (push.spec.ts) ji zapíná zpět.
+    await context.addInitScript(() => localStorage.setItem('dnd.pushPrompt', 'never'))
     await use(context)
   },
 })

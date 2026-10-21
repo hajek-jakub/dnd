@@ -29,7 +29,7 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
 8. **Deník**: informace od DM podle témat (příběh, místa, postavy, frakce…). Nové zápisy ukazuje odznak v liště a štítek „nové“; důležité jsou připnuté nahoře. Můžeš hledat a filtrovat podle tématu a psát si **soukromé zápisky**, které uvidíš jen ty.
 9. **Oznámení** (zvonek): když ti DM něco dá nebo změní (item, bonus, zranění), ukáže se to hned.
 10. **Fotka postavy** a změna hesla jsou v profilu a na záložce Postava.
-11. **Push notifikace** (Profil → Push notifikace → „Zapnout push notifikace na tomto zařízení“): upozornění na nové zprávy, změny od DM (item, peníze, bonus, zranění), nové mapy a zápisy v deníku, i když je aplikace zavřená. Vybereš si, co chceš dostávat (pro každé zařízení zvlášť), a „Poslat zkušební notifikaci“ ověří, že to funguje. Když máš aplikaci otevřenou, nic nechodí (ukáže se v aplikaci), hody kostkou se neposílají nikdy.
+11. **Push notifikace** (aplikace je nabídne při otevření, nebo Profil → Push notifikace → „Zapnout push notifikace na tomto zařízení“): upozornění na nové zprávy, změny od DM (item, peníze, bonus, zranění), nové mapy a zápisy v deníku, i když je aplikace zavřená. Vybereš si, co chceš dostávat (pro každé zařízení zvlášť), a „Poslat zkušební notifikaci“ ověří, že to funguje. Když máš aplikaci otevřenou, nic nechodí (ukáže se v aplikaci), hody kostkou se neposílají nikdy.
     **iPhone a iPad**: push funguje jen z aplikace přidané na plochu (Safari → Sdílet → Přidat na plochu, pak ji otevři z plochy a zapni to v Profilu); vyžaduje iOS 16.4 nebo novější. Po odhlášení se push na tomto zařízení vypne.
 
 ## Pro DM

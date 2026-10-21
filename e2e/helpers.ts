@@ -15,10 +15,12 @@ export function randomTestIp(): string {
 
 /** Nový kontext (např. telefon hráče) s vlastní testovací IP. */
 export async function newContext(browser: Browser, options: BrowserContextOptions) {
-  return browser.newContext({
+  const context = await browser.newContext({
     ...options,
     extraHTTPHeaders: { ...options.extraHTTPHeaders, 'x-test-ip': randomTestIp() },
   })
+  await context.addInitScript(() => localStorage.setItem('dnd.pushPrompt', 'never'))
+  return context
 }
 
 /**
