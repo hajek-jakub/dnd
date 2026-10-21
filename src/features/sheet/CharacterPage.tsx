@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeftIcon, SparklesIcon, TrendingUpIcon } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Masonry, MasonryItem } from '@/components/Masonry'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { cn } from '@/lib/utils'
 import { AbilitiesCard, SavesCard, SkillsCard } from './AbilitiesCard'
@@ -149,23 +150,37 @@ function SheetView() {
             </div>
           )}
           <StatsCard />
-          <div className="grid gap-4 tab:grid-cols-2 tab:items-start lg:grid-cols-3">
-            <div className="space-y-4">
-              <HpCard />
-              <RestButtons />
-              <ResourcesCard />
-              <EffectsCard />
-              <AbilitiesCard />
-            </div>
-            <div className="space-y-4">
+          {/* Karty se skládají do nejkratšího sloupce, ať vedle sebe nezůstávají prázdná místa; nahoře jsou životy a útoky. */}
+          <Masonry>
+            <MasonryItem>
+              <div className="space-y-4">
+                <HpCard />
+                <RestButtons />
+              </div>
+            </MasonryItem>
+            <MasonryItem>
               <AttacksCard />
-              <SpellcastingCard />
-              <SavesCard />
-            </div>
-            <div className="tab:col-span-2 lg:col-span-1">
+            </MasonryItem>
+            <MasonryItem>
+              <ResourcesCard />
+            </MasonryItem>
+            {/* Tablet na výšku: dovednosti přes obě šířky úplně dole. Počítač: vysoká karta je 4. v pořadí, ať ostatní karty sloupce vyvážíme. */}
+            <MasonryItem className="tab:col-span-2 max-lg:order-last lg:col-span-1">
               <SkillsCard />
-            </div>
-          </div>
+            </MasonryItem>
+            <MasonryItem>
+              <SpellcastingCard />
+            </MasonryItem>
+            <MasonryItem>
+              <EffectsCard />
+            </MasonryItem>
+            <MasonryItem>
+              <AbilitiesCard />
+            </MasonryItem>
+            <MasonryItem>
+              <SavesCard />
+            </MasonryItem>
+          </Masonry>
         </div>
       )}
       {tab === 'spells' && <SpellsTab />}

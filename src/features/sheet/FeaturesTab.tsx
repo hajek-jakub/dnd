@@ -1,3 +1,4 @@
+import { MasonryCards } from '@/components/Masonry'
 import { Link } from 'react-router-dom'
 import { groupClasses } from '@/engine'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +12,7 @@ export function FeaturesTab() {
   const { character, bundle } = useSheet()
   const classes = groupClasses(toEngineInput(character))
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 tab:grid-cols-2 tab:items-start">
+    <MasonryCards columns="tab:grid-cols-2">
       {classes.map((c) => (
         <ClassFeatures
           key={c.classIndex}
@@ -31,7 +32,7 @@ export function FeaturesTab() {
           <CardContent>{character.extraProficiencies.join(', ')}</CardContent>
         </Card>
       )}
-    </div>
+    </MasonryCards>
   )
 }
 

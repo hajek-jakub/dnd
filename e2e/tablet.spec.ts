@@ -51,7 +51,10 @@ test('iPad: sheet, domovská stránka a zprávy využijí šířku', async ({ pa
   expect(attacks.x, 'útoky jsou vedle životů').toBeGreaterThan(hp.x + 250)
   expect(Math.abs(attacks.y - hp.y), 'útoky a životy začínají ve stejné výšce').toBeLessThan(40)
   if (landscape) {
-    expect(skills.x, 'na šířku jsou dovednosti ve třetím sloupci').toBeGreaterThan(attacks.x + 250)
+    // Karty se skládají podle výšky, takže dovednosti nejsou napevno ve třetím sloupci; třetí sloupec ale existuje.
+    const resources = await box(page.getByRole('heading', { name: 'Zdroje a sloty' }))
+    expect(resources.x, 'na šířku jsou tři sloupce').toBeGreaterThan(attacks.x + 250)
+    void skills
   } else {
     expect(skills.y, 'na výšku jsou dovednosti pod dvěma sloupci').toBeGreaterThan(attacks.y)
     const first = await box(page.getByRole('button', { name: /^Akrobacie: .* Změnit$/ }))

@@ -49,7 +49,7 @@ export function InventoryTab() {
           </CardContent>
         </Card>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-4 tab:sticky tab:top-28 tab:-mr-1 tab:max-h-[calc(100dvh-8rem)] tab:overflow-y-auto tab:overscroll-contain tab:pr-1">
         <CurrencyCard />
         <Card>
           <CardHeader>

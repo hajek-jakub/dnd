@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
+import { Masonry, MasonryItem } from '@/components/Masonry'
 import { useAuth } from '@/features/auth/auth-context'
 import { RoleBadge } from './RoleBadge'
 import {
@@ -63,24 +64,24 @@ export function CampaignPage() {
 
       {/* Telefon: vše pod sebou. Tablet a počítač: moje postava a deník vlevo, družina a NPC vpravo. */}
       {campaignId && (
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 tab:grid-cols-2 tab:items-start">
-          <div className="space-y-6">
+        <Masonry columns="tab:grid-cols-2">
+          <MasonryItem>
             <Suspense fallback={null}>
               <MyCharacterCard campaignId={campaignId} />
             </Suspense>
+          </MasonryItem>
+          <CharactersSection campaignId={campaignId} />
+          <MasonryItem>
             <JournalPreview campaignId={campaignId} />
-          </div>
-          <div className="space-y-6">
-            <CharactersSection campaignId={campaignId} />
-          </div>
-        </div>
+          </MasonryItem>
+        </Masonry>
       )}
       <h2 className="pt-2 font-display text-xl font-semibold">Správa kampaně</h2>
 
-      {/* Telefon: jeden sloupec (členové, pozvánky, nebezpečná zóna).
-          Počítač (DM): členové a nebezpečná zóna vlevo, pozvánky vpravo přes obě řady. */}
-      <div className="grid gap-6 tab:grid-cols-2 tab:items-start">
-        <Card className="tab:col-start-1">
+      {/* Telefon: jeden sloupec. Tablet a počítač: karty se skládají do nejkratšího sloupce. */}
+      <Masonry columns="tab:grid-cols-2">
+        <MasonryItem>
+        <Card>
           <CardHeader>
             <CardTitle>Členové</CardTitle>
           </CardHeader>
@@ -114,21 +115,27 @@ export function CampaignPage() {
             </ul>
           </CardContent>
         </Card>
-
-        {isDm && campaignId && <InvitesCard campaignId={campaignId} className="tab:col-start-2 tab:row-span-2 tab:row-start-1" />}
+        </MasonryItem>
 
         {isDm && campaignId && (
-          <Card className="tab:col-start-1">
-            <CardHeader>
-              <CardTitle>Nastavení kampaně</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SettingsForm campaignId={campaignId} settings={campaign.settings} />
-            </CardContent>
-          </Card>
+          <MasonryItem>
+            <InvitesCard campaignId={campaignId} />
+          </MasonryItem>
         )}
 
-      </div>
+        {isDm && campaignId && (
+          <MasonryItem>
+            <Card>
+              <CardHeader>
+                <CardTitle>Nastavení kampaně</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SettingsForm campaignId={campaignId} settings={campaign.settings} />
+              </CardContent>
+            </Card>
+          </MasonryItem>
+        )}
+      </Masonry>
       {campaignId && <DiceDock campaignId={campaignId} />}
     </>
   )

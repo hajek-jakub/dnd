@@ -1,3 +1,4 @@
+import { MasonryCards } from '@/components/Masonry'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -29,8 +30,9 @@ export function ProfilePage() {
   if (!user) return null
 
   return (
-    <div className="grid gap-6 tab:grid-cols-2 tab:items-start">
-      <h1 className="sr-only tab:col-span-2">Profil a nastavení účtu</h1>
+    <>
+      <h1 className="sr-only">Profil a nastavení účtu</h1>
+      <MasonryCards columns="tab:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Profil</CardTitle>
@@ -107,7 +109,8 @@ export function ProfilePage() {
           <PasswordForm />
         </CardContent>
       </Card>
-    </div>
+      </MasonryCards>
+    </>
   )
 }
 

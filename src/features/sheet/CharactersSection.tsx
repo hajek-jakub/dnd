@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom'
 import { PlusIcon } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MasonryItem } from '@/components/Masonry'
 import { useCampaign } from '@/features/campaigns/api'
 import { Avatar } from './Avatar'
 import { useCharacters } from './api'
 import type { CharacterListItem } from './types'
 
-/** Družina (postavy hráčů) a NPC. Vlastní postavy a pro DM všechny mají odkaz na sheet, ostatní jen veřejný náhled. */
+/** Družina (postavy hráčů) a NPC jako karty do `Masonry` (každá je samostatná položka, ať se skládají podle výšky). Vlastní postavy a pro DM všechny mají odkaz na sheet, ostatní jen veřejný náhled. */
 export function CharactersSection({ campaignId }: { campaignId: string }) {
   const { data, isPending, error } = useCharacters(campaignId)
   const { data: campaign } = useCampaign(campaignId)
@@ -16,6 +17,7 @@ export function CharactersSection({ campaignId }: { campaignId: string }) {
   const npcs = data?.filter((c) => c.kind === 'npc') ?? []
   return (
     <>
+      <MasonryItem>
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="font-display text-lg">Družina</CardTitle>
@@ -32,8 +34,10 @@ export function CharactersSection({ campaignId }: { campaignId: string }) {
           <CharacterList list={party} />
         </CardContent>
       </Card>
+      </MasonryItem>
 
       {(isDm || npcs.length > 0) && (
+        <MasonryItem>
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
             <CardTitle className="font-display text-lg">NPC</CardTitle>
@@ -48,6 +52,7 @@ export function CharactersSection({ campaignId }: { campaignId: string }) {
             <CharacterList list={npcs} />
           </CardContent>
         </Card>
+        </MasonryItem>
       )}
     </>
   )

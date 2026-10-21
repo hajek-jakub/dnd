@@ -1,3 +1,4 @@
+import { MasonryCards } from '@/components/Masonry'
 import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CameraIcon, PlusIcon, Trash2Icon, XIcon } from 'lucide-react'
@@ -19,36 +20,28 @@ import { LANGUAGE_CATALOG, languageLabel, languagesOf, withLanguage, withoutLang
 export function ProfileTab() {
   const { character, canEdit, isDm, update } = useSheet()
   return (
-    <div className="grid gap-6 tab:grid-cols-2 tab:items-start">
-      <div className="space-y-6">
-        <PhotoCard />
-        {canEdit && <DetailsForm key={character.rev} />}
-        {canEdit && <LanguagesCard />}
-      </div>
-      <div className="space-y-6">
-        {canEdit && <PersonalityForm key={`p${character.rev}`} />}
-        {isDm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Viditelnost pro hráče</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Label htmlFor="visibility">{character.kind === 'npc' ? 'Co vidí hráči u tohoto NPC' : 'Co vidí ostatní hráči'}</Label>
-              <NativeSelect
-                id="visibility"
-                value={character.visibility}
-                onChange={(e) => update({ visibility: e.target.value as 'public_only' | 'full' })}
-              >
-                <option value="public_only">Jen veřejný náhled (jméno, fotka, rasa, třída, level)</option>
-                <option value="full">Celý sheet (jen ke čtení)</option>
-              </NativeSelect>
-            </CardContent>
-          </Card>
-        )}
-        <LevelHistoryCard />
-        {canEdit && <DangerCard />}
-      </div>
-    </div>
+    <MasonryCards columns="tab:grid-cols-2">
+      <PhotoCard />
+      {canEdit && <PersonalityForm key={`p${character.rev}`} />}
+      {canEdit && <DetailsForm key={character.rev} />}
+      {isDm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Viditelnost pro hráče</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="visibility">{character.kind === 'npc' ? 'Co vidí hráči u tohoto NPC' : 'Co vidí ostatní hráči'}</Label>
+            <NativeSelect id="visibility" value={character.visibility} onChange={(e) => update({ visibility: e.target.value as 'public_only' | 'full' })}>
+              <option value="public_only">Jen veřejný náhled (jméno, fotka, rasa, třída, level)</option>
+              <option value="full">Celý sheet (jen ke čtení)</option>
+            </NativeSelect>
+          </CardContent>
+        </Card>
+      )}
+      {canEdit && <LanguagesCard />}
+      <LevelHistoryCard />
+      {canEdit && <DangerCard />}
+    </MasonryCards>
   )
 }
 
