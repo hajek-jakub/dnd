@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, LanguagesIcon, LockIcon, MessageSquareIcon, SendIcon, UsersIcon } from 'lucide-react'
+import { ArrowLeftIcon, ClipboardListIcon, LanguagesIcon, LockIcon, MessageSquareIcon, SendIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { LANGUAGE_CATALOG, languageLabel } from '@/features/sheet/languages'
+import { DraftsPanel } from './DraftsPanel'
 import { useMarkThreadRead, useMessages, useSendMessage, type ChatMessage } from './api'
 import { usePageTitle } from '@/lib/page-title'
 
@@ -19,7 +20,7 @@ interface ThreadInfo {
   id: string
   label: string
   hint: string
-  icon: 'group' | 'private' | 'secret' | 'language'
+  icon: 'group' | 'private' | 'secret' | 'language' | 'draft'
   /** název jazyka u vlákna `lang:<jazyk>` */
   language?: string
 }
@@ -55,6 +56,7 @@ export function MessagesPage() {
         list.push({ id: `dm:${m.userId}`, label: m.displayName, hint: 'Soukromě mezi tebou a hráčem', icon: 'private' })
       }
       list.push({ id: 'secret', label: 'Tajné zprávy', hint: 'Jen vybraní hráči', icon: 'secret' })
+      list.push({ id: 'drafts', label: 'Připravené zprávy', hint: 'Nachystej předem, odešli jedním klepnutím', icon: 'draft' })
     } else {
       if (dmMember) list.push({ id: `dm:${me}`, label: `${dmMember.displayName} (DM)`, hint: 'Soukromě jen mezi tebou a DM', icon: 'private' })
       if (messages.some((m) => m.thread === 'secret')) list.push({ id: 'secret', label: 'Tajné zprávy', hint: 'Zprávy od DM jen pro vybrané', icon: 'secret' })
@@ -126,6 +128,8 @@ export function MessagesPage() {
                       <LockIcon aria-hidden className="size-5 shrink-0" />
                     ) : t.icon === 'language' ? (
                       <LanguagesIcon aria-hidden className="size-5 shrink-0" />
+                    ) : t.icon === 'draft' ? (
+                      <ClipboardListIcon aria-hidden className="size-5 shrink-0" />
                     ) : (
                       <MessageSquareIcon aria-hidden className="size-5 shrink-0" />
                     )}
@@ -163,14 +167,20 @@ export function MessagesPage() {
                     <p className="truncate text-xs text-muted-foreground">{selected.hint}</p>
                   </div>
                 </div>
-                <MessageList messages={threadMessages} me={me} />
-                <Composer
-                  campaignId={campaignId}
-                  thread={selected}
-                  isDm={isDm}
-                  recipientsForDm={members?.filter((m) => m.role === 'player') ?? []}
-                  dmId={dmMember?.userId}
-                />
+                {selected.id === 'drafts' ? (
+                  <DraftsPanel campaignId={campaignId} players={members?.filter((m) => m.role === 'player') ?? []} />
+                ) : (
+                  <>
+                    <MessageList messages={threadMessages} me={me} />
+                    <Composer
+                      campaignId={campaignId}
+                      thread={selected}
+                      isDm={isDm}
+                      recipientsForDm={members?.filter((m) => m.role === 'player') ?? []}
+                      dmId={dmMember?.userId}
+                    />
+                  </>
+                )}
               </CardContent>
             </Card>
           </section>

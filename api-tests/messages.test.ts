@@ -304,6 +304,121 @@ describe('zprávy v kampani', () => {
     })
   })
 
+  describe('připravené zprávy DM (koncepty)', () => {
+    const drafts = (user: TestUser, cid: string = campaignId) => user.client.get(`/campaigns/${cid}/message-drafts`)
+    const make = (user: TestUser, body: unknown, cid: string = campaignId) => user.client.post(`/campaigns/${cid}/message-drafts`, body)
+    const thread = async (user: TestUser, t: string) => (await list(user)).messages.filter((m) => m.thread === t).map((m) => m.body)
+
+    it('anonym 401, cizinec 404, hráč 403 (vidět, zakládat ani odesílat koncepty smí jen DM)', async () => {
+      const anon = new Client()
+      expect((await anon.get(`/campaigns/${campaignId}/message-drafts`)).status).toBe(401)
+      expect((await anon.post(`/campaigns/${campaignId}/message-drafts`, { body: 'x', to: 'all' })).status).toBe(401)
+      expectStatus(await drafts(eve), 404)
+      expectStatus(await make(eve, { body: 'x', to: 'all' }), 404)
+      expectStatus(await drafts(bob), 403)
+      expectStatus(await make(bob, { body: 'x', to: 'all' }), 403)
+    })
+
+    it('DM nachystá zprávu pro jednoho, pro víc hráčů i pro všechny a koncept nikdo jiný nevidí ani v seznamu zpráv', async () => {
+      const one = await make(dm, { title: 'Vize pro Boba', body: 'Vidíš černého draka.', to: [bob.id] })
+      expectStatus(one, 201)
+      expect(one.body.draft).toMatchObject({ title: 'Vize pro Boba', body: 'Vidíš černého draka.', toAll: false, sentAt: null, recipients: [{ id: bob.id }] })
+      const two = await make(dm, { body: 'Slyšíte kroky.', to: [bob.id, carol.id] })
+      expectStatus(two, 201)
+      expect(two.body.draft.recipients.map((r: any) => r.id).sort()).toEqual([bob.id, carol.id].sort())
+      const all = await make(dm, { body: 'Zvon odbil půlnoc.', to: 'all' })
+      expectStatus(all, 201)
+      expect(all.body.draft).toMatchObject({ toAll: true, recipients: [] })
+
+      expect((await drafts(dm)).body.drafts.map((d: any) => d.body)).toEqual(expect.arrayContaining(['Vidíš černého draka.', 'Slyšíte kroky.', 'Zvon odbil půlnoc.']))
+      // dokud se neodešle, není to zpráva: nikdo (ani DM) ji v seznamu zpráv nemá
+      for (const u of [dm, bob, carol, dave]) expect(await bodies(u), u.username).not.toContain('Vidíš černého draka.')
+    })
+
+    it('validace: prázdný text, žádní příjemci, DM sám sobě, cizí člověk, nesmysl, příliš dlouhý text', async () => {
+      expectStatus(await make(dm, { body: '', to: 'all' }), 422)
+      expectStatus(await make(dm, { body: 'x' }), 422)
+      expectStatus(await make(dm, { body: 'x', to: [] }), 422)
+      expectStatus(await make(dm, { body: 'x', to: [dm.id] }), 422)
+      expectStatus(await make(dm, { body: 'x', to: [eve.id] }), 422)
+      expectStatus(await make(dm, { body: 'x', to: ['nesmysl'] }), 422)
+      expectStatus(await make(dm, { body: 'x'.repeat(4001), to: 'all' }), 422)
+      expectStatus(await make(dm, { body: 'x', to: 'all', title: 'n'.repeat(81) }), 422)
+    })
+
+    it('odeslání jednomu hráči: soukromé vlákno, vidí ho jen on', async () => {
+      const d = (await make(dm, { body: 'Jen pro Boba: dveře jsou zamčené.', to: [bob.id] })).body.draft
+      const sent = await dm.client.post(`/message-drafts/${d.id}/send`, {})
+      expectStatus(sent, 201)
+      expect(sent.body.message).toMatchObject({ thread: `dm:${bob.id}`, senderId: dm.id, body: 'Jen pro Boba: dveře jsou zamčené.', recipients: [{ id: bob.id }] })
+      expect(sent.body.draft.sentAt).not.toBeNull()
+      expect(await thread(bob, `dm:${bob.id}`)).toContain('Jen pro Boba: dveře jsou zamčené.')
+      for (const u of [carol, dave]) expect(await bodies(u), u.username).not.toContain('Jen pro Boba: dveře jsou zamčené.')
+    })
+
+    it('odeslání víc hráčům: tajná zpráva jen pro ně', async () => {
+      const d = (await make(dm, { body: 'Jen Bob a Carol: poklad je pod oltářem.', to: [bob.id, carol.id] })).body.draft
+      const sent = await dm.client.post(`/message-drafts/${d.id}/send`, {})
+      expectStatus(sent, 201)
+      expect(sent.body.message.thread).toBe('secret')
+      for (const u of [bob, carol, dm]) expect(await bodies(u), u.username).toContain('Jen Bob a Carol: poklad je pod oltářem.')
+      expect(await bodies(dave)).not.toContain('Jen Bob a Carol: poklad je pod oltářem.')
+    })
+
+    it('odeslání všem: skupinová zpráva, koncept zůstane s časem odeslání a po úpravě je zase neodeslaný', async () => {
+      const d = (await make(dm, { body: 'Všem: rozednívá se.', to: 'all' })).body.draft
+      expectStatus(await dm.client.post(`/message-drafts/${d.id}/send`, {}), 201)
+      for (const u of [dm, bob, carol, dave]) expect(await bodies(u), u.username).toContain('Všem: rozednívá se.')
+      const stored = (await drafts(dm)).body.drafts.find((x: any) => x.id === d.id)
+      expect(stored.sentAt).not.toBeNull()
+      const edited = await dm.client.patch(`/message-drafts/${d.id}`, { body: 'Všem: slunce vyšlo.', to: [dave.id] })
+      expectStatus(edited, 200)
+      expect(edited.body.draft).toMatchObject({ body: 'Všem: slunce vyšlo.', toAll: false, sentAt: null, recipients: [{ id: dave.id }] })
+      expectStatus(await dm.client.patch(`/message-drafts/${d.id}`, {}), 422)
+      expectStatus(await dm.client.patch(`/message-drafts/${d.id}`, { to: [dm.id] }), 422)
+    })
+
+    it('cizí koncept: cizinec i hráč dostanou 404 na úpravu, smazání i odeslání a nic se neodešle', async () => {
+      const d = (await make(dm, { body: 'Tajný plán DM.', to: 'all' })).body.draft
+      for (const u of [eve, bob]) {
+        expectStatus(await u.client.patch(`/message-drafts/${d.id}`, { body: 'přepsáno' }), 404)
+        expectStatus(await u.client.delete(`/message-drafts/${d.id}`), 404)
+        expectStatus(await u.client.post(`/message-drafts/${d.id}/send`, {}), 404)
+      }
+      expect(await bodies(bob)).not.toContain('Tajný plán DM.')
+      expect((await drafts(dm)).body.drafts.find((x: any) => x.id === d.id).body).toBe('Tajný plán DM.')
+      // DM jiné kampaně (eve) svůj koncept založí, ale ten první nevidí
+      const evesCampaign = await createCampaign(eve, 'Evina')
+      expect((await drafts(eve, evesCampaign)).body.drafts).toEqual([])
+      expectStatus(await dm.client.delete(`/message-drafts/${d.id}`), 204)
+      expectStatus(await dm.client.post(`/message-drafts/${d.id}/send`, {}), 404)
+    })
+
+    it('hráč, který mezitím z kampaně odešel, zprávu nedostane; když nezbyde nikdo, odeslání se odmítne', async () => {
+      const zed = await joinAsPlayer(dm, campaignId, 'zed')
+      const both = (await make(dm, { body: 'Pro Zeda a Boba.', to: [zed.id, bob.id] })).body.draft
+      const onlyZed = (await make(dm, { body: 'Jen pro Zeda.', to: [zed.id] })).body.draft
+      expectStatus(await dm.client.delete(`/campaigns/${campaignId}/members/${zed.id}`), 204)
+
+      const stored = (await drafts(dm)).body.drafts
+      expect(stored.find((x: any) => x.id === both.id).recipients.map((r: any) => r.id)).toEqual([bob.id])
+      expect(stored.find((x: any) => x.id === onlyZed.id).recipients).toEqual([])
+
+      const sent = await dm.client.post(`/message-drafts/${both.id}/send`, {})
+      expectStatus(sent, 201)
+      expect(sent.body.message).toMatchObject({ thread: `dm:${bob.id}`, recipients: [{ id: bob.id }] })
+      expectStatus(await dm.client.post(`/message-drafts/${onlyZed.id}/send`, {}), 422)
+      expect(await bodies(dm)).not.toContain('Jen pro Zeda.')
+    })
+
+    it('koncepty zmizí s kampaní', async () => {
+      const c = await createCampaign(dm, 'Koncepty k smazání')
+      expectStatus(await make(dm, { body: 'x', to: 'all' }, c), 201)
+      expectStatus(await dm.client.delete(`/campaigns/${c}`), 204)
+      expectStatus(await drafts(dm, c), 404)
+    })
+  })
+
   describe('omezení četnosti', () => {
     it('víc než 40 zpráv za minutu vrátí 429', async () => {
       const spammer = await joinAsPlayer(dm, campaignId, 'spam')

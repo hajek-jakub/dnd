@@ -73,6 +73,7 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     await page.request.post(`/api/characters/${character}/tactics`, { data: t })
   }
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'x'.repeat(300) } })
+  await page.request.post(`/api/campaigns/${campaignId}/message-drafts`, { data: { title: 'Dlouhý název připravené zprávy, který se musí zalomit', body: 'Text '.repeat(150), to: 'all' } })
   await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis s dlouhým názvem '.repeat(4), body: 'Text '.repeat(200), pinned: true } })
   await page.request.post(`/api/campaigns/${campaignId}/dm-notes`, { data: { body: 'Poznámka\n'.repeat(5) } })
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa s hodně dlouhým názvem, aby se zalomil', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(600, 400)) } } })).json()).map.id as string
@@ -108,6 +109,7 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     ['loot a itemy', `/campaigns/${campaignId}/dm/loot`],
     ['deník', `/campaigns/${campaignId}/journal`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
+    ['zprávy: připravené', `/campaigns/${campaignId}/messages?t=drafts`],
     ['mapy', `/campaigns/${campaignId}/maps`],
     ['mapa', `/campaigns/${campaignId}/maps/${map}`],
     ['oznámení', '/notifications'],

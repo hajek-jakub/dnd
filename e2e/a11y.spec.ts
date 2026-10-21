@@ -94,6 +94,17 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
       },
     ],
     ['deník', `/campaigns/${campaignId}/journal`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
+    [
+      'zprávy: připravené',
+      `/campaigns/${campaignId}/messages?t=drafts`,
+      async (p) => {
+        await p.request.post(`/api/campaigns/${campaignId}/message-drafts`, { data: { title: 'Vize', body: 'Text vize', to: 'all' } })
+        await p.reload()
+        await expect(p.getByRole('list', { name: 'Připravené zprávy' }).getByTestId('draft')).toBeVisible()
+        await p.getByRole('button', { name: 'Nová zpráva' }).click()
+        await expect(p.getByRole('form', { name: 'Nová připravená zpráva' })).toBeVisible()
+      },
+    ],
     ['zprávy', `/campaigns/${campaignId}/messages`, async (p) => void (await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible())],
     ['mapy', `/campaigns/${campaignId}/maps`, async (p) => void (await expect(p.getByRole('heading', { name: 'Mapy', level: 1 })).toBeVisible())],
     ['oznámení', '/notifications', async (p) => void (await expect(p.getByRole('heading', { name: 'Oznámení' })).toBeVisible())],

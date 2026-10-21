@@ -176,3 +176,70 @@ test('společný jazyk: hráči si píšou tak, že to DM ani jiný hráč nevid
     await Promise.all(contexts.map((c) => c.close()))
   }
 })
+
+test('připravené zprávy DM: nachystá se předem pro jednoho, víc hráčů i všechny a odešle jedním klepnutím', async ({ page: dm, browser, baseURL, isMobile }) => {
+  test.skip(isMobile, 'Kontexty si ten test staví sám (DM počítač + dva hráči na telefonu).')
+
+  await registerDm(dm, 'draftdm')
+  const { campaignId, code } = await newCampaign(dm, 'Koncepty')
+  const phoneA = await newContext(browser, { ...devices['Pixel 7'], baseURL, locale: 'cs-CZ' })
+  const phoneB = await newContext(browser, { ...devices['Pixel 7'], baseURL, locale: 'cs-CZ' })
+  const bob = await phoneA.newPage()
+  const carol = await phoneB.newPage()
+  try {
+    const bobName = uniqueName('bob')
+    const carolName = uniqueName('carol')
+    await registerViaUi(bob, { username: bobName, startPath: `/join/${code}` })
+    await registerViaUi(carol, { username: carolName, startPath: `/join/${code}` })
+    for (const p of [dm, bob, carol]) await p.goto(`/campaigns/${campaignId}/messages`)
+
+    // Hráč připravené zprávy v seznamu vláken nemá.
+    await expect(bob.getByRole('button', { name: /Připravené zprávy/ })).toHaveCount(0)
+
+    // DM nachystá vizi jen pro Boba a zprávu pro Boba s Carol; zatím nic neodešle.
+    await dm.getByRole('button', { name: /Připravené zprávy/ }).click()
+    await dm.getByRole('button', { name: 'Nová zpráva' }).click()
+    await dm.getByLabel('Název (jen pro tebe, nepovinný)').fill('Vize pro Boba')
+    await dm.getByLabel('Zpráva', { exact: true }).fill('Ve snu vidíš černého draka.')
+    await expect(dm.getByRole('button', { name: 'Nachystat' })).toBeDisabled() // chybí příjemce
+    await dm.getByRole('checkbox', { name: bobName }).check()
+    await dm.getByRole('button', { name: 'Nachystat' }).click()
+    await dm.getByRole('button', { name: 'Nová zpráva' }).click()
+    await dm.getByLabel('Zpráva', { exact: true }).fill('Slyšíte tiché kroky.')
+    await dm.getByRole('checkbox', { name: bobName }).check()
+    await dm.getByRole('checkbox', { name: carolName }).check()
+    await dm.getByRole('button', { name: 'Nachystat' }).click()
+    await expect(dm.getByTestId('draft')).toHaveCount(2)
+    await expect(dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' })).toContainText(`${bobName} (soukromě)`)
+
+    // Dokud DM neklepne na Odeslat, hráči nic nevidí.
+    await bob.getByRole('button', { name: /\(DM\)/ }).click()
+    await expect(bob.getByText('Ve snu vidíš černého draka.')).toHaveCount(0)
+
+    // Jedno klepnutí: vize jde jen Bobovi.
+    await dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' }).getByRole('button', { name: /^Odeslat:/ }).click()
+    await expect(dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' })).toContainText('Odesláno')
+    await expect(bob.getByRole('log', { name: 'Zprávy' }).getByText('Ve snu vidíš černého draka.')).toBeVisible({ timeout: 15_000 })
+    await carol.getByRole('button', { name: /\(DM\)/ }).click()
+    await expect(carol.getByText('Ve snu vidíš černého draka.')).toHaveCount(0)
+
+    // Zpráva pro dva hráče přijde jako tajná; Carol ji vidí taky.
+    await dm.getByTestId('draft').filter({ hasText: 'Slyšíte tiché kroky.' }).getByRole('button', { name: /^Odeslat:/ }).click()
+    await carol.getByRole('button', { name: 'Zpět na vlákna' }).click()
+    await carol.getByRole('button', { name: /Tajné zprávy/ }).click()
+    await expect(carol.getByRole('log', { name: 'Zprávy' }).getByText('Slyšíte tiché kroky.')).toBeVisible({ timeout: 15_000 })
+
+    // Úprava a smazání konceptu.
+    await dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' }).getByRole('button', { name: /^Upravit:/ }).click()
+    await dm.getByRole('checkbox', { name: 'Všem' }).check()
+    await dm.getByRole('button', { name: 'Uložit změny' }).click()
+    await expect(dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' })).toContainText('Všem (skupina)')
+    dm.once('dialog', (d) => void d.accept())
+    await dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' }).getByRole('button', { name: /^Smazat:/ }).click()
+    await expect(dm.getByTestId('draft').filter({ hasText: 'Vize pro Boba' })).toHaveCount(0)
+    await expectNoHorizontalScroll(dm)
+  } finally {
+    await phoneA.close()
+    await phoneB.close()
+  }
+})

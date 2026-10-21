@@ -145,6 +145,12 @@ final class App
         $r->add('POST', '/campaigns/{id}/messages', [MessageController::class, 'send']);
         $r->add('POST', '/campaigns/{id}/messages/read', [MessageController::class, 'markRead']);
         $r->add('GET', '/messages/unread', [MessageController::class, 'unreadOverview']);
+        // Připravené zprávy DM (koncepty): nachystá se text a příjemci, odešle se jedním klepnutím
+        $r->add('GET', '/campaigns/{id}/message-drafts', [MessageController::class, 'drafts']);
+        $r->add('POST', '/campaigns/{id}/message-drafts', [MessageController::class, 'createDraft']);
+        $r->add('PATCH', '/message-drafts/{id}', [MessageController::class, 'updateDraft']);
+        $r->add('DELETE', '/message-drafts/{id}', [MessageController::class, 'deleteDraft']);
+        $r->add('POST', '/message-drafts/{id}/send', [MessageController::class, 'sendDraft']);
 
         // Mapy kampaně a body na nich
         $r->add('GET', '/campaigns/{id}/maps', [MapController::class, 'index']);

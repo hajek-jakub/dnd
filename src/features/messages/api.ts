@@ -99,3 +99,78 @@ export function useNewMessageToasts(data: UnreadOverview | undefined) {
     seen.current = Object.fromEntries(data.campaigns.map((c) => [c.campaignId, c.unread]))
   }, [data])
 }
+
+/** Připravená zpráva DM (koncept): text a příjemci jsou nachystané předem, odešlou se jedním klepnutím. */
+export interface MessageDraft {
+  id: string
+  title: string
+  body: string
+  /** true = skupina; jinak `recipients` (jeden hráč = soukromě, víc = tajná zpráva) */
+  toAll: boolean
+  /** jen hráči, kteří v kampani pořád jsou */
+  recipients: { id: string; name: string }[]
+  sentAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DraftInput {
+  title: string
+  body: string
+  to: 'all' | string[]
+}
+
+const draftsKey = (campaignId: string) => ['message-drafts', campaignId] as const
+
+export function useDrafts(campaignId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: draftsKey(campaignId),
+    enabled,
+    queryFn: async () => (await api.get<{ drafts: MessageDraft[] }>(`/campaigns/${campaignId}/message-drafts`)).drafts,
+  })
+}
+
+function useDraftsRefresh(campaignId: string) {
+  const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries({ queryKey: draftsKey(campaignId) })
+}
+
+export function useCreateDraft(campaignId: string) {
+  const refresh = useDraftsRefresh(campaignId)
+  return useMutation({
+    mutationFn: async (input: DraftInput) => (await api.post<{ draft: MessageDraft }>(`/campaigns/${campaignId}/message-drafts`, input)).draft,
+    onSuccess: refresh,
+  })
+}
+
+export function useUpdateDraft(campaignId: string) {
+  const refresh = useDraftsRefresh(campaignId)
+  return useMutation({
+    mutationFn: async ({ id, ...input }: DraftInput & { id: string }) => (await api.patch<{ draft: MessageDraft }>(`/message-drafts/${id}`, input)).draft,
+    onSuccess: refresh,
+  })
+}
+
+export function useDeleteDraft(campaignId: string) {
+  const refresh = useDraftsRefresh(campaignId)
+  return useMutation({
+    mutationFn: async (id: string) => void (await api.delete(`/message-drafts/${id}`)),
+    onSuccess: refresh,
+  })
+}
+
+/** Odešle koncept jako běžnou zprávu; odeslaná zpráva se hned přidá do vláken. */
+export function useSendDraft(campaignId: string) {
+  const queryClient = useQueryClient()
+  const refresh = useDraftsRefresh(campaignId)
+  return useMutation({
+    mutationFn: async (id: string) => await api.post<{ message: ChatMessage; draft: MessageDraft }>(`/message-drafts/${id}/send`, {}),
+    onSuccess: ({ message }) => {
+      queryClient.setQueryData<MessagesState>(['messages', campaignId], (old) =>
+        old && !old.messages.some((m) => m.id === message.id) ? { ...old, messages: [...old.messages, message] } : old,
+      )
+      void refresh()
+      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY })
+    },
+  })
+}
