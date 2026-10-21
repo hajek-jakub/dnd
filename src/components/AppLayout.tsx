@@ -28,7 +28,7 @@ export function AppLayout() {
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 tab:max-w-6xl xl:max-w-7xl">
           <div className="flex min-w-0 items-center gap-2">
             <Link to="/" aria-label="Úvodní stránka" className="flex size-11 shrink-0 items-center justify-center">
-              <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="size-8" />
+              <img src={`${import.meta.env.BASE_URL}logo.svg?v=2`} alt="" className="size-8" />
             </Link>
             <span className="truncate font-display font-semibold">{active?.name ?? 'D&D kampaně'}</span>
           </div>
