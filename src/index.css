@@ -32,6 +32,7 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
+    --color-gold: var(--gold);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -55,32 +56,34 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ===== Barevné schéma „Dragonfire“ (styl D&D Beyond): červená drak, zlato, pergamen a uhlová tmavá.
+   Kontrast textu hlídají axe testy (WCAG AA) ve světlém i tmavém režimu. ===== */
 :root {
-    /* Pergamen a inkoust: teplé neutrální barvy, indigový akcent z loga. Kontrast textu je ověřený axe testy (WCAG AA). */
-    --background: oklch(0.972 0.01 85);
-    --foreground: oklch(0.22 0.025 275);
-    --card: oklch(0.994 0.004 85);
-    --card-foreground: oklch(0.22 0.025 275);
-    --popover: oklch(0.994 0.004 85);
-    --popover-foreground: oklch(0.22 0.025 275);
-    --primary: oklch(0.46 0.2 277);
-    --primary-foreground: oklch(0.985 0.005 85);
-    --secondary: oklch(0.93 0.018 85);
-    --secondary-foreground: oklch(0.26 0.03 275);
-    --muted: oklch(0.94 0.014 85);
-    --muted-foreground: oklch(0.45 0.025 275);
-    --accent: oklch(0.92 0.03 85);
-    --accent-foreground: oklch(0.26 0.03 275);
-    --destructive: oklch(0.5 0.2 27.3);
-    --border: oklch(0.88 0.016 85);
-    --input: oklch(0.86 0.016 85);
-    --ring: oklch(0.62 0.16 277);
+    --background: oklch(0.948 0.024 86);
+    --foreground: oklch(0.24 0.022 45);
+    --card: oklch(0.986 0.013 88);
+    --card-foreground: oklch(0.24 0.022 45);
+    --popover: oklch(0.99 0.011 88);
+    --popover-foreground: oklch(0.24 0.022 45);
+    --primary: oklch(0.5 0.185 27);
+    --primary-foreground: oklch(0.986 0.01 88);
+    --secondary: oklch(0.91 0.032 84);
+    --secondary-foreground: oklch(0.26 0.03 45);
+    --muted: oklch(0.928 0.026 85);
+    --muted-foreground: oklch(0.46 0.03 55);
+    --accent: oklch(0.9 0.055 82);
+    --accent-foreground: oklch(0.26 0.03 45);
+    --destructive: oklch(0.48 0.2 27.3);
+    --border: oklch(0.85 0.035 80);
+    --input: oklch(0.82 0.04 80);
+    --ring: oklch(0.58 0.17 27);
+    --gold: oklch(0.62 0.115 80);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.75rem;
+    --radius: 0.6rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -92,24 +95,26 @@
 }
 
 .dark {
-    --background: oklch(0.17 0.03 275);
-    --foreground: oklch(0.96 0.012 85);
-    --card: oklch(0.225 0.032 275);
-    --card-foreground: oklch(0.96 0.012 85);
-    --popover: oklch(0.225 0.032 275);
-    --popover-foreground: oklch(0.96 0.012 85);
-    --primary: oklch(0.75 0.14 280);
-    --primary-foreground: oklch(0.17 0.03 275);
-    --secondary: oklch(0.285 0.035 275);
-    --secondary-foreground: oklch(0.96 0.012 85);
-    --muted: oklch(0.275 0.034 275);
-    --muted-foreground: oklch(0.76 0.03 275);
-    --accent: oklch(0.3 0.04 275);
-    --accent-foreground: oklch(0.96 0.012 85);
-    --destructive: oklch(0.72 0.18 22);
-    --border: oklch(1 0 0 / 13%);
-    --input: oklch(1 0 0 / 18%);
-    --ring: oklch(0.62 0.14 280);
+    --background: oklch(0.165 0.007 40);
+    --foreground: oklch(0.95 0.014 85);
+    --card: oklch(0.22 0.009 42);
+    --card-foreground: oklch(0.95 0.014 85);
+    --popover: oklch(0.24 0.01 42);
+    --popover-foreground: oklch(0.95 0.014 85);
+    /* Světlejší červená než ve světlém režimu: musí obstát jako text na tmavém pozadí (odkazy, aktivní záložky). */
+    --primary: oklch(0.69 0.17 25);
+    --primary-foreground: oklch(0.16 0.012 40);
+    --secondary: oklch(0.275 0.011 45);
+    --secondary-foreground: oklch(0.95 0.014 85);
+    --muted: oklch(0.265 0.01 45);
+    --muted-foreground: oklch(0.75 0.022 75);
+    --accent: oklch(0.31 0.03 50);
+    --accent-foreground: oklch(0.95 0.014 85);
+    --destructive: oklch(0.72 0.17 24);
+    --border: oklch(0.95 0.03 80 / 14%);
+    --input: oklch(0.95 0.03 80 / 19%);
+    --ring: oklch(0.62 0.16 26);
+    --gold: oklch(0.8 0.12 85);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -132,11 +137,11 @@
   body {
     @apply bg-background text-foreground;
     /* jemná záře nahoře, ať stránka není plochá */
-    background-image: radial-gradient(70rem 24rem at 50% -8rem, oklch(0.9 0.07 85 / 0.55), transparent 70%);
+    background-image: radial-gradient(70rem 26rem at 50% -9rem, oklch(0.86 0.09 78 / 0.55), transparent 70%);
     background-repeat: no-repeat;
   }
   .dark body {
-    background-image: radial-gradient(70rem 24rem at 50% -8rem, oklch(0.4 0.12 280 / 0.35), transparent 70%);
+    background-image: radial-gradient(70rem 26rem at 50% -9rem, oklch(0.38 0.14 27 / 0.38), transparent 70%);
   }
   h1 {
     @apply font-display tracking-wide;

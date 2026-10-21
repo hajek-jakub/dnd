@@ -24,7 +24,7 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh">
       <OfflineBanner />
-      <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-b-gold/40 bg-card/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 tab:max-w-6xl xl:max-w-7xl">
           <div className="flex min-w-0 items-center gap-2">
             <Link to="/" aria-label="Úvodní stránka" className="flex size-11 shrink-0 items-center justify-center">

@@ -18,7 +18,7 @@ export function AbilitiesCard() {
         <ul className="grid grid-cols-3 gap-2">
           {ABILITIES.map((a) => (
             <li key={a} className="flex flex-col items-center rounded-xl border p-2 text-center">
-              <span className="text-xs font-medium text-muted-foreground uppercase">{a}</span>
+              <span className="font-display text-xs font-semibold tracking-wider text-muted-foreground uppercase">{a}</span>
               <span
                 className="text-2xl font-bold tabular-nums"
                 aria-label={`${ABILITY_LABELS[a]}: modifikátor ${formatModifier(sheet.abilities[a].modifier)}`}

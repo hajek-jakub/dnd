@@ -166,7 +166,7 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
           {down && (
             <Link
               to={`/campaigns/${campaignId}/dm/loot${enemy.sourceFolderId ? `?folder=${enemy.sourceFolderId}` : ''}`}
-              className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-2"
+              className="inline-flex min-h-11 items-center font-semibold text-foreground underline underline-offset-2"
             >
               Rozdat v Lootu
             </Link>

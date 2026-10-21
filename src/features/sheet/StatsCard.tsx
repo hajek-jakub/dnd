@@ -57,7 +57,7 @@ function acHints(items: CharacterItem[]): string[] {
 function Stat({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className={cn('flex flex-col items-center rounded-xl border bg-card p-2 text-center sm:col-span-1', wide ? 'col-span-3' : 'col-span-2')}>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="font-display text-[0.7rem] font-semibold tracking-wider text-muted-foreground uppercase">{label}</span>
       {children}
     </div>
   )
