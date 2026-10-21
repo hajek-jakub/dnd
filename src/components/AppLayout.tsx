@@ -10,6 +10,7 @@ import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useActiveCampaign } from '@/features/campaigns/active-campaign'
 import { useNewMessageToasts, useUnreadMessages } from '@/features/messages/api'
 import { useNotifications } from '@/features/notifications/api'
+import { usePushLinks } from '@/features/push/usePushLinks'
 
 const iconLink = 'relative inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
@@ -18,6 +19,7 @@ export function AppLayout() {
   const { data: messageUnread } = useUnreadMessages()
   const { active } = useActiveCampaign()
   useNewMessageToasts(messageUnread)
+  usePushLinks()
   const unread = notifications?.unread ?? 0
   const [diceSlot, setDiceSlot] = useState<HTMLElement | null>(null)
 

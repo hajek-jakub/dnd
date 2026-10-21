@@ -9,6 +9,7 @@ use Dnd\Db;
 use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
+use Dnd\Push;
 use Dnd\Request;
 use Dnd\Response;
 
@@ -61,6 +62,13 @@ final class JournalController
                 Db::exec('INSERT INTO journal_viewers (entry_id, user_id) VALUES (?, ?)', [$id, $v]);
             }
         });
+        // Nový zápis od DM dostanou hráči, kteří ho vidí, i jako push (soukromé zápisky hráčů a zápisy jen pro DM ne).
+        if ($role === 'dm' && ($visibility === 'all' || $visibility === 'selected')) {
+            $to = $visibility === 'all'
+                ? array_map(static fn (array $r): string => (string) $r['user_id'], Db::all("SELECT user_id FROM campaign_members WHERE campaign_id = ? AND role = 'player'", [$params['id']]))
+                : array_values(array_diff($viewers, [$user['id']]));
+            Push::queue($to, 'journal', $params['id'], 'Nový zápis v deníku: ' . $fields['title'], 'campaigns/' . $params['id'] . '/journal', 'journal-' . $id);
+        }
         // Autor vlastní zápis nikdy nemá jako nový.
         return Response::json(['entry' => self::one($id, $user['id'], $role, null)], 201);
     }

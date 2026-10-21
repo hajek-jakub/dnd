@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Images;
 use Dnd\Input;
+use Dnd\Push;
 use Dnd\Request;
 use Dnd\Response;
 
@@ -84,6 +85,11 @@ final class MapController
             Db::exec('UPDATE maps SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
         }
         $row = Db::one('SELECT id, campaign_id, name, image_path, width, height, visible, created_at FROM maps WHERE id = ?', [$map['id']]) ?? [];
+        // Zveřejnění mapy (skrytá → viditelná) dostanou hráči i jako push.
+        if (!(bool) $map['visible'] && (bool) $row['visible']) {
+            $players = array_map(static fn (array $r): string => (string) $r['user_id'], Db::all("SELECT user_id FROM campaign_members WHERE campaign_id = ? AND role = 'player'", [$row['campaign_id']]));
+            Push::queue($players, 'maps', (string) $row['campaign_id'], 'DM zveřejnil mapu: ' . $row['name'], 'campaigns/' . $row['campaign_id'] . '/maps/' . $row['id'], 'map-' . $row['id']);
+        }
         return ['map' => self::mapPayload($row)];
     }
 

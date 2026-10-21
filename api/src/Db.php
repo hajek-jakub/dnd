@@ -86,6 +86,8 @@ final class Db
         // Deadlock (MySQL 1213) databáze vyřeší tím, že jednu transakci zruší. Ta se celá vrátila zpět, takže ji jde bezpečně zopakovat.
         for ($attempt = 1;; $attempt++) {
             $pdo->beginTransaction();
+            // Push zařazené uvnitř transakce se po jejím vrácení zahodí (a při zopakování po deadlocku se nezdvojí).
+            $pushMark = Push::mark();
             try {
                 $result = $fn();
                 $pdo->commit();
@@ -94,6 +96,7 @@ final class Db
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
+                Push::rewind($pushMark);
                 if ($attempt >= 3 || !self::isDeadlock($e)) {
                     throw $e;
                 }

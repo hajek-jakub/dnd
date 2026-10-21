@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dnd\Controllers;
 
+use Dnd\Push;
 use Dnd\Request;
 
 /**
@@ -15,6 +16,8 @@ final class SummaryController
     /** @param array{id:string} $user */
     public static function index(Request $req, array $params, array $user): array
     {
+        // Dotaz posílá jen viditelné okno aplikace: kdo se ptá, má aplikaci otevřenou a push nepotřebuje.
+        Push::touch($user['id']);
         return [
             'notifications' => NotificationController::index($req, $params, $user),
             'messages' => MessageController::unreadOverview($req, $params, $user),

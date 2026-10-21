@@ -1,3 +1,4 @@
+import { forgetPushOnServer } from '@/features/push/push'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, onUnauthorized } from '@/lib/api'
@@ -49,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      // Dokud je uživatel přihlášený: odběr push tohoto zařízení se zruší, ať po odhlášení nechodí cizí upozornění.
+      await forgetPushOnServer()
       await api.post('/auth/logout')
     } finally {
       setUser(null)

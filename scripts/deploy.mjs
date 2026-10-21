@@ -114,6 +114,9 @@ if (JSON.stringify(cfg.db ?? {}).includes('DOPLN_')) {
 if (cfg.claude_base_url) {
   problems.push("'claude_base_url' patří jen do testů (API klíč by se posílal jinam než na api.anthropic.com), na ostrém serveru ho smaž")
 }
+if (Array.isArray(cfg.push_test_hosts) && cfg.push_test_hosts.length > 0) {
+  problems.push("'push_test_hosts' patří jen do testů (povolilo by posílat push na vlastní adresy), na ostrém serveru ho smaž")
+}
 if (cfg.claude_api_key && !(Array.isArray(cfg.claude_users) && cfg.claude_users.length > 0)) {
   console.warn("POZOR: 'claude_api_key' je nastavený, ale 'claude_users' je prázdné, takže AI pomocníka nikdo neuvidí. Doplň svoje přihlašovací jméno.")
 }
@@ -266,6 +269,8 @@ if (!dryRun && !skipMigrate) {
     if (!d.gd) console.warn('POZOR: chybí rozšíření GD, nahrávání fotek a map nebude fungovat. Zapni GD v nastavení PHP na Endoře.')
     if (!d.storageWritable) console.warn('POZOR: PHP nemůže zapisovat do api/storage, nahrávání fotek a map nebude fungovat (zkontroluj oprávnění složky).')
     console.log(`Časový limit PHP: ${d.maxExecutionTime === 0 ? 'bez limitu' : `${d.maxExecutionTime} s`}`)
+    if (d.push?.supported) console.log('Push notifikace: server umí šifrovat a podepisovat.')
+    else console.warn(`POZOR: push notifikace na serveru nepůjdou (${d.push?.error ?? 'neznámá chyba'}).`)
     if (d.claude?.configured) {
       if (!d.curl) console.warn('POZOR: na serveru chybí rozšíření PHP cURL, AI pomocník nebude fungovat.')
       else if (!d.claude.reachable) console.warn(`POZOR: server se nedostane na Claude API (${d.claude.error}). Hosting asi blokuje odchozí HTTPS.`)

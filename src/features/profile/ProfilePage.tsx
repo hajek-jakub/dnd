@@ -13,6 +13,7 @@ import { RoleBadge } from '@/features/campaigns/RoleBadge'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
 import { CampaignDangerCard } from './CampaignDangerCard'
+import { PushCard } from '@/features/push/PushCard'
 import { useChangePassword, useUpdateDisplayName } from './api'
 import { usePageTitle } from '@/lib/page-title'
 
@@ -88,6 +89,7 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+      <PushCard />
       <Card>
         <CardHeader>
           <CardTitle>O aplikaci</CardTitle>

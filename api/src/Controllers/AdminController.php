@@ -12,6 +12,7 @@ use Dnd\Items;
 use Dnd\Migrator;
 use Dnd\RateLimiter;
 use Dnd\Request;
+use Dnd\WebPush;
 use Dnd\Response;
 use Dnd\Seeder;
 use PDOException;
@@ -70,8 +71,26 @@ final class AdminController
             'postMaxSize' => (string) ini_get('post_max_size'),
             'maxExecutionTime' => (int) ini_get('max_execution_time'),
             'curl' => function_exists('curl_init'),
+            'push' => self::pushCheck(),
             'claude' => Claude::configured() ? Claude::ping() + ['configured' => true, 'model' => Assistant::model()] : ['configured' => false],
         ]);
+    }
+
+    /** Umí server push notifikace? Zkouší podpis i šifrování nanečisto (bez odeslání). @return array{supported: bool, error: string|null} */
+    private static function pushCheck(): array
+    {
+        if (!WebPush::supported()) {
+            return ['supported' => false, 'error' => 'Chybí OpenSSL (ECDH, AES-GCM) nebo cURL.'];
+        }
+        try {
+            $device = WebPush::newKey();
+            WebPush::encrypt('{"test":true}', $device['public'], random_bytes(16));
+            $key = WebPush::newKey();
+            WebPush::vapidHeader('https://example.com', 'mailto:test@example.com', $key['pem'], $key['public']);
+            return ['supported' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            return ['supported' => false, 'error' => $e->getMessage()];
+        }
     }
 
     private static function requireKey(Request $req): void

@@ -18,6 +18,7 @@ use Dnd\Controllers\LootController;
 use Dnd\Controllers\MapController;
 use Dnd\Controllers\MessageController;
 use Dnd\Controllers\NotificationController;
+use Dnd\Controllers\PushController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
 use Dnd\Controllers\SummaryController;
@@ -48,6 +49,28 @@ final class App
         }
 
         $response->send();
+        self::sendPush();
+    }
+
+    /**
+     * Push notifikace zařazené během požadavku se odesílají až teď, když klient odpověď už má (cURL k push službám trvá desetiny sekundy).
+     * Kde to jde (PHP-FPM), spojení se předtím uzavře, takže uživatel na push nečeká ani vteřinu.
+     */
+    private static function sendPush(): void
+    {
+        if (!Push::pending()) {
+            return;
+        }
+        ignore_user_abort(true);
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } else {
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+            flush();
+        }
+        Push::flush();
     }
 
     private static function routes(Router $r): void
@@ -137,6 +160,13 @@ final class App
         $r->add('DELETE', '/effects/{effectId}', [DmController::class, 'removeEffect']);
         $r->add('DELETE', '/characters/{id}/effects/long-rest', [DmController::class, 'expireLongRestEffects']);
         $r->add('GET', '/summary', [SummaryController::class, 'index']);
+        // Push notifikace (Web Push): odběr zařízení, výběr kategorií, zkouška
+        $r->add('GET', '/push/config', [PushController::class, 'config']);
+        $r->add('GET', '/push/subscription', [PushController::class, 'show']);
+        $r->add('POST', '/push/subscription', [PushController::class, 'subscribe']);
+        $r->add('PATCH', '/push/subscription', [PushController::class, 'update']);
+        $r->add('DELETE', '/push/subscription', [PushController::class, 'unsubscribe']);
+        $r->add('POST', '/push/test', [PushController::class, 'test']);
         $r->add('GET', '/notifications', [NotificationController::class, 'index']);
         $r->add('POST', '/notifications/read', [NotificationController::class, 'markRead']);
 

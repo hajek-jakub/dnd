@@ -23,8 +23,11 @@ async function waitForHealth(url: string, timeoutMs: number): Promise<void> {
 
 let server: ChildProcess | undefined
 let claudeMock: ChildProcess | undefined
+let pushMock: ChildProcess | undefined
 /** Napodobený Claude API (scripts/claude-mock.mjs); port sedí s claude_base_url v api/config.test.php. */
 export const CLAUDE_MOCK_PORT = 8199
+/** Napodobená push služba (scripts/push-mock.mjs); port sedí s push_test_hosts v api/config.test.php. */
+export const PUSH_MOCK_PORT = 8198
 
 export async function setup() {
   // Čistá testovací databáze + všechny migrace.
@@ -42,6 +45,9 @@ export async function setup() {
   claudeMock = spawn('node', ['scripts/claude-mock.mjs', String(CLAUDE_MOCK_PORT)], { cwd: root, stdio: 'ignore' })
   await waitForHealth(`http://127.0.0.1:${CLAUDE_MOCK_PORT}/__mock/health`, 10_000)
 
+  pushMock = spawn('node', ['scripts/push-mock.mjs', String(PUSH_MOCK_PORT)], { cwd: root, stdio: 'ignore' })
+  await waitForHealth(`http://127.0.0.1:${PUSH_MOCK_PORT}/__mock/health`, 10_000)
+
   server = spawn('php', ['-S', `127.0.0.1:${API_PORT}`, '-t', 'api', 'api/index.php'], {
     cwd: root,
     env,
@@ -53,4 +59,5 @@ export async function setup() {
 export async function teardown() {
   server?.kill()
   claudeMock?.kill()
+  pushMock?.kill()
 }

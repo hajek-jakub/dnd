@@ -14,4 +14,8 @@ return [
     'claude_base_url' => 'http://127.0.0.1:8199',
     'claude_users' => ['aidm*'],
     'claude_monthly_budget_usd' => 5,
+    // Push notifikace proti napodobené push službě (scripts/push-mock.mjs), žádné skutečné volání. Adresy odběrů jen z tohoto seznamu.
+    'push_test_hosts' => ['127.0.0.1:8198'],
+    // Kratší doba „aplikace je otevřená“, ať testy nečekají 12 sekund.
+    'push_presence_seconds' => 3,
 ];

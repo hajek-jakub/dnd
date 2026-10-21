@@ -10,6 +10,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Input;
 use Dnd\Languages;
+use Dnd\Push;
 use Dnd\RateLimiter;
 use Dnd\Request;
 use Dnd\Response;
@@ -157,7 +158,30 @@ final class MessageController
             [$id],
         ) ?? [];
         $names = Db::all('SELECT u.id, u.display_name FROM message_recipients r JOIN users u ON u.id = r.user_id WHERE r.message_id = ? ORDER BY u.display_name', [$id]);
+        self::pushNew($campaignId, $senderId, $thread, $body, (string) ($row['sender_name'] ?? ''), $recipientIds);
         return self::payload($row, array_map(static fn (array $r): array => ['id' => $r['id'], 'name' => $r['display_name']], $names));
+    }
+
+    /**
+     * Push o nové zprávě těm, kdo ji vidí (skupina: všichni členové kromě odesílatele; jinak adresáti).
+     * Text se na zamčené obrazovce ukáže jen u běžných vláken; tajné zprávy a zprávy v jazyce jen oznámí, že přišly.
+     * @param list<string> $recipientIds
+     */
+    private static function pushNew(string $campaignId, string $senderId, string $thread, string $body, string $senderName, array $recipientIds): void
+    {
+        if ($thread === 'group') {
+            $to = array_map(static fn (array $r): string => (string) $r['user_id'], Db::all('SELECT user_id FROM campaign_members WHERE campaign_id = ? AND user_id <> ?', [$campaignId, $senderId]));
+        } else {
+            $to = array_values(array_filter($recipientIds, static fn (string $id): bool => $id !== $senderId));
+        }
+        if ($thread === 'secret') {
+            $text = 'Nová tajná zpráva od ' . $senderName;
+        } elseif (str_starts_with($thread, 'lang:')) {
+            $text = 'Nová zpráva v cizím jazyce od ' . $senderName;
+        } else {
+            $text = $senderName . ': ' . $body;
+        }
+        Push::queue($to, 'messages', $campaignId, $text, 'campaigns/' . $campaignId . '/messages', 'msg-' . $campaignId . '-' . $thread);
     }
 
     // ------------------------------------------------------------------ připravené zprávy DM (koncepty)

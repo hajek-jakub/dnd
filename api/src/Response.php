@@ -73,6 +73,10 @@ final class Response
                     return;
                 }
             }
+            // S délkou klient ví, že odpověď skončila, i když skript ještě odesílá push notifikace.
+            if (!headers_sent()) {
+                header('Content-Length: ' . strlen($json));
+            }
             echo $json;
         }
     }

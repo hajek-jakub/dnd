@@ -18,5 +18,7 @@ final class Notifications
             'INSERT INTO notifications (user_id, campaign_id, character_id, kind, text, created_at) VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())',
             [$userId, $campaignId, $characterId, $kind, mb_substr($text, 0, 400)],
         );
+        // Změny od DM přijdou i jako push (když hráč nemá aplikaci otevřenou). Víc změn za sebou se v telefonu slije do poslední.
+        Push::queue([$userId], 'dm', $campaignId, $text, $characterId !== null ? 'characters/' . $characterId : 'campaigns/' . $campaignId, 'dm-' . $campaignId);
     }
 }

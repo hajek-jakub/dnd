@@ -84,6 +84,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 - `VITE_BASE_PATH` (výchozí `/`): při nasazení do podsložky; uprav i `RewriteBase` v `public/.htaccess`.
 - AI pomocník (v `config.production.php`): `claude_api_key` (bez něj je vypnutý), `claude_users` (přihlašovací jména, která ho smí používat; prázdné = nikdo), `claude_monthly_budget_usd` (strop útraty za kalendářní měsíc, výchozí 10), volitelně `claude_model` (výchozí `claude-opus-5-5`) a `claude_effort` (výchozí `medium`).
   `claude_base_url` je jen pro testy (napodobený server); deploy ho v ostré konfiguraci odmítne, protože by se klíč posílal jinam.
+- Push: volitelně `vapid_subject` (`mailto:` nebo `https:` kontakt pro push služby); `push_test_hosts` a `push_presence_seconds` jsou jen pro testy.
 
 ## Bezpečnostní model (místo RLS)
 
@@ -359,6 +360,19 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   **Šablony** (`src/features/ai/templates.ts`, `TemplatePanel`): Dungeon, Setkání, Obchod, Poklad, Boss, Pravidla. Políčka (počet místností, obtížnost, level družiny…) složí zprávu do pole, DM ji může upravit; v rozběhnuté konverzaci tlačítko „Šablony“.
 - Testy: `api-tests/encounters.test.ts` (nestvůry, šablony, dropFrom, rozdání, Do boje, přístup, mazání, balení munice, návrh AI s nepřáteli; mutation check proveden), `templates.test.ts`, E2E `encounters.spec.ts` a v `ai.spec.ts` šablona a návrh setkání; nepřátelé s lootem jsou v layout sweep a a11y.
 - Měření modelů (6 zadání přípravy, 6 nastavení): všechny modely skládaly návrhy stejně správně; Opus 5.5 medium ~$0.03 za zadání, Sonnet 5.5 low ~$0.015, Haiku 5.5 ~$0.001–0.002. Zůstává Opus 5.5 medium (nejlepší úsudek u pravidel a vyvažování, cena zanedbatelná); změna je jen `claude_model`/`claude_effort` v konfiguraci.
+
+### Push notifikace (Web Push)
+- **Bez knihovny a bez Composeru**: `api/src/WebPush.php` umí VAPID (RFC 8292, ES256) a šifrování obsahu aes128gcm (RFC 8291) jen přes OpenSSL (`openssl_pkey_derive`, `hash_hkdf`, AES-128-GCM) a odeslání přes cURL multi. `api/src/Push.php` je pravidlová vrstva (fronta, přítomnost, odběry, kategorie), `PushController` trasy `/push/*`.
+  Klíč VAPID se vytvoří při prvním použití a uloží do `app_secrets` (migrace 025; nesmí se smazat, jinak všechna zařízení ztratí odběr). Volitelně `vapid_subject` v konfiguraci (výchozí `mailto:admin@hajekjakub.cz`).
+- **Kdy se posílá**: zprávy (`messages`: skupina všem členům kromě odesílatele, soukromé a tajné adresátům; tajné a jazykové jen „Nová tajná zpráva od…“ bez textu), změny od DM (`dm`: každé `Notifications::push`, tedy item, peníze, zranění, stav, bonus, inspirace, odhalená kletba, předání itemu), zveřejnění mapy (`maps`, jen skrytá → viditelná), nový zápis DM v deníku (`journal`, `all` nebo `selected`).
+  **Nikdy** hody kostkou. Uživatel si pro každé zařízení vybírá kategorie (Profil → Push notifikace, `push_subscriptions.categories`).
+- **Otevřená aplikace = žádný push**: klient volá `/summary` jen když je okno vidět, a každé volání obnoví `user_presence.seen_at` (`Push::touch`). Push se neposílá, když je `seen_at` mladší než `push_presence_seconds` (výchozí 12 s, test 3 s).
+- **Odesílání** je zařazené do fronty (`Push::queue`) a odešle se až po odpovědi klientovi (`App::sendPush`: `fastcgi_finish_request`, jinak flush; JSON odpověď má `Content-Length`). Push zařazené v transakci, která se vrátí, se zahodí (`Db::transaction` → `Push::rewind`). Chyba push nikdy neshodí požadavek. Víc notifikací téhož štítku (`tag`) pro jedno zařízení v jednom požadavku se slije na poslední. 404 a 410 od push služby odběr smaže.
+- **Bezpečnost**: adresu odběru dodává klient, proto ji server přijme jen z push služeb (`Push::endpointAllowed`: https, `fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`; jinak server by šel zavolat na libovolnou adresu). Odběr patří právě jednomu uživateli (stejné zařízení po přihlášení jiného účtu převezme, kategorie se vrátí na výchozí), cizí odběr se chová jako neexistující. Klíč `p256dh` se ověřuje jako bod na křivce P-256.
+  `push_test_hosts` (jen testy, napodobená push služba `scripts/push-mock.mjs` na 8198) deploy v ostré konfiguraci odmítne.
+- **Klient** (`src/features/push/`, `public/sw.js`): service worker jen zobrazí notifikaci (tag + renotify) a po klepnutí otevřené aplikaci pošle cestu (`usePushLinks` přejde bez znovunačtení), jinak otevře okno. `PushCard` v profilu (zapnout, kategorie, zkušební push, vypnout); odhlášení zruší odběr zařízení na serveru. `sw.js` se nesmí cachovat (`public/.htaccess`), CSP má `worker-src 'self'`.
+  iPhone a iPad dostávají push jen z aplikace přidané na plochu (iOS 16.4+); karta to vysvětlí.
+- Testy: `api-tests/push.test.ts` (19: oprávnění, adresy, kategorie, přítomnost, přenos; **obsah se rozšifruje nezávislou implementací v Node** a ověří se podpis VAPID; mutation check proveden), `src/features/push/push.test.ts`, `e2e/push.spec.ts`. Skutečné doručení přes Google/Apple/Mozillu se v testech ověřit nedá, po nasazení: Profil → Zapnout → Poslat zkušební notifikaci.
 
 ### Další možná práce (mimo původní zadání)
 - Data SRD 5.2 (2024) a filtrování pravidel podle sady kampaně (dnes engine zná rozdíly 2014/2024 a prohlížeč pravidel na to upozorňuje).
