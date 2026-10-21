@@ -11,7 +11,7 @@ export function FeaturesTab() {
   const { character, bundle } = useSheet()
   const classes = groupClasses(toEngineInput(character))
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 tab:grid-cols-2 tab:items-start">
       {classes.map((c) => (
         <ClassFeatures
           key={c.classIndex}

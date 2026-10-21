@@ -125,7 +125,7 @@ export function TacticsTab() {
                 </Button>
               )}
             </div>
-            <ul className={kind === 'rule' ? 'space-y-2' : 'grid gap-3 md:grid-cols-2'}>{list.map((t, i) => render(t, list, i))}</ul>
+            <ul className={kind === 'rule' ? 'space-y-2' : 'grid gap-3 tab:grid-cols-2'}>{list.map((t, i) => render(t, list, i))}</ul>
           </section>
         )
       })}
@@ -158,7 +158,7 @@ function QuickStats() {
   return (
     <Card>
       <CardContent>
-        <dl aria-label="Klíčové hodnoty do boje" className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        <dl aria-label="Klíčové hodnoty do boje" className="grid grid-cols-3 gap-2 tab:grid-cols-6">
           {stats.map((s) => (
             <div key={s.label} className="rounded-lg border bg-background p-2 text-center">
               <dt className="text-xs text-muted-foreground">{s.label}</dt>

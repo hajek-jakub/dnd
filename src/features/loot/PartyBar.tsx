@@ -70,7 +70,7 @@ export function PartyBar({
   })
 
   return (
-    <Card size="sm" className="lg:sticky lg:top-[4.25rem] lg:z-[5]" data-testid="party-bar">
+    <Card size="sm" className="tab:sticky tab:top-[4.25rem] tab:z-[5]" data-testid="party-bar">
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
           {tickedCount > 0

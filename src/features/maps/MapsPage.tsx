@@ -37,7 +37,7 @@ export function MapsPage() {
       {maps?.length === 0 && (
         <p className="text-muted-foreground">{isDm ? 'Zatím tu nejsou žádné mapy. Nahraj první.' : 'DM zatím žádnou mapu nezveřejnil.'}</p>
       )}
-      <ul aria-label="Mapy kampaně" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul aria-label="Mapy kampaně" className="grid gap-4 sm:grid-cols-2 tab:grid-cols-3">
         {maps?.map((m) => (
           <MapCard key={m.id} campaignId={campaignId} map={m} isDm={isDm} />
         ))}

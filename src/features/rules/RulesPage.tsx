@@ -98,8 +98,8 @@ export function RulesPage() {
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start">
-      <section className={cn('min-w-0 space-y-4', detailOpen && 'hidden lg:block')} aria-label="Seznam pravidel">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 tab:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] tab:items-start lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+      <section className={cn('min-w-0 space-y-4', detailOpen && 'hidden tab:block')} aria-label="Seznam pravidel">
         <h1 className="text-2xl font-bold">Pravidla a obsah</h1>
         {campaignId && rulesetOf(campaign?.settings) === '2024' && (
           <p data-testid="ruleset-notice" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-sm">
@@ -306,11 +306,11 @@ export function RulesPage() {
         )}
       </section>
 
-      <section className={cn('min-w-0 lg:sticky lg:top-20', !detailOpen && 'hidden lg:block')} aria-label="Detail">
+      <section className={cn('min-w-0 tab:sticky tab:top-20', !detailOpen && 'hidden tab:block')} aria-label="Detail">
         {detailOpen ? (
           <Outlet />
         ) : (
-          <p className="hidden rounded-xl border border-dashed p-8 text-center text-muted-foreground lg:block">
+          <p className="hidden rounded-xl border border-dashed p-8 text-center text-muted-foreground tab:block">
             Vyber položku ze seznamu.
           </p>
         )}

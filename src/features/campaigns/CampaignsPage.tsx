@@ -49,8 +49,8 @@ export function CampaignsPage() {
 
   return (
     // Telefon: vše pod sebou. Počítač: seznam kampaní vlevo, formuláře vpravo.
-    <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-      <section className="space-y-3 lg:col-span-2">
+    <div className="grid gap-6 tab:grid-cols-3 tab:items-start">
+      <section className="space-y-3 tab:col-span-2">
         <h1 className="text-2xl font-bold">Moje kampaně</h1>
         {isPending && <p className="text-muted-foreground">Načítám…</p>}
         {error && (

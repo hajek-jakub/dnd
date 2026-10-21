@@ -113,44 +113,58 @@ function SheetView() {
         </ul>
       )}
 
-      <nav aria-label="Části karty postavy" className="sticky top-14 z-10 -mx-4 overflow-x-auto bg-background/95 px-4 py-2 backdrop-blur">
-        <ul className="flex gap-2">
-          {TABS.map((t) => (
-            <li key={t.id}>
-              <button
-                type="button"
-                aria-pressed={tab === t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium',
-                  tab === t.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
-                )}
-              >
-                {t.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <div className="sticky top-14 z-10 -mx-4 bg-background/95 backdrop-blur tab:-mx-6 tab:flex tab:flex-wrap tab:items-center tab:justify-between tab:gap-x-4 tab:px-6">
+        <nav aria-label="Části karty postavy" className="overflow-x-auto px-4 py-2 tab:px-0">
+          <ul className="flex gap-2">
+            {TABS.map((t) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  aria-pressed={tab === t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium tab:px-3.5',
+                    tab === t.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
+                  )}
+                >
+                  {t.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {/* Na tabletu a počítači je režim hodu v přilepené liště, takže je na dosah i při posouvání. */}
+        {canEdit && tab === 'overview' && (
+          <div className="hidden py-2 tab:block">
+            <RollModeSwitch />
+          </div>
+        )}
+      </div>
 
       {tab === 'overview' && (
         <div className="space-y-4">
-          {canEdit && <RollModeSwitch />}
+          {canEdit && (
+            <div className="tab:hidden">
+              <RollModeSwitch />
+            </div>
+          )}
           <StatsCard />
-          <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+          <div className="grid gap-4 tab:grid-cols-2 tab:items-start lg:grid-cols-3">
             <div className="space-y-4">
               <HpCard />
               <RestButtons />
               <ResourcesCard />
               <EffectsCard />
+              <AbilitiesCard />
             </div>
             <div className="space-y-4">
               <AttacksCard />
               <SpellcastingCard />
-              <AbilitiesCard />
               <SavesCard />
             </div>
-            <SkillsCard />
+            <div className="tab:col-span-2 lg:col-span-1">
+              <SkillsCard />
+            </div>
           </div>
         </div>
       )}

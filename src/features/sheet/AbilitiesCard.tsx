@@ -93,11 +93,11 @@ export function SkillsCard() {
         <CardTitle>Dovednosti</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul>
+        <ul className="tab:columns-2 tab:gap-x-6 lg:columns-1">
           {SKILLS.map((s) => {
             const skill = sheet.skills[s.key]
             return (
-              <li key={s.key} className="grid grid-cols-[minmax(0,1fr)_4rem_2.75rem] items-center gap-2 border-b last:border-b-0">
+              <li key={s.key} className="grid break-inside-avoid grid-cols-[minmax(0,1fr)_4rem_2.75rem] items-center gap-2 border-b last:border-b-0">
                 <span className="flex items-center gap-1 text-sm">
                   <button
                     type="button"

@@ -61,19 +61,26 @@ export function CampaignPage() {
         {campaign.description && <p className="whitespace-pre-line text-muted-foreground">{campaign.description}</p>}
       </div>
 
+      {/* Telefon: vše pod sebou. Tablet a počítač: moje postava a deník vlevo, družina a NPC vpravo. */}
       {campaignId && (
-        <Suspense fallback={null}>
-          <MyCharacterCard campaignId={campaignId} />
-        </Suspense>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 tab:grid-cols-2 tab:items-start">
+          <div className="space-y-6">
+            <Suspense fallback={null}>
+              <MyCharacterCard campaignId={campaignId} />
+            </Suspense>
+            <JournalPreview campaignId={campaignId} />
+          </div>
+          <div className="space-y-6">
+            <CharactersSection campaignId={campaignId} />
+          </div>
+        </div>
       )}
-      {campaignId && <JournalPreview campaignId={campaignId} />}
-      {campaignId && <CharactersSection campaignId={campaignId} />}
       <h2 className="pt-2 font-display text-xl font-semibold">Správa kampaně</h2>
 
       {/* Telefon: jeden sloupec (členové, pozvánky, nebezpečná zóna).
           Počítač (DM): členové a nebezpečná zóna vlevo, pozvánky vpravo přes obě řady. */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Card className="lg:col-start-1">
+      <div className="grid gap-6 tab:grid-cols-2 tab:items-start">
+        <Card className="tab:col-start-1">
           <CardHeader>
             <CardTitle>Členové</CardTitle>
           </CardHeader>
@@ -108,10 +115,10 @@ export function CampaignPage() {
           </CardContent>
         </Card>
 
-        {isDm && campaignId && <InvitesCard campaignId={campaignId} className="lg:col-start-2 lg:row-span-2 lg:row-start-1" />}
+        {isDm && campaignId && <InvitesCard campaignId={campaignId} className="tab:col-start-2 tab:row-span-2 tab:row-start-1" />}
 
         {isDm && campaignId && (
-          <Card className="lg:col-start-1">
+          <Card className="tab:col-start-1">
             <CardHeader>
               <CardTitle>Nastavení kampaně</CardTitle>
             </CardHeader>

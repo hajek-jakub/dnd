@@ -31,7 +31,7 @@ export function InventoryTab() {
   const carried = character.items.filter((i) => !i.equipped)
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 tab:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] tab:items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
       <div className="space-y-4">
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">

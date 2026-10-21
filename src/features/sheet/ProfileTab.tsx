@@ -19,7 +19,7 @@ import { LANGUAGE_CATALOG, languageLabel, languagesOf, withLanguage, withoutLang
 export function ProfileTab() {
   const { character, canEdit, isDm, update } = useSheet()
   return (
-    <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+    <div className="grid gap-6 tab:grid-cols-2 tab:items-start">
       <div className="space-y-6">
         <PhotoCard />
         {canEdit && <DetailsForm key={character.rev} />}

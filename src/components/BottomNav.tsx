@@ -46,7 +46,7 @@ export function BottomNav() {
 
   return (
     <nav aria-label="Hlavní navigace" data-testid="bottom-nav" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgb(0_0_0/0.06)] backdrop-blur">
-      <ul className="mx-auto grid max-w-3xl grid-cols-5 lg:max-w-6xl">
+      <ul className="mx-auto grid max-w-3xl grid-cols-5 tab:max-w-6xl xl:max-w-7xl">
         {items.map((item) => (
           <li key={item.label}>
             <NavLink

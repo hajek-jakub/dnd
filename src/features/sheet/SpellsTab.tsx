@@ -71,7 +71,7 @@ export function SpellsTab() {
           {levels.map((level) => (
             <section key={level} aria-label={level === 0 ? 'Cantripy' : `Kouzla ${level}. úrovně`} className="space-y-2">
               <h3 className="font-semibold">{level === 0 ? 'Cantripy' : `${level}. úroveň`}</h3>
-              <ul className="space-y-2">
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 tab:grid-cols-2">
                 {character.spells
                   .filter((s) => s.level === level)
                   .map((s) => (

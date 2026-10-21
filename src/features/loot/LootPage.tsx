@@ -215,7 +215,7 @@ export function LootPage() {
         onGive={giveAll}
       />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]" data-testid="loot-layout">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 tab:grid-cols-[16rem_minmax(0,1fr)] lg:grid-cols-[20rem_minmax(0,1fr)]" data-testid="loot-layout">
         <Card>
           <CardHeader>
             <CardTitle>Složky</CardTitle>

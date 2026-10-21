@@ -5,9 +5,10 @@ import { defineConfig, devices } from '@playwright/test'
  * E2E testy v Chromiu proti PHP API + testovací MySQL (dnd_test) a vlastnímu dev serveru.
  * Vyžadují běžící databázi: npm run db:start.
  *
- * Dva projekty, protože DM hraje na počítači a hráči z telefonu:
+ * Projekty (DM hraje na počítači, hráči z telefonu a iPadu):
  *  - desktop: Chromium, 1440x900 (DM)
  *  - mobile:  Chromium s emulací Pixel 7 (dotyk, úzký displej)
+ *  - tablet, tablet-landscape: iPad na výšku a na šířku (jen rozložení a přístupnost)
  * Scénář s více uživateli (flow.spec.ts) si DM = desktop a hráče = mobil složí sám.
  *
  * Porty jsou oddělené od běžného vývoje (5173 / 8080), takže testy nepřekážejí.
@@ -42,6 +43,17 @@ export default defineConfig({
       use: { ...devices['Pixel 7'] },
       // Vícerolový scénář řídí oba viewporty sám, stačí ho pustit jednou.
       testIgnore: /(flow|transfer)\.spec\.ts/,
+    },
+    // iPad: na výšku (820x1180) a na šířku (1180x820), dotyk. Jen testy rozložení a přístupnosti, ostatní scénáře jsou stejné jako na počítači.
+    {
+      name: 'tablet',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, hasTouch: true },
+      testMatch: /(tablet|layout-sweep|a11y)\.spec\.ts/,
+    },
+    {
+      name: 'tablet-landscape',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1180, height: 820 }, hasTouch: true },
+      testMatch: /(tablet|layout-sweep)\.spec\.ts/,
     },
   ],
   webServer: [

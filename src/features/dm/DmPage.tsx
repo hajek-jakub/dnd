@@ -101,7 +101,7 @@ export function DmPage() {
         />
       </div>
 
-      <Card size="sm" className="lg:sticky lg:top-[4.25rem] lg:z-[5]">
+      <Card size="sm" className="tab:sticky tab:top-[4.25rem] tab:z-[5]">
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p aria-live="polite" className="text-sm">
@@ -146,7 +146,7 @@ export function DmPage() {
       ) : rows.length === 0 ? (
         <p className="text-muted-foreground">V kampani zatím nejsou žádné postavy.</p>
       ) : (
-        <ul aria-label="Postavy" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul aria-label="Postavy" className="grid grid-cols-[minmax(0,1fr)] gap-4 tab:grid-cols-2 xl:grid-cols-3">
           {rows.map(({ character, sheet, hpCurrent }) => (
             <CharacterOverview
               key={character.id}

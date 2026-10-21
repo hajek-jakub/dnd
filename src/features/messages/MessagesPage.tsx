@@ -86,7 +86,7 @@ export function MessagesPage() {
   const markPending = markRead.isPending
   const markMutate = markRead.mutate
   useEffect(() => {
-    if (selected && unreadHere > 0 && !markPending && (threadOpen || window.matchMedia('(min-width: 1024px)').matches)) markMutate(selected.id)
+    if (selected && unreadHere > 0 && !markPending && (threadOpen || window.matchMedia('(min-width: 704px)').matches)) markMutate(selected.id)
   }, [selected, unreadHere, markPending, markMutate, threadOpen])
 
   if (isPending) return <FullPageSpinner />
@@ -104,8 +104,8 @@ export function MessagesPage() {
         <h1 className="text-2xl font-bold">Zprávy</h1>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
-        <nav aria-label="Vlákna zpráv" className={cn('min-w-0', threadOpen && 'hidden lg:block')}>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 tab:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] tab:items-start lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <nav aria-label="Vlákna zpráv" className={cn('min-w-0', threadOpen && 'hidden tab:block')}>
           <ul className="space-y-2">
             {threads.map((t) => {
               const n = unread[t.id] ?? 0
@@ -117,7 +117,7 @@ export function MessagesPage() {
                     aria-current={selected?.id === t.id ? 'true' : undefined}
                     className={cn(
                       'flex min-h-14 w-full items-center gap-3 rounded-xl border bg-card px-3 py-2 text-left hover:bg-muted/50',
-                      selected?.id === t.id && 'lg:border-primary lg:ring-2 lg:ring-primary/30',
+                      selected?.id === t.id && 'tab:border-primary tab:ring-2 tab:ring-primary/30',
                     )}
                   >
                     {t.icon === 'group' ? (
@@ -151,11 +151,11 @@ export function MessagesPage() {
         </nav>
 
         {selected && (
-          <section aria-label={`Vlákno: ${selected.label}`} className={cn('min-w-0', !threadOpen && 'hidden lg:block')}>
+          <section aria-label={`Vlákno: ${selected.label}`} className={cn('min-w-0', !threadOpen && 'hidden tab:block')}>
             <Card>
               <CardContent className="space-y-4 p-4">
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Zpět na vlákna" onClick={back}>
+                  <Button variant="ghost" size="icon" className="tab:hidden" aria-label="Zpět na vlákna" onClick={back}>
                     <ArrowLeftIcon aria-hidden />
                   </Button>
                   <div className="min-w-0">

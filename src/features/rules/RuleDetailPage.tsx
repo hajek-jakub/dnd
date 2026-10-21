@@ -53,7 +53,7 @@ export function RuleDetailPage() {
     <article className="space-y-4" aria-labelledby="rule-title">
       <Link
         to={listLink}
-        className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground lg:hidden"
+        className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground tab:hidden"
       >
         <ArrowLeftIcon aria-hidden className="size-4" /> Zpět na seznam
       </Link>

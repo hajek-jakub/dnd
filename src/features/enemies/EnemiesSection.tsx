@@ -38,7 +38,7 @@ export function EnemiesSection({ campaignId, enemies, onAdd, onEdit }: { campaig
         }
       />
       {enemies.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nikdo není. „Nový nepřítel“ přidá třeba goblina s životy, útoky a iniciativou. Vidíš je jen ty.</p>}
-      <ul aria-label="Seznam nepřátel" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <ul aria-label="Seznam nepřátel" className="grid grid-cols-[minmax(0,1fr)] gap-4 tab:grid-cols-2 xl:grid-cols-3">
         {enemies.map((e) => (
           <EnemyCard key={e.id} campaignId={campaignId} enemy={e} hideRolls={hideRolls} onEdit={() => onEdit(e)} />
         ))}

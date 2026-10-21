@@ -25,7 +25,7 @@ export function AppLayout() {
     <div className="min-h-dvh">
       <OfflineBanner />
       <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 lg:max-w-6xl">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-2 px-4 tab:max-w-6xl xl:max-w-7xl">
           <div className="flex min-w-0 items-center gap-2">
             <Link to="/" aria-label="Úvodní stránka" className="flex size-11 shrink-0 items-center justify-center">
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="size-8" />
@@ -53,7 +53,7 @@ export function AppLayout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 lg:max-w-6xl">
+      <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 tab:max-w-6xl tab:p-6 tab:pb-28 xl:max-w-7xl">
         <DiceSlotContext.Provider value={diceSlot}>
           <RollSettingsProvider>
             <RollOverlayProvider>
