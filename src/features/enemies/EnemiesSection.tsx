@@ -6,7 +6,7 @@ import { RichText } from '@/components/RichText'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { d20 } from '@/features/dice/format'
+import { d20, hasDice } from '@/features/dice/format'
 import { useRoller } from '@/features/dice/useRoller'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -137,8 +137,8 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
               </span>
               <span className="flex">
                 <RollBtn label={`${enemy.name}: ${a.name} útok`} text="Útok" disabled={pending} onClick={() => roll(`${enemy.name}: ${a.name} (útok)`, d20(a.toHit), { hidden: hideRolls })} />
-                {a.damage && <RollBtn label={`${enemy.name}: ${a.name} zranění`} text="Zranění" disabled={pending} onClick={() => roll(`${enemy.name}: ${a.name} (zranění)`, a.damage, { hidden: hideRolls })} />}
-                {a.damage && <RollBtn label={`${enemy.name}: ${a.name} zranění (kritický)`} text="Krit" disabled={pending} onClick={() => roll(`${enemy.name}: ${a.name} (krit)`, a.damage, { hidden: hideRolls, crit: true })} />}
+                {hasDice(a.damage) && <RollBtn label={`${enemy.name}: ${a.name} zranění`} text="Zranění" disabled={pending} onClick={() => roll(`${enemy.name}: ${a.name} (zranění)`, a.damage, { hidden: hideRolls })} />}
+                {hasDice(a.damage) && <RollBtn label={`${enemy.name}: ${a.name} zranění (kritický)`} text="Krit" disabled={pending} onClick={() => roll(`${enemy.name}: ${a.name} (krit)`, a.damage, { hidden: hideRolls, crit: true })} />}
               </span>
             </li>
           ))}

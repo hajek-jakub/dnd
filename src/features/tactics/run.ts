@@ -2,7 +2,7 @@ import { riderFor, type DamageRider } from '@/features/sheet/riders'
 import type { CharacterItem } from '@/features/sheet/types'
 import type { BatchAttack } from '@/features/dice/api'
 import { parseCost, type Cost } from './cost'
-import { rollFor, toHitRoll } from './damage'
+import { NO_CLASS_BONUS, rollFor, toHitRoll, withClassBonus, type ClassBonus } from './damage'
 import type { Tactic } from './types'
 
 type Rollable = Extract<Tactic, { kind: 'attack' | 'spell' | 'ki' }>
@@ -29,7 +29,7 @@ function countOf(t: Rollable): number {
 }
 
 /** Co jedno použití položky provede: útoky s hody, ceny a spotřebu munice. Komba provedou všechny své položky. */
-export function planRun(tactic: Tactic, all: Tactic[], items: CharacterItem[], rider: DamageRider | null): RunPlan {
+export function planRun(tactic: Tactic, all: Tactic[], items: CharacterItem[], rider: DamageRider | null, bonus: ClassBonus = NO_CLASS_BONUS): RunPlan {
   const sources: { t: Rollable; count: number }[] = []
   let costs: Cost[] = []
   if (tactic.kind === 'combo') {
@@ -66,7 +66,8 @@ export function planRun(tactic: Tactic, all: Tactic[], items: CharacterItem[], r
     const hit = toHitRoll(t.data.toHit)
     const base = t.kind === 'spell' ? (t.data.roll ? rollFor({ roll: t.data.roll }) : null) : rollFor({ roll: t.data.roll, damage: t.data.damage })
     const withRider = activeRider !== null && (t.kind === 'attack' || t.kind === 'ki') && t.data.hex
-    const damage = base ? `${base}${withRider && activeRider ? `+${activeRider.dice}` : ''}` : null
+    const flags = t.kind === 'attack' || t.kind === 'ki' ? t.data : {}
+    const damage = base ? withClassBonus(`${base}${withRider && activeRider ? `+${activeRider.dice}` : ''}`, flags, bonus) : null
     if (hit === null && damage === null) continue
     let shots = count
     if (ammoItem) {

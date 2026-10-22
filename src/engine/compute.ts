@@ -1,6 +1,6 @@
 import { ABILITIES, SKILLS, abilityModifier, type AbilityKey, type SkillKey } from './abilities'
 import { conditionEffects, parseCondition } from './conditions'
-import { classDamageRiders, rageDamageBonus } from './riders'
+import { brutalCriticalDice, classDamageRiders, rageDamageBonus } from './riders'
 import { classResources } from './resources'
 import { THIRD_CASTER_SUBCLASSES, type RulesBundle } from './rules-bundle'
 import { casterLevel, casterTypeOf, pactSlots, spellSlots, type ClassLevels } from './spellcasting'
@@ -368,6 +368,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   // Rage: stav „Raging“ (hráč ho zapíná tlačítkem a platí 1 použití) přidá bonus ke zranění útokům zblízka na STR.
   const raging = input.state.conditions.some((c) => parseCondition(c).key === 'raging')
   const rageBonus = rageDamageBonus(classes, bundle)
+  const brutalDice = brutalCriticalDice(classes, bundle)
   const addAttack = (id: string, name: string, w: InventoryItem | null) => {
     const stats = w?.weapon
     const props = (stats?.properties ?? []).map((p) => p.toLowerCase())
@@ -423,6 +424,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
       weapon: w !== null,
       ranged,
       finesse: props.includes('finesse'),
+      critExtra: w !== null && !ranged && brutalDice > 0 && dieSides(dice) > 0 ? `${brutalDice}d${dieSides(dice)}` : null,
     })
   }
   addAttack('unarmed', 'Unarmed Strike', null)

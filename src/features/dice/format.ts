@@ -38,3 +38,6 @@ export function damageExpression(dice: string, bonus: number, extra: { dice: str
   if (!/d/.test(dice) && extra.length === 0) return null
   return `${dice}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `${bonus}` : ''}${extra.map((e) => `+${e.dice}`).join('')}`
 }
+
+/** Má výraz zranění aspoň jednu kostku? Pevné zranění („1“ u sovy) se nehází, jen se vypíše. */
+export const hasDice = (expression: string): boolean => /d\d/i.test(expression)

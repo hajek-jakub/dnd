@@ -168,7 +168,10 @@ final class Monsters
                 continue;
             }
             try {
-                Dice::parse($dice);
+                // Pevné zranění bez kostky (sova: 1) se bere také, útok ho jen vypíše.
+                if (preg_match('/^\d{1,4}$/', $dice) !== 1) {
+                    Dice::parse($dice);
+                }
             } catch (Throwable) {
                 continue;
             }

@@ -209,7 +209,10 @@ final class EnemyController
                     if (mb_strlen($damage) > 40) {
                         throw HttpError::validation('Zranění je příliš dlouhé.', 'attacks');
                     }
-                    Dice::parse($damage); // výraz musí jít hodit (např. 1d6+2), jinak 422
+                    // Výraz musí jít hodit (např. 1d6+2), jinak 422. Pevné zranění bez kostky („1“ u sovy nebo netopýra) je povolené, jen se nehází.
+                    if (preg_match('/^\d{1,4}$/', $damage) !== 1) {
+                        Dice::parse($damage);
+                    }
                 }
                 $attacks[] = ['name' => $aName, 'toHit' => $toHit, 'damage' => $damage];
             }

@@ -137,3 +137,32 @@ describe('přídavky ke zranění od tříd', () => {
     expect(ranger({}, 5).damageRiders).toEqual([])
   })
 })
+
+describe('Brutal Critical a zkoušky STR při Rage', () => {
+  const axe = (level: number) => computeSheet(barbarian(level), bundle).attacks.find((a) => a.id === 'axe')
+
+  it('Brutal Critical: 1 kostka navíc od 9. levelu, 2 od 13., 3 od 17. (jen kostka zbraně)', () => {
+    expect(axe(8)?.critExtra).toBeNull()
+    expect(axe(9)?.critExtra).toBe('1d12')
+    expect(axe(13)?.critExtra).toBe('2d12')
+    expect(axe(17)?.critExtra).toBe('3d12')
+  })
+
+  it('Brutal Critical neplatí pro zbraň na dálku ani pro jinou třídu', () => {
+    const bow = computeSheet(barbarian(9, [], [shortbow]), bundle).attacks.find((a) => a.id === 'bow')
+    expect(bow?.critExtra).toBeNull()
+    const fighter = makeInput({ scores: { str: 16 }, levels: levelsOf(['fighter', 9]), items: [greataxe] })
+    expect(computeSheet(fighter, bundle).attacks.find((a) => a.id === 'axe')?.critExtra).toBeNull()
+  })
+
+  it('při Rage je výhoda na zkoušky STR (ne DEX), mimo Rage žádná', () => {
+    const raging = computeSheet(barbarian(5, ['Raging']), bundle)
+    expect(raging.conditions.checks.str.mode).toBe('advantage')
+    expect(raging.conditions.checks.dex.mode).toBe('normal')
+    expect(computeSheet(barbarian(5), bundle).conditions.checks.str.mode).toBe('normal')
+  })
+
+  it('výhoda ze Rage se ruší s nevýhodou na zkoušky (Poisoned)', () => {
+    expect(computeSheet(barbarian(5, ['Raging', 'Poisoned']), bundle).conditions.checks.str.mode).toBe('normal')
+  })
+})

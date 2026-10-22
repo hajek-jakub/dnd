@@ -158,6 +158,8 @@ export interface AttackInfo {
   weapon: boolean
   ranged: boolean
   finesse: boolean
+  /** Kostky navíc při kritu, které se nezdvojují (Brutal Critical barbara u zbraně zblízka, např. '1d12'); jinak null. */
+  critExtra: string | null
 }
 
 /** Rage barbara: bonus ke zranění (platí jen při zapnutém Rage a pro útoky na STR zblízka) a kolik použití zbývá. */

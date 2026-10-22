@@ -40,6 +40,8 @@ export interface RollRequest {
   label?: string
   mode?: RollMode
   crit?: boolean
+  /** kostky navíc jen při kritu, nezdvojují se (Brutal Critical: '1d12') */
+  critExtra?: string
   hidden?: boolean
   characterId?: string
   /** hod na iniciativu postavy: server ho zapíše DM do pořadí iniciativy */

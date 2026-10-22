@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ApiError } from '@/lib/api'
 import { riderFor } from '@/features/sheet/riders'
+import { ClassRiderToggle } from '@/features/sheet/ClassRiderToggle'
+import { useClassToggle } from '@/features/sheet/class-toggles'
 import { useSheet } from '@/features/sheet/sheet-context'
 import { useDeleteTactic, useReorderTactics, useTactics } from './api'
 import { kiState } from './cost'
@@ -36,6 +38,9 @@ export function TacticsTab() {
   const [riderOn, setRiderOn] = useState(true)
   const [outcome, setOutcome] = useState<BatchOutcome | null>(null)
   const rider = riderFor(character.state.concentration)
+  // Rage platí, když je zapnutá; Sneak Attack, když ho hráč zapnul (stejný přepínač jako na kartě Útoky).
+  const [sneakOn] = useClassToggle(character.id, 'sneak-attack')
+  const sneak = sheet.damageRiders.find((r) => r.id === 'sneak-attack')
 
   const byKind = useMemo(() => {
     const m = new Map<TacticKind, Tactic[]>()
@@ -62,7 +67,8 @@ export function TacticsTab() {
     },
   })
 
-  const ctx: RunContext = { all: data ?? [], rider: rider && riderOn ? rider : null, onResults: setOutcome }
+  const classBonus = { rage: sheet.rage?.active ? sheet.rage.damageBonus : 0, sneak: sneak && sneakOn ? sneak.dice : null }
+  const ctx: RunContext = { all: data ?? [], rider: rider && riderOn ? rider : null, classBonus, onResults: setOutcome }
   const render = (t: Tactic, list: Tactic[], i: number) => {
     const controls = controlsFor(t, list, i)
     switch (t.kind) {
@@ -104,6 +110,9 @@ export function TacticsTab() {
           </span>
         </Button>
       )}
+
+      {canEdit && sneak && <ClassRiderToggle rider={sneak} />}
+      {sheet.rage?.active && <p className="text-sm font-medium">Rage trvá: útoky s příznakem Rage mají +{sheet.rage.damageBonus} ke zranění.</p>}
 
       {empty && !editing && (
         <p className="text-sm text-muted-foreground">

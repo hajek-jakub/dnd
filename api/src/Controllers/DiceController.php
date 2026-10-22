@@ -45,6 +45,7 @@ final class DiceController
         $crit = ($data['crit'] ?? false) === true;
         $hidden = ($data['hidden'] ?? false) === true;
         $label = Input::optionalString($data, 'label', 100, 'Popisek') ?? '';
+        $critExtra = self::critExtra($data);
 
         $characterId = null;
         if (array_key_exists('characterId', $data) && $data['characterId'] !== null) {
@@ -67,7 +68,7 @@ final class DiceController
             throw HttpError::validation('Hod na iniciativu musí patřit postavě (characterId).', 'characterId');
         }
 
-        $rolled = Dice::rollWithMode($terms, $mode, $crit);
+        $rolled = Dice::rollWithMode($terms, $mode, $crit, $critExtra);
         $expression = Dice::canonical($terms);
         Db::exec(
             'INSERT INTO dice_rolls (campaign_id, user_id, character_id, label, expression, mode, crit, hidden, total, result, created_at)
@@ -85,6 +86,30 @@ final class DiceController
             });
         }
         return Response::json(['roll' => self::one($id)], 201);
+    }
+
+    /**
+     * Kostky navíc při kritu (`critExtra`, např. „1d12“ u Brutal Critical): jen kostky, bez konstant a záporných členů, nejvýš 10.
+     * @param array<string, mixed> $data
+     * @return list<array{sign:int,count?:int,sides?:int,constant?:int}>
+     */
+    private static function critExtra(array $data): array
+    {
+        if (!array_key_exists('critExtra', $data) || $data['critExtra'] === null || $data['critExtra'] === '') {
+            return [];
+        }
+        $terms = Dice::parse(is_string($data['critExtra']) ? $data['critExtra'] : '');
+        $dice = 0;
+        foreach ($terms as $t) {
+            if (!isset($t['sides']) || $t['sign'] < 0) {
+                throw HttpError::validation('Kostky navíc při kritu mohou být jen kladné kostky (např. 1d12).', 'critExtra');
+            }
+            $dice += $t['count'];
+        }
+        if ($dice > 10) {
+            throw HttpError::validation('Kostek navíc při kritu je nejvýš 10.', 'critExtra');
+        }
+        return $terms;
     }
 
     /**

@@ -77,19 +77,22 @@ final class Dice
     }
 
     /**
-     * Jeden hod výrazu. Při `crit` se počty kostek zdvojnásobí (kritický zásah), konstanty ne.
+     * Jeden hod výrazu. Při `crit` se počty kostek zdvojnásobí (kritický zásah), konstanty ne. `critExtra` jsou kostky navíc, které se
+     * při kritu přidají po zdvojení a samy se nezdvojují (Brutal Critical barbara); bez `crit` se ignorují.
      * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $terms
+     * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $critExtra
      * @return array{terms: list<array<string, mixed>>, total: int}
      */
-    public static function roll(array $terms, bool $crit = false): array
+    public static function roll(array $terms, bool $crit = false, array $critExtra = []): array
     {
         $total = 0;
         $out = [];
-        foreach ($terms as $t) {
+        foreach (($crit ? [...$terms, ...$critExtra] : $terms) as $i => $t) {
             if (isset($t['sides'])) {
-                $count = $crit ? $t['count'] * 2 : $t['count'];
+                // zdvojují se jen členy původního výrazu, ne kostky navíc
+                $count = $crit && $i < count($terms) ? $t['count'] * 2 : $t['count'];
                 $rolls = [];
-                for ($i = 0; $i < $count; $i++) {
+                for ($n = 0; $n < $count; $n++) {
                     $rolls[] = random_int(1, $t['sides']);
                 }
                 $total += $t['sign'] * array_sum($rolls);
@@ -105,14 +108,15 @@ final class Dice
     /**
      * Hod s výhodou / nevýhodou: celý výraz se hodí dvakrát a vybere se vyšší / nižší součet (při shodě první).
      * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $terms
+     * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $critExtra kostky navíc jen při kritu (viz `roll`)
      * @return array{attempts: list<array<string, mixed>>, chosen: int, total: int, natural: int|null}
      */
-    public static function rollWithMode(array $terms, string $mode, bool $crit): array
+    public static function rollWithMode(array $terms, string $mode, bool $crit, array $critExtra = []): array
     {
-        $attempts = [self::roll($terms, $crit)];
+        $attempts = [self::roll($terms, $crit, $critExtra)];
         $chosen = 0;
         if ($mode === 'advantage' || $mode === 'disadvantage') {
-            $attempts[] = self::roll($terms, $crit);
+            $attempts[] = self::roll($terms, $crit, $critExtra);
             $better = $mode === 'advantage' ? $attempts[1]['total'] > $attempts[0]['total'] : $attempts[1]['total'] < $attempts[0]['total'];
             $chosen = $better ? 1 : 0;
         }

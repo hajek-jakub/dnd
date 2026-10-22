@@ -33,3 +33,16 @@ export function toHitRoll(text: string): string | null {
   if (m) return `1d20${m[1] ?? ''}`
   return null
 }
+
+/** Přídavky od tříd k zranění útoku: bonus z Rage (číslo) a kostky Sneak Attack, když jsou zapnuté. */
+export interface ClassBonus {
+  rage: number
+  sneak: string | null
+}
+
+export const NO_CLASS_BONUS: ClassBonus = { rage: 0, sneak: null }
+
+/** Zranění útoku s přídavky podle příznaků `rage` a `sneak` u položky taktik (např. "1d12+3" + Rage 2 -> "1d12+3+2"). */
+export function withClassBonus(base: string, flags: { rage?: boolean; sneak?: boolean }, bonus: ClassBonus): string {
+  return `${base}${flags.rage && bonus.rage > 0 ? `+${bonus.rage}` : ''}${flags.sneak && bonus.sneak ? `+${bonus.sneak}` : ''}`
+}

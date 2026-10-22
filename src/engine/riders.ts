@@ -93,3 +93,9 @@ export function rageDamageBonus(classes: ClassLevels[], bundle: RulesBundle): nu
   const c = classes.find((x) => x.classIndex === 'barbarian')
   return c ? num(bundle.classes.barbarian?.levels[c.level]?.classSpecific.rage_damage_bonus) : 0
 }
+
+/** Počet kostek navíc při kritu zbraní zblízka (Brutal Critical: 1 od 9., 2 od 13., 3 od 17. levelu barbara). */
+export function brutalCriticalDice(classes: ClassLevels[], bundle: RulesBundle): number {
+  const c = classes.find((x) => x.classIndex === 'barbarian')
+  return c ? num(bundle.classes.barbarian?.levels[c.level]?.classSpecific.brutal_critical_dice) : 0
+}

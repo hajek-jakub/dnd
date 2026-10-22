@@ -31,7 +31,7 @@ export function AbilitiesCard() {
                 overrideKey={`ability.${a}`}
                 className="min-h-11 text-sm text-muted-foreground"
               />
-              <RollButton label={`Zkouška: ${ABILITY_LABELS[a]}`} expression={d20(sheet.abilities[a].modifier - sheet.conditions.d20Penalty)} text="Hod" kind="check" />
+              <RollButton label={`Zkouška: ${ABILITY_LABELS[a]}`} expression={d20(sheet.abilities[a].modifier - sheet.conditions.d20Penalty)} text="Hod" kind={{ check: a }} />
             </li>
           ))}
         </ul>
@@ -126,7 +126,7 @@ export function SkillsCard() {
                 <span className="flex justify-center">
                   <ComputedValue title={SKILL_LABELS[s.key]} computed={skill} overrideKey={`skill.${s.key}`} format={formatModifier} />
                 </span>
-                <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} kind="check" />
+                <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} kind={{ check: s.ability }} />
               </li>
             )
           })}

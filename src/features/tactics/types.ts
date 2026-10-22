@@ -18,6 +18,10 @@ export interface AttackData {
   note: string
   cost: string
   hex: boolean
+  /** při zapnutém Rage se ke zranění přičte bonus barbara (v `damage` a `roll` ho tedy nepiš) */
+  rage?: boolean
+  /** při zapnutém Sneak Attack se ke zranění přidají jeho kostky */
+  sneak?: boolean
   /** kolik útoků provede jedno použití (Extra Attack = 2) */
   count: number
   /** id itemu postavy, kterým se střílí (každý útok ubere 1 kus); '' = nic */
@@ -46,6 +50,8 @@ export interface KiData {
   roll: string
   count: number
   hex: boolean
+  rage?: boolean
+  sneak?: boolean
 }
 export interface PassiveData {
   type: 'passive' | 'reaction'

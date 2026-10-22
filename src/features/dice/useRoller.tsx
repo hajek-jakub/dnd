@@ -24,14 +24,14 @@ export function useRoller(campaignId: string, characterId?: string) {
   const overlay = useRollOverlay()
   const mutation = useRollMutation(campaignId)
 
-  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; conditionMode?: RollMode; hidden?: boolean; initiative?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
+  function roll(label: string, expression: string, options: { crit?: boolean; critExtra?: string; mode?: RollMode; conditionMode?: RollMode; hidden?: boolean; initiative?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
     // Výhoda a nevýhoda ze stavů (Poisoned, ...) se spojí s volbou hráče; výhoda a nevýhoda se ruší.
     const mode = options.mode ?? combineMode(settings.mode, options.conditionMode ?? 'normal')
     const hidden = options.hidden ?? settings.hidden
     const crit = options.crit === true
     const token = overlay.begin({ label, expression, mode, crit, hidden, again: () => roll(label, expression, options) })
     mutation.mutate(
-      { expression, label, mode, crit: options.crit, hidden, ...(options.initiative ? { initiative: true } : {}), ...(characterId ? { characterId } : {}) },
+      { expression, label, mode, crit: options.crit, ...(options.critExtra && options.crit ? { critExtra: options.critExtra } : {}), hidden, ...(options.initiative ? { initiative: true } : {}), ...(characterId ? { characterId } : {}) },
       {
         onSuccess: (r) => {
           overlay.finish(token, r)

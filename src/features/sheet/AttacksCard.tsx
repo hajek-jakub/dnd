@@ -1,12 +1,14 @@
 import { formatModifier, riderApplies, type DamageRiderInfo } from '@/engine'
 import { useState } from 'react'
-import { FlameIcon, SkullIcon, SwordsIcon } from 'lucide-react'
+import { FlameIcon, SkullIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RollButton } from '@/features/dice/RollButton'
 import { d20, damageExpression } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { riderFor } from './riders'
+import { ClassRiderToggle } from './ClassRiderToggle'
+import { useClassToggle } from './class-toggles'
 import { useSheet } from './sheet-context'
 
 export function AttacksCard() {
@@ -16,7 +18,9 @@ export function AttacksCard() {
   const [riderOn, setRiderOn] = useState(true)
   const active = rider !== null && riderOn
   // Přídavky od tříd (Sneak Attack, ...): „vždy“ se přidají samy, ostatní si hráč zapíná pro konkrétní zásah.
-  const [classOn, setClassOn] = useState<Record<string, boolean>>({})
+  const [sneakOn] = useClassToggle(character.id, 'sneak-attack')
+  const [colossusOn] = useClassToggle(character.id, 'colossus-slayer')
+  const classOn: Record<string, boolean> = { 'sneak-attack': sneakOn, 'colossus-slayer': colossusOn }
   const togglable = sheet.damageRiders.filter((r) => r.mode === 'toggle' && sheet.attacks.some((a) => riderApplies(r, a)))
   const rage = sheet.rage
   function toggleRage() {
@@ -58,24 +62,7 @@ export function AttacksCard() {
             </span>
           </Button>
         )}
-        {canEdit &&
-          togglable.map((r) => (
-            <Button
-              key={r.id}
-              type="button"
-              data-testid={`rider-${r.id}`}
-              variant={classOn[r.id] ? 'default' : 'outline'}
-              aria-pressed={classOn[r.id] === true}
-              onClick={() => setClassOn((o) => ({ ...o, [r.id]: !o[r.id] }))}
-              className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left"
-            >
-              <SwordsIcon aria-hidden />
-              <span>
-                {r.name}: ke zranění se přidá {r.dice}
-                <span className="block text-xs font-normal">{r.note}</span>
-              </span>
-            </Button>
-          ))}
+        {canEdit && togglable.map((r) => <ClassRiderToggle key={r.id} rider={r} />)}
         {rider && canEdit && (
           <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={() => setRiderOn((v) => !v)} className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
             <SkullIcon aria-hidden />
@@ -128,7 +115,7 @@ export function AttacksCard() {
                     {damage && (
                       <>
                         <RollButton label={damageLabel} expression={damage} />
-                        <RollButton label={damageLabel} expression={damage} crit text="Krit" />
+                        <RollButton label={damageLabel} expression={damage} crit critExtra={a.critExtra ?? undefined} text="Krit" />
                       </>
                     )}
                   </div>

@@ -4,14 +4,15 @@ import { useSheet } from '@/features/sheet/sheet-context'
 import { cn } from '@/lib/utils'
 import { useRoller } from './useRoller'
 
-/** Který druh hodu to je: stavy (Poisoned, Exhaustion, ...) k němu přidají výhodu nebo nevýhodu. `save` = záchranný hod na danou vlastnost. */
-export type RollKind = 'attack' | 'check' | { save: AbilityKey }
+/** Který druh hodu to je: stavy (Poisoned, Exhaustion, ...) k němu přidají výhodu nebo nevýhodu. `{ check }` = zkouška dané vlastnosti (dovednost patří ke své vlastnosti; Rage dává výhodu na STR), `{ save }` = záchranný hod na danou vlastnost. */
+export type RollKind = 'attack' | 'check' | { check: AbilityKey } | { save: AbilityKey }
 
 /** Malé tlačítko s kostkou: hodí `expression` za aktuální postavu (jen pro majitele a DM). Režim bere z nastavení hodu a ze stavů postavy. */
 export function RollButton({
   label,
   expression,
   crit,
+  critExtra,
   text,
   className,
   initiative,
@@ -20,6 +21,8 @@ export function RollButton({
   label: string
   expression: string
   crit?: boolean
+  /** Kostky navíc při kritu (Brutal Critical), nezdvojují se. */
+  critExtra?: string
   text?: string
   className?: string
   initiative?: boolean
@@ -28,7 +31,16 @@ export function RollButton({
   const { character, canEdit, sheet } = useSheet()
   const { roll, pending } = useRoller(character.campaignId, character.id)
   if (!canEdit) return null
-  const info = kind === undefined ? null : kind === 'attack' ? sheet.conditions.attack : kind === 'check' ? sheet.conditions.check : sheet.conditions.saves[kind.save]
+  const info =
+    kind === undefined
+      ? null
+      : kind === 'attack'
+        ? sheet.conditions.attack
+        : kind === 'check'
+          ? sheet.conditions.check
+          : 'check' in kind
+            ? sheet.conditions.checks[kind.check]
+            : sheet.conditions.saves[kind.save]
   const conditionMode = info?.mode ?? 'normal'
   const note =
     info && info.sources.length > 0
@@ -40,8 +52,8 @@ export function RollButton({
     <button
       type="button"
       disabled={pending}
-      onClick={() => roll(label, expression, { crit, initiative, conditionMode })}
-      aria-label={`Hodit: ${label}${crit ? ' (kritický)' : ''} (${expression})${note ? `, ${note}` : ''}`}
+      onClick={() => roll(label, expression, { crit, critExtra, initiative, conditionMode })}
+      aria-label={`Hodit: ${label}${crit ? ' (kritický)' : ''} (${expression}${crit && critExtra ? ` + ${critExtra}` : ''})${note ? `, ${note}` : ''}`}
       title={`Hodit ${expression}${note ? ` – ${note}` : ''}`}
       className={cn(
         'relative inline-flex size-11 shrink-0 items-center justify-center gap-1 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50',

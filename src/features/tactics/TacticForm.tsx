@@ -26,11 +26,11 @@ function initial(kind: TacticKind, tactic?: Tactic): Values {
   const title = tactic?.title ?? ''
   switch (kind) {
     case 'attack':
-      return { title, actionType: s('actionType', 'action'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), range: s('range'), usage: s('usage'), note: s('note'), cost: s('cost', 'free'), hex: b('hex', true), count: String(typeof d.count === 'number' ? d.count : 1), ammo: s('ammo') }
+      return { title, actionType: s('actionType', 'action'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), range: s('range'), usage: s('usage'), note: s('note'), cost: s('cost', 'free'), hex: b('hex', true), rage: b('rage', false), sneak: b('sneak', false), count: String(typeof d.count === 'number' ? d.count : 1), ammo: s('ammo') }
     case 'spell':
       return { title, level: String(typeof d.level === 'number' ? d.level : 1), actionType: s('actionType', 'action'), range: s('range'), duration: s('duration'), concentration: b('concentration', false), save: s('save'), effect: s('effect'), roll: s('roll'), cost: s('cost', 'free'), toHit: s('toHit'), count: String(typeof d.count === 'number' ? d.count : 1) }
     case 'ki':
-      return { title, actionType: s('actionType', 'bonus'), cost: s('cost', 'ki:1'), description: s('description'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), count: String(typeof d.count === 'number' ? d.count : 1), hex: b('hex', false) }
+      return { title, actionType: s('actionType', 'bonus'), cost: s('cost', 'ki:1'), description: s('description'), toHit: s('toHit'), damage: s('damage'), roll: s('roll'), count: String(typeof d.count === 'number' ? d.count : 1), hex: b('hex', false), rage: b('rage', false), sneak: b('sneak', false) }
     case 'passive':
       return { title, type: s('type', 'passive'), description: s('description'), cost: s('cost', 'free') }
     case 'combo':
@@ -148,6 +148,8 @@ export function TacticForm({
             {field('usage', 'Kdy použít', { area: true })}
             {field('note', 'Poznámka', { area: true })}
             {check('hex', "Přidat Hex nebo Hunter's Mark (+1d6), když se na něj soustředíš")}
+            {check('rage', 'Přičíst bonus z Rage, když Rage trvá (do zranění ho pak nepiš)')}
+            {check('sneak', 'Přidat kostky Sneak Attack, když je zapnutý přepínač')}
           </>
         )}
 
@@ -191,6 +193,8 @@ export function TacticForm({
             {field('damage', 'Zranění (text, volitelné)', { placeholder: '1d6+4' })}
             {field('roll', 'Výraz pro hod zranění', { placeholder: '1d6+4' })}
             {check('hex', "Přidat Hex nebo Hunter's Mark (+1d6), když se na něj soustředíš")}
+            {check('rage', 'Přičíst bonus z Rage, když Rage trvá (do zranění ho pak nepiš)')}
+            {check('sneak', 'Přidat kostky Sneak Attack, když je zapnutý přepínač')}
             {field('description', 'Popis', { area: true })}
           </>
         )}

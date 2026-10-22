@@ -12,7 +12,7 @@ import { useRollSettings } from '@/features/dice/roll-settings-context'
 import { ActionBadge, Badge, CostBadge } from './badges'
 import type { BatchOutcome } from './BatchResultDialog'
 import { formatCost, planSpend, stringifyCost } from './cost'
-import { rollFor, toHitRoll } from './damage'
+import { rollFor, toHitRoll, withClassBonus, type ClassBonus } from './damage'
 import { planRun } from './run'
 import type { Tactic } from './types'
 
@@ -68,6 +68,8 @@ function Shell({ tactic, badges, highlight, children, actions, controls }: { tac
 export interface RunContext {
   all: Tactic[]
   rider: DamageRider | null
+  /** Rage a Sneak Attack, které se přičtou k zranění položek s příznakem `rage` a `sneak`. */
+  classBonus: ClassBonus
   onResults: (outcome: BatchOutcome) => void
 }
 
@@ -80,7 +82,7 @@ function RunButton({ tactic, ctx }: { tactic: Tactic; ctx: RunContext }) {
   const settings = useRollSettings()
   const batch = useBatchRoll(character.campaignId)
   if (!canEdit) return null
-  const plan = planRun(tactic, ctx.all, character.items, ctx.rider)
+  const plan = planRun(tactic, ctx.all, character.items, ctx.rider, ctx.classBonus)
   if (plan.attacks.length === 0 && plan.costs.length === 0 && plan.blocked === null) return null
   const spend = planSpend(plan.costs, sheet)
   const rolling = plan.attacks.length > 0
@@ -150,8 +152,9 @@ export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<T
   const hit = toHitRoll(d.toHit)
   const base = rollFor(d)
   const withRider = rider !== null && d.hex
-  const dmg = base ? `${base}${withRider ? `+${rider.dice}` : ''}` : null
-  const damageText = `${d.damage}${withRider ? ` + ${rider.dice} ${rider.type.toLowerCase()} (${rider.name})` : ''}`
+  const dmg = base ? withClassBonus(`${base}${withRider ? `+${rider.dice}` : ''}`, d, ctx.classBonus) : null
+  const classText = `${d.rage && ctx.classBonus.rage > 0 ? ` + ${ctx.classBonus.rage} (Rage)` : ''}${d.sneak && ctx.classBonus.sneak ? ` + ${ctx.classBonus.sneak} (Sneak Attack)` : ''}`
+  const damageText = `${d.damage}${withRider ? ` + ${rider.dice} ${rider.type.toLowerCase()} (${rider.name})` : ''}${classText}`
   return (
     <Shell
       tactic={tactic}

@@ -86,6 +86,20 @@ describe('kostky', () => {
       expect((await roll(bob, { expression: '1d8+5' })).body.roll.natural).toBeNull()
     })
 
+    it('critExtra (Brutal Critical) přidá nezdvojené kostky jen při kritu', async () => {
+      const crit = (await roll(bob, { expression: '1d12+4', crit: true, critExtra: '1d12' })).body.roll
+      expect(crit.attempts[0].terms.filter((t: any) => t.sides === 12).reduce((n: number, t: any) => n + t.rolls.length, 0)).toBe(3)
+      expect(crit.total).toBe(sum(crit.attempts[0]))
+      const normal = (await roll(bob, { expression: '1d12+4', critExtra: '1d12' })).body.roll
+      expect(normal.attempts[0].terms.filter((t: any) => t.sides === 12).reduce((n: number, t: any) => n + t.rolls.length, 0)).toBe(1)
+    })
+
+    it('critExtra jen kladné kostky (konstanta, záporný člen, příliš mnoho: 422)', async () => {
+      for (const critExtra of ['5', '-1d6', '11d6', 'ahoj']) {
+        expectStatus(await roll(bob, { expression: '1d12', crit: true, critExtra }), 422)
+      }
+    })
+
     it('kritický zásah zdvojnásobí kostky, ale ne konstanty', async () => {
       const r = (await roll(bob, { expression: '1d8+4', crit: true })).body.roll
       expect(r).toMatchObject({ crit: true })

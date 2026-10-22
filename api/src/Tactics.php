@@ -7,7 +7,7 @@ namespace Dnd;
 /**
  * Taktiky postavy: validace a normalizace dat podle typu a hromadná výměna (seed).
  * Tvar `data` podle typu (neznámá pole se zahodí, chybějící dostanou výchozí hodnotu):
- *  - attack:  actionType, toHit ("d20+8"), damage ("1d8+5 + 1d4 fire"), roll (výraz pro hod zranění, jinak se odvodí z damage), range, usage, note, cost, hex (platí Hex),
+ *  - attack:  rage (při Rage se přičte bonus barbara), sneak (při zapnutém Sneak Attack se přidají jeho kostky), actionType, toHit ("d20+8"), damage ("1d8+5 + 1d4 fire"), roll (výraz pro hod zranění, jinak se odvodí z damage), range, usage, note, cost, hex (platí Hex),
  *             count (kolik útoků jedno použití provede, 1 až 10), ammo (id itemu postavy, kterým se střílí: každý útok ubere 1 kus)
  *  - spell:   level (0 až 9), actionType, range, duration, concentration, save ("WIS DC 14"), effect, roll, toHit (kouzelný útok), count, cost
  *  - ki:      actionType, cost, description, toHit, damage, roll, count, hex (jako u útoku; Flurry of Blows má 2 údery)
@@ -50,7 +50,7 @@ final class Tactics
             'attack' => [
                 'actionType' => $action, 'toHit' => $d('toHit', 40, 'Útok'), 'damage' => $d('damage', 160, 'Zranění'), 'roll' => $d('roll', 80, 'Hod zranění'), 'range' => $d('range', 160, 'Dostřel'),
                 'usage' => $d('usage', 400, 'Kdy použít'), 'note' => $d('note', 600, 'Poznámka'), 'cost' => $cost, 'hex' => $bool('hex', true),
-                'count' => self::count($in), 'ammo' => self::ammo($in),
+                'count' => self::count($in), 'ammo' => self::ammo($in), 'rage' => $bool('rage', false), 'sneak' => $bool('sneak', false),
             ],
             'spell' => [
                 'level' => self::level($in), 'actionType' => $action, 'range' => $d('range', 80, 'Dosah'), 'duration' => $d('duration', 120, 'Trvání'),
@@ -60,6 +60,7 @@ final class Tactics
             'ki' => [
                 'actionType' => $action, 'cost' => $cost, 'description' => $d('description', 2000, 'Popis'),
                 'toHit' => $d('toHit', 40, 'Útok'), 'damage' => $d('damage', 160, 'Zranění'), 'roll' => $d('roll', 80, 'Hod zranění'), 'count' => self::count($in), 'hex' => $bool('hex', false),
+                'rage' => $bool('rage', false), 'sneak' => $bool('sneak', false),
             ],
             'passive' => ['type' => self::passiveType($in), 'description' => $d('description', 2000, 'Popis'), 'cost' => $cost],
             'combo' => [

@@ -5,7 +5,7 @@ import { RichText } from '@/components/RichText'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { d20 } from '@/features/dice/format'
+import { d20, hasDice } from '@/features/dice/format'
 import { useRoller } from '@/features/dice/useRoller'
 import { EnemyEditor } from '@/features/enemies/EnemyForm'
 import { RollBtn } from '@/features/enemies/EnemiesSection'
@@ -146,8 +146,8 @@ function CompanionItem({ companion: c, onEdit }: { companion: Companion; onEdit:
               {canEdit && (
                 <span className="flex">
                   <RollBtn label={`${c.name}: ${a.name} útok`} text="Útok" disabled={pending} onClick={() => roll(`${c.name}: ${a.name} (útok)`, d20(a.toHit))} />
-                  {a.damage && <RollBtn label={`${c.name}: ${a.name} zranění`} text="Zranění" disabled={pending} onClick={() => roll(`${c.name}: ${a.name} (zranění)`, a.damage)} />}
-                  {a.damage && <RollBtn label={`${c.name}: ${a.name} zranění (kritický)`} text="Krit" disabled={pending} onClick={() => roll(`${c.name}: ${a.name} (krit)`, a.damage, { crit: true })} />}
+                  {hasDice(a.damage) && <RollBtn label={`${c.name}: ${a.name} zranění`} text="Zranění" disabled={pending} onClick={() => roll(`${c.name}: ${a.name} (zranění)`, a.damage)} />}
+                  {hasDice(a.damage) && <RollBtn label={`${c.name}: ${a.name} zranění (kritický)`} text="Krit" disabled={pending} onClick={() => roll(`${c.name}: ${a.name} (krit)`, a.damage, { crit: true })} />}
                 </span>
               )}
             </li>

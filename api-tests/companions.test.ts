@@ -32,6 +32,16 @@ describe('společníci a přivolaná stvoření', () => {
     otherCampaignChar = (await eve.client.post(`/campaigns/${other}/characters`, { ...base, name: 'Eve' })).body.character.id
   })
 
+  describe('plochá zranění', () => {
+    it('útok se zraněním „1“ (sova, netopýr) se uloží, nesmysl ne', async () => {
+      const own = (await bob.client.post(`/campaigns/${campaignId}/characters`, { ...base, name: 'Druhá' })).body.character.id
+      const flat = await add(bob, own, { name: 'Bat', hpMax: 1, ac: 12, attacks: [{ name: 'Bite', toHit: 0, damage: '1' }] })
+      expectStatus(flat, 201)
+      expect(flat.body.companion.attacks[0].damage).toBe('1')
+      expectStatus(await add(bob, own, { name: 'X', hpMax: 1, attacks: [{ name: 'A', toHit: 0, damage: 'hodně' }] }), 422)
+    })
+  })
+
   describe('oprávnění', () => {
     it('anonym 401, cizinec 404 na všem', async () => {
       const anon = new Client()

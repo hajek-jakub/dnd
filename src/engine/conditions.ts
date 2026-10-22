@@ -21,8 +21,10 @@ export interface ConditionEffects {
   impacts: ConditionImpact[]
   /** Režim hodu útoku (zbraní i kouzlem). */
   attack: ModeInfo
-  /** Režim zkoušek vlastností a dovedností, iniciativy. */
+  /** Režim zkoušek vlastností a dovedností, iniciativy (stavy platné pro všechny vlastnosti). */
   check: ModeInfo
+  /** Režim zkoušek podle vlastnosti: společný `check` plus stavy jen pro jednu vlastnost (Rage: výhoda na STR). Dovednost patří ke své vlastnosti. */
+  checks: Record<AbilityKey, ModeInfo>
   /** Režim záchranných hodů podle vlastnosti. */
   saves: Record<AbilityKey, ModeInfo & { autoFail: string[] }>
   /** Neschopný jednat (Incapacitated, Paralyzed, Stunned, Unconscious, Petrified). */
@@ -82,6 +84,8 @@ interface Rule {
   text: string
   attack?: 'advantage' | 'disadvantage'
   check?: boolean
+  /** Zkoušky jen pro některé vlastnosti (Rage: výhoda na zkoušky STR). */
+  checks?: Partial<Record<AbilityKey, 'advantage' | 'disadvantage'>>
   saves?: Partial<Record<AbilityKey, 'advantage' | 'disadvantage'>>
   autoFail?: AbilityKey[]
   incapacitated?: boolean
@@ -115,8 +119,9 @@ const RULES: Record<string, Rule> = {
   },
   // Rage barbara (stav si zapíná hráč tlačítkem Rage; bonus ke zranění počítá engine u útoků na STR zblízka).
   raging: {
-    text: 'Rage: výhoda na zkoušky a záchranné hody na STR, bonus ke zranění zbraněmi zblízka na STR, odolnost proti bodnému, drtivému a sečnému zranění. Nemůžeš sesílat kouzla ani se soustředit. Končí po 1 minutě, nebo když neútočíš ani neutrpíš zranění.',
+    text: 'Rage: výhoda na zkoušky vlastnosti a záchranné hody na STR, bonus ke zranění zbraněmi zblízka na STR, odolnost proti bodnému, drtivému a sečnému zranění. Nemůžeš sesílat kouzla ani se soustředit. Končí po 1 minutě, nebo když neútočíš ani neutrpíš zranění.',
     saves: { str: 'advantage' },
+    checks: { str: 'advantage' },
   },
   poisoned: { text: 'Nevýhoda na útoky a zkoušky vlastností.', attack: 'disadvantage', check: true },
   prone: { text: 'Nevýhoda na útoky. Útoky zblízka proti tobě mají výhodu, útoky z dálky nevýhodu. Vstát stojí polovinu rychlosti.', attack: 'disadvantage' },
@@ -170,6 +175,7 @@ export function conditionEffects(conditions: string[], ruleset: '2014' | '2024' 
   const attack: Pool = { adv: [], dis: [] }
   const check: Pool = { adv: [], dis: [] }
   const saves = Object.fromEntries(SAVE_KEYS.map((a) => [a, { adv: [], dis: [], autoFail: [] }])) as unknown as Record<AbilityKey, Pool & { autoFail: string[] }>
+  const checksByAbility = Object.fromEntries(SAVE_KEYS.map((a) => [a, { adv: [], dis: [] }])) as unknown as Record<AbilityKey, Pool>
   const impacts: ConditionImpact[] = []
   const incapacitated: string[] = []
   const speedZero: string[] = []
@@ -213,6 +219,8 @@ export function conditionEffects(conditions: string[], ruleset: '2014' | '2024' 
     if (rule.attack === 'advantage') attack.adv.push(label)
     if (rule.check) check.dis.push(label)
     for (const a of SAVE_KEYS) {
+      if (rule.checks?.[a] === 'disadvantage') checksByAbility[a].dis.push(label)
+      if (rule.checks?.[a] === 'advantage') checksByAbility[a].adv.push(label)
       if (rule.saves?.[a] === 'disadvantage') saves[a].dis.push(label)
       if (rule.saves?.[a] === 'advantage') saves[a].adv.push(label)
     }
@@ -222,7 +230,10 @@ export function conditionEffects(conditions: string[], ruleset: '2014' | '2024' 
   }
 
   const savesOut = Object.fromEntries(SAVE_KEYS.map((a) => [a, { ...mergeMode(saves[a]), autoFail: saves[a].autoFail }])) as ConditionEffects['saves']
-  return { impacts, attack: mergeMode(attack), check: mergeMode(check), saves: savesOut, incapacitated, d20Penalty, effects, speedZero, speedHalved, hpMaxHalved }
+  const checks = Object.fromEntries(
+    SAVE_KEYS.map((a) => [a, mergeMode({ adv: [...check.adv, ...checksByAbility[a].adv], dis: [...check.dis, ...checksByAbility[a].dis] })]),
+  ) as ConditionEffects['checks']
+  return { impacts, attack: mergeMode(attack), check: mergeMode(check), checks, saves: savesOut, incapacitated, d20Penalty, effects, speedZero, speedHalved, hpMaxHalved }
 }
 
 /** Spojí režim zvolený hráčem s režimem ze stavů: výhoda a nevýhoda se ruší. */
