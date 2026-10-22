@@ -164,7 +164,7 @@ final class EnemyController
      * @param array<string, mixed>|null $existing
      * @return array{name: string, hpMax: int, hpCurrent: int, ac: int|null, attacks: list<array{name: string, toHit: int, damage: string}>, notes: string}
      */
-    private static function validate(array $in, ?array $existing): array
+    public static function validate(array $in, ?array $existing): array
     {
         $has = static fn (string $k): bool => array_key_exists($k, $in);
         $name = $has('name') || $existing === null ? Input::string($in, 'name', 1, 100, 'Jméno') : (string) $existing['name'];
@@ -185,7 +185,7 @@ final class EnemyController
         if ($has('initiative')) {
             $initiative = Input::optionalInt($in, 'initiative', -10, 30, 'Iniciativa') ?? 0;
         } else {
-            $initiative = $existing === null ? 0 : (int) $existing['initiative'];
+            $initiative = (int) ($existing['initiative'] ?? 0);
         }
         $notes = $has('notes') ? (Input::optionalString($in, 'notes', 4000, 'Poznámka') ?? '') : (string) ($existing['notes'] ?? '');
 

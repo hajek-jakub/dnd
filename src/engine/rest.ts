@@ -1,5 +1,8 @@
 import type { CharacterState, ComputedSheet } from './types'
 
+/** Rage končí odpočinkem (trvá minutu). */
+const endRage = (conditions: string[]) => conditions.filter((c) => c.trim().toLowerCase() !== 'raging')
+
 /** Výchozí stav nové postavy: plné HP, žádné utracené zdroje. */
 export function initialState(maxHp: number): CharacterState {
   return {
@@ -33,7 +36,7 @@ export function shortRest(state: CharacterState, sheet: ComputedSheet): Characte
   for (const r of sheet.resources) {
     if (r.recharge === 'short') resources[r.key] = r.max.value
   }
-  return { ...state, resources, pactSlotsUsed: 0 }
+  return { ...state, resources, pactSlotsUsed: 0, conditions: endRage(state.conditions) }
 }
 
 /** Long rest: plné HP, všechny sloty a zdroje (kromě ručních), polovina hit dice (aspoň 1), reset death saves. */
@@ -60,6 +63,7 @@ export function longRest(state: CharacterState, sheet: ComputedSheet): Character
     slotsUsed: {},
     pactSlotsUsed: 0,
     resources,
+    conditions: endRage(state.conditions),
   }
 }
 

@@ -1,6 +1,6 @@
-import { formatModifier } from '@/engine'
+import { formatModifier, riderApplies, type DamageRiderInfo } from '@/engine'
 import { useState } from 'react'
-import { SkullIcon } from 'lucide-react'
+import { FlameIcon, SkullIcon, SwordsIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RollButton } from '@/features/dice/RollButton'
@@ -10,11 +10,25 @@ import { riderFor } from './riders'
 import { useSheet } from './sheet-context'
 
 export function AttacksCard() {
-  const { sheet, character, canEdit } = useSheet()
+  const { sheet, character, canEdit, adjust } = useSheet()
   // Soustředění na Hex apod.: ke každému zásahu proti označenému cíli přibývá kostka zranění.
   const rider = riderFor(character.state.concentration)
   const [riderOn, setRiderOn] = useState(true)
   const active = rider !== null && riderOn
+  // Přídavky od tříd (Sneak Attack, ...): „vždy“ se přidají samy, ostatní si hráč zapíná pro konkrétní zásah.
+  const [classOn, setClassOn] = useState<Record<string, boolean>>({})
+  const togglable = sheet.damageRiders.filter((r) => r.mode === 'toggle' && sheet.attacks.some((a) => riderApplies(r, a)))
+  const rage = sheet.rage
+  function toggleRage() {
+    if (!rage) return
+    if (rage.active) adjust([{ op: 'condition', name: 'Raging', set: false }])
+    else
+      adjust([
+        { op: 'resource', key: rage.resourceKey, delta: -1, max: rage.usesMax },
+        { op: 'condition', name: 'Raging', set: true },
+      ])
+  }
+  const extraFor = (r: DamageRiderInfo) => ({ dice: r.dice, type: r.type === 'weapon' ? r.name : `${r.type} (${r.name})` })
   return (
     <Card>
       <CardHeader>
@@ -25,20 +39,59 @@ export function AttacksCard() {
         </p>
       </CardHeader>
       <CardContent>
+        {rage && canEdit && (
+          <Button
+            type="button"
+            data-testid="rage-toggle"
+            variant={rage.active ? 'default' : 'outline'}
+            aria-pressed={rage.active}
+            disabled={!rage.active && rage.usesLeft <= 0}
+            onClick={toggleRage}
+            className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left"
+          >
+            <FlameIcon aria-hidden />
+            <span>
+              {rage.active ? 'Rage trvá: ukončit' : 'Rage'} (+{rage.damageBonus} ke zranění na STR zblízka)
+              <span className="block text-xs font-normal">
+                {rage.active ? 'Při odpočinku skončí sama.' : `Zapnutí stojí 1 použití (zbývá ${rage.usesLeft} z ${rage.usesMax}).`}
+              </span>
+            </span>
+          </Button>
+        )}
+        {canEdit &&
+          togglable.map((r) => (
+            <Button
+              key={r.id}
+              type="button"
+              data-testid={`rider-${r.id}`}
+              variant={classOn[r.id] ? 'default' : 'outline'}
+              aria-pressed={classOn[r.id] === true}
+              onClick={() => setClassOn((o) => ({ ...o, [r.id]: !o[r.id] }))}
+              className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left"
+            >
+              <SwordsIcon aria-hidden />
+              <span>
+                {r.name}: ke zranění se přidá {r.dice}
+                <span className="block text-xs font-normal">{r.note}</span>
+              </span>
+            </Button>
+          ))}
         {rider && canEdit && (
           <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={() => setRiderOn((v) => !v)} className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
             <SkullIcon aria-hidden />
             <span>
               Cíl je pod kouzlem {rider.name}: ke zranění se přidá {rider.dice} {rider.type.toLowerCase()}
-              <span className="block text-xs font-normal opacity-80">Vypni, když útočíš na jiného protivníka (bonus platí jen proti jednomu cíli).</span>
+              <span className="block text-xs font-normal">Vypni, když útočíš na jiného protivníka (bonus platí jen proti jednomu cíli).</span>
             </span>
           </Button>
         )}
         <ul className="divide-y">
           {sheet.attacks.map((a) => {
-            const extras = [...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : [])]
-            const damage = damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : [])])
-            const damageLabel = `${a.name}: zranění${active ? ` + ${rider.name}` : ''}`
+            // Přídavky od tříd, které se na tento útok vztahují (a jsou zapnuté nebo platí vždy).
+            const classRiders = sheet.damageRiders.filter((r) => riderApplies(r, a) && (r.mode === 'always' || classOn[r.id] === true))
+            const extras = [...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : []), ...classRiders.map(extraFor)]
+            const damage = damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : []), ...classRiders])
+            const damageLabel = `${a.name}: zranění${active ? ` + ${rider.name}` : ''}${classRiders.map((r) => ` + ${r.name}`).join('')}`
             return (
               <li key={a.id} className="space-y-1 py-2">
                 <div>

@@ -34,7 +34,7 @@ to na Endoře nejde, proto je backend **vlastní PHP API + MySQL**. Důsledky pr
 
 ```
 src/components/        sdílené komponenty (AppLayout, theme, ui/ = shadcn)
-src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about, dm, loot (dílna a loot DM), messages, maps, dice, journal, tactics, enemies, initiative, ai (AI pomocník DM)
+src/features/<modul>/  auth, campaigns, profile, rules (procházeč pravidel + homebrew), sheet (postava), about, dm, loot (dílna a loot DM), messages, maps, dice, journal, tactics, enemies, initiative, companions (společníci postavy), ai (AI pomocník DM)
 src/lib/               api.ts (fetch klient), types.ts (tvary API), utils.ts
 src/engine/            pravidlový engine (čisté TS, unit testy)
 api/                   PHP backend (index.php, src/, migrations/, bin/, data/, config*.php)
@@ -390,6 +390,14 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
   Doplnění termínů ručně: `php api/bin/add-session.php [--campaign=<id nebo název>] [--time=HH:MM] [--note=...] [--notify] [--dry-run] <RRRR-MM-DD> ...` (idempotentní; bez `--notify` hráče neoznámí, připomínka den předem přesto přijde). Na ostré DB jen s `DND_CONFIG=<ostrá>` pro ten jeden příkaz a nejdřív `--dry-run`.
   UI kalendáře: měsíční mřížka (po–ne), sytost dne podle počtu členů, kteří můžou, zlatý rámeček a kostka u session, „Mohu hrát tento den“, seznam kdo může, hromadně „Označit všechny víkendy v měsíci“, DM má „Nejlepší dny“ a dialog Zadat/Upravit/Zrušit session. Optimistické UI u označení dnů.
 - Testy: engine (`conditions.test.ts`), API (`sessions.test.ts`: oprávnění, dostupnost, validace, přesun, připomínka bez duplicit i při souběhu, mutation check proveden; `dm.test.ts` Exhaustion; `push.test.ts` push termínu a připomínky; route-audit zná nové trasy), unit `dates.test.ts`, E2E `sessions.spec.ts` (hráč telefon + DM počítač), `dm.spec.ts` (Poisoned a Exhaustion na sheetu), kalendář v layout sweep a a11y.
+
+### Bonusy tříd a společníci postavy
+- **Bonusy tříd** (`src/engine/riders.ts`, `ComputedSheet.damageRiders` a `.rage`): engine zná přídavky ke zranění podle levelu: Rogue **Sneak Attack** (kostky z tabulky `sneak_attack`, jen Finesse a dálkové zbraně, `mode: 'toggle'`), Hunter **Colossus Slayer** (od 3. levelu, `toggle`), Paladin **Improved Divine Smite** (od 11., 1d8 radiant, `always`, jen zbraně zblízka). `riderApplies(rider, attack)` rozhoduje podle `AttackInfo.weapon/ranged/finesse`.
+ Podmínku (výhoda, cíl pod maximem HP) engine nezná, přepínač v `AttacksCard` si zapíná hráč (stejně jako Hex). **Rage**: stav „Raging“ (v `characters.conditions`; hráč ho zapíná tlačítkem na kartě Útoky, které jedním `adjust` odečte použití zdroje `barbarian.rage` a přidá stav) přidá `rage_damage_bonus` ke zranění útoků na STR zblízka (včetně Unarmed Strike; ne k dálkovým a ne k Finesse, kde vychází DEX), do rozpisu bonusu se zapíše „Rage“.
+ `conditions.ts` zná `raging` (popis dopadu, výhoda na záchranný hod STR); short i long rest (`rest.ts`) Rage ukončí. **Nemodelováno**: Brutal Critical (kritický zásah zdvojuje kostky server), výhoda na zkoušky STR (engine má režim zkoušek jen společný pro všechny), odolnosti, Divine Smite za slot, taktiky ze seedu (mají vlastní hodnoty). Testy `src/engine/class-bonuses.test.ts`, E2E `e2e/companions.spec.ts`.
+- **Společníci** (migrace 027 `character_companions`, `CompanionController`, `src/features/companions/`): familiar, zvířecí společník nebo přivolané stvoření patří postavě (jméno, `hp_max`, `hp_current`, AC, `attacks` `[{name,toHit,damage}]`, poznámka; smazáním postavy zmizí). **Nejsou to nepřátelé ani postavy**: validace je společná s nepřáteli (`EnemyController::validate`; výraz zranění musí mít kostku, takže zranění „1“ u sovy zůstane prázdné a hází se jen útok), nejvýš 20 na postavu.
+ API: `GET/POST /characters/{id}/companions`, `PATCH|DELETE /companions/{id}`, `POST /companions/{id}/hp` (`delta`, ořízne na 0 až max), `POST /companions/{id}/duplicate` (plné HP, „Wolf 2“). Čtení: majitel, DM a členové, kteří postavu vidí celou (`Sheets::loadReadable`, jinak člen 403 a cizinec 404); měnit smí majitel a DM (`Sheets::loadMutable`).
+ UI: karta **Společníci** na Přehledu sheetu (`CompanionsCard`, formulář je `EnemyEditor` bez iniciativy, předvyplnění z nestvůr SRD), hody útoku a zranění přes `useRoller` s id postavy. Testy `api-tests/companions.test.ts` (přístup, soukromí, limity, souběh, mutation check proveden), route audit, E2E `e2e/companions.spec.ts` (včetně axe a dotykových cílů).
 
 ### Další možná práce (mimo původní zadání)
 - Data SRD 5.2 (2024) a filtrování pravidel podle sady kampaně (dnes engine zná rozdíly 2014/2024 a prohlížeč pravidel na to upozorňuje).

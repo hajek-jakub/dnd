@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { AbilitiesCard, SavesCard, SkillsCard } from './AbilitiesCard'
 import { Avatar } from './Avatar'
 import { AttacksCard } from './AttacksCard'
+import { CompanionsCard } from '@/features/companions/CompanionsCard'
 import { FeaturesTab } from './FeaturesTab'
 import { InventoryTab } from './InventoryTab'
 import { SpellsTab } from './SpellsTab'
@@ -162,6 +163,9 @@ function SheetView() {
             </MasonryItem>
             <MasonryItem>
               <AttacksCard />
+            </MasonryItem>
+            <MasonryItem>
+              <CompanionsCard />
             </MasonryItem>
             <MasonryItem>
               <ResourcesCard />

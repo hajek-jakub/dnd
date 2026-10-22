@@ -1,5 +1,6 @@
 import type { AbilityKey, SkillKey } from './abilities'
 import type { ConditionEffects } from './conditions'
+import type { DamageRiderInfo } from './riders'
 
 /** Hodnota z enginu: výsledek výpočtu, případně ručně přepsaná, vždy s původem (z čeho se skládá). */
 export interface Computed<T = number> {
@@ -153,6 +154,20 @@ export interface AttackInfo {
   ability: AbilityKey
   proficient: boolean
   notes: string[]
+  /** Zbraň (ne Unarmed Strike); přídavky jako Sneak Attack platí jen pro zbraně. */
+  weapon: boolean
+  ranged: boolean
+  finesse: boolean
+}
+
+/** Rage barbara: bonus ke zranění (platí jen při zapnutém Rage a pro útoky na STR zblízka) a kolik použití zbývá. */
+export interface RageInfo {
+  active: boolean
+  damageBonus: number
+  /** Klíč zdroje (`barbarian.rage`), z něj se platí zapnutí Rage. */
+  resourceKey: string
+  usesLeft: number
+  usesMax: number
 }
 
 export interface ComputedSheet {
@@ -183,4 +198,8 @@ export interface ComputedSheet {
   proficiencies: string[]
   /** Dopady stavů (Poisoned, Exhaustion, ...) na hody, rychlost a HP. */
   conditions: ConditionEffects
+  /** Přídavky ke zranění od tříd (Sneak Attack, ...); rozhoduje hráč, kdy podmínka platí. */
+  damageRiders: DamageRiderInfo[]
+  /** Jen barbar: stav Rage. */
+  rage: RageInfo | null
 }

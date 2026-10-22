@@ -202,7 +202,7 @@ function EnemyCard({ campaignId, enemy, hideRolls, onEdit }: { campaignId: strin
   )
 }
 
-function RollBtn({ label, text, disabled, onClick }: { label: string; text: string; disabled: boolean; onClick: () => void }) {
+export function RollBtn({ label, text, disabled, onClick }: { label: string; text: string; disabled: boolean; onClick: () => void }) {
   return (
     <button
       type="button"

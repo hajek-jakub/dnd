@@ -54,6 +54,8 @@ export function EnemyEditor({
   initial,
   withCount,
   note,
+  withInitiative = true,
+  notesLabel = 'Poznámka (vidíš jen ty)',
   onSubmit,
   onClose,
 }: {
@@ -61,6 +63,9 @@ export function EnemyEditor({
   initial?: Partial<EnemyDraft>
   withCount: boolean
   note?: string
+  /** Pole „Iniciativa +“ (společníci ho nemají). */
+  withInitiative?: boolean
+  notesLabel?: string
   onSubmit: (draft: EnemyDraft) => Promise<void>
   onClose: () => void
 }) {
@@ -109,7 +114,7 @@ export function EnemyEditor({
       })
       onClose()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Nepřítele se nepodařilo uložit.')
+      toast.error(err instanceof ApiError ? err.message : 'Nepodařilo se uložit.')
     } finally {
       setBusy(false)
     }
@@ -139,10 +144,12 @@ export function EnemyEditor({
             <Label htmlFor="en-ac">AC</Label>
             <Input id="en-ac" type="number" inputMode="numeric" min={0} max={50} value={ac} onChange={(e) => setAc(e.target.value)} />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="en-init">Iniciativa +</Label>
-            <Input id="en-init" type="number" inputMode="numeric" min={-10} max={30} value={initiative} onChange={(e) => setInitiative(e.target.value)} />
-          </div>
+          {withInitiative && (
+            <div className="space-y-2">
+              <Label htmlFor="en-init">Iniciativa +</Label>
+              <Input id="en-init" type="number" inputMode="numeric" min={-10} max={30} value={initiative} onChange={(e) => setInitiative(e.target.value)} />
+            </div>
+          )}
           {withCount && (
             <div className="space-y-2">
               <Label htmlFor="en-count">Kusů</Label>
@@ -186,7 +193,7 @@ export function EnemyEditor({
         </fieldset>
 
         <div className="space-y-2">
-          <Label htmlFor="en-notes">Poznámka (vidíš jen ty)</Label>
+          <Label htmlFor="en-notes">{notesLabel}</Label>
           <Textarea id="en-notes" className="min-h-20" maxLength={4000} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 

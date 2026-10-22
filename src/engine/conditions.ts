@@ -82,7 +82,7 @@ interface Rule {
   text: string
   attack?: 'advantage' | 'disadvantage'
   check?: boolean
-  saves?: Partial<Record<AbilityKey, 'disadvantage'>>
+  saves?: Partial<Record<AbilityKey, 'advantage' | 'disadvantage'>>
   autoFail?: AbilityKey[]
   incapacitated?: boolean
   speedZero?: boolean
@@ -112,6 +112,11 @@ const RULES: Record<string, Rule> = {
     incapacitated: true,
     speedZero: true,
     autoFail: ['str', 'dex'],
+  },
+  // Rage barbara (stav si zapíná hráč tlačítkem Rage; bonus ke zranění počítá engine u útoků na STR zblízka).
+  raging: {
+    text: 'Rage: výhoda na zkoušky a záchranné hody na STR, bonus ke zranění zbraněmi zblízka na STR, odolnost proti bodnému, drtivému a sečnému zranění. Nemůžeš sesílat kouzla ani se soustředit. Končí po 1 minutě, nebo když neútočíš ani neutrpíš zranění.',
+    saves: { str: 'advantage' },
   },
   poisoned: { text: 'Nevýhoda na útoky a zkoušky vlastností.', attack: 'disadvantage', check: true },
   prone: { text: 'Nevýhoda na útoky. Útoky zblízka proti tobě mají výhodu, útoky z dálky nevýhodu. Vstát stojí polovinu rychlosti.', attack: 'disadvantage' },
@@ -207,7 +212,10 @@ export function conditionEffects(conditions: string[], ruleset: '2014' | '2024' 
     if (rule.attack === 'disadvantage') attack.dis.push(label)
     if (rule.attack === 'advantage') attack.adv.push(label)
     if (rule.check) check.dis.push(label)
-    for (const a of SAVE_KEYS) if (rule.saves?.[a]) saves[a].dis.push(label)
+    for (const a of SAVE_KEYS) {
+      if (rule.saves?.[a] === 'disadvantage') saves[a].dis.push(label)
+      if (rule.saves?.[a] === 'advantage') saves[a].adv.push(label)
+    }
     for (const a of rule.autoFail ?? []) saves[a].autoFail.push(label)
     if (rule.incapacitated) incapacitated.push(label)
     if (rule.speedZero) speedZero.push(label)

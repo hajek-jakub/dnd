@@ -20,7 +20,7 @@ const fill = (pattern: string, ids: Record<string, string> = {}) => pattern.repl
 describe('audit tras API', () => {
   let owner: TestUser
   let outsider: TestUser
-  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string; draft: string; tactic: string; enemy: string; folder: string; lootEntry: string; conversation: string; session: string }
+  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string; draft: string; tactic: string; enemy: string; folder: string; lootEntry: string; conversation: string; session: string; companion: string }
 
   beforeAll(async () => {
     // „aidm“ na začátku jména: majitel smí AI pomocníka (claude_users v api/config.test.php), takže audit projde i jeho trasy se skutečnou konverzací
@@ -41,12 +41,13 @@ describe('audit tras API', () => {
     const conversation = (await owner.client.post(`/campaigns/${campaign}/ai/conversations`, { message: 'Audit' })).body.conversation.id
     const draft = (await owner.client.post(`/campaigns/${campaign}/message-drafts`, { body: 'Koncept', to: 'all' })).body.draft.id
     const session = (await owner.client.post(`/campaigns/${campaign}/sessions`, { date: new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10) })).body.session.id
-    ids = { campaign, character, map, pin, note, entry, draft, tactic, enemy, folder, lootEntry, conversation, session }
+    const companion = (await owner.client.post(`/characters/${character}/companions`, { name: 'Sova', hpMax: 1 })).body.companion.id
+    ids = { campaign, character, map, pin, note, entry, draft, tactic, enemy, folder, lootEntry, conversation, session, companion }
   })
 
   it('tabulka tras se načetla (a obsahuje všechny moduly)', () => {
     expect(routes.length).toBeGreaterThan(60)
-    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/message-drafts', '/message-drafts/{id}', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative', '/campaigns/{id}/loot', '/loot/folders/{id}', '/loot/entries/{id}', '/campaigns/{id}/ai', '/ai/conversations/{id}', '/ai/proposals/{id}/apply', '/campaigns/{id}/calendar', '/campaigns/{id}/availability', '/campaigns/{id}/sessions', '/sessions/{id}']) {
+    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/message-drafts', '/message-drafts/{id}', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative', '/campaigns/{id}/loot', '/loot/folders/{id}', '/loot/entries/{id}', '/campaigns/{id}/ai', '/ai/conversations/{id}', '/ai/proposals/{id}/apply', '/campaigns/{id}/calendar', '/campaigns/{id}/availability', '/campaigns/{id}/sessions', '/sessions/{id}', '/characters/{id}/companions', '/companions/{id}', '/companions/{id}/hp', '/companions/{id}/duplicate']) {
       expect(routes.some((r) => r.pattern === p), p).toBe(true)
     }
     expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/reminders', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/cron/reminders', '/health'])
@@ -71,12 +72,12 @@ describe('audit tras API', () => {
   })
 
   it('cizinec dostane u cizí kampaně a jejích věcí 404 (nikdy 2xx), na žádné trase 5xx', async () => {
-    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry, draft: ids.draft, tactic: ids.tactic, enemy: ids.enemy, folder: ids.folder, lootEntry: ids.lootEntry, conversation: ids.conversation, session: ids.session }
+    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry, draft: ids.draft, tactic: ids.tactic, enemy: ids.enemy, folder: ids.folder, lootEntry: ids.lootEntry, conversation: ids.conversation, session: ids.session, companion: ids.companion }
     const failures: string[] = []
     for (const r of PROTECTED) {
       if (!r.pattern.includes('{')) continue
       // které id patří do které trasy
-      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : r.pattern.startsWith('/message-drafts/') ? 'draft' : r.pattern.startsWith('/tactics/') ? 'tactic' : r.pattern.startsWith('/enemies/') ? 'enemy' : r.pattern.startsWith('/loot/folders/') ? 'folder' : r.pattern.startsWith('/loot/entries/') ? 'lootEntry' : r.pattern.startsWith('/ai/conversations/') ? 'conversation' : r.pattern.startsWith('/sessions/') ? 'session' : null
+      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : r.pattern.startsWith('/message-drafts/') ? 'draft' : r.pattern.startsWith('/tactics/') ? 'tactic' : r.pattern.startsWith('/enemies/') ? 'enemy' : r.pattern.startsWith('/loot/folders/') ? 'folder' : r.pattern.startsWith('/loot/entries/') ? 'lootEntry' : r.pattern.startsWith('/ai/conversations/') ? 'conversation' : r.pattern.startsWith('/sessions/') ? 'session' : r.pattern.startsWith('/companions/') ? 'companion' : null
       if (kind === null) continue
       const url = fill(r.pattern, { id: real[kind]! })
       const res = await outsider.client.request(r.method, url, r.method === 'GET' || r.method === 'DELETE' ? undefined : {})

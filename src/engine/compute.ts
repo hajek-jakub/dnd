@@ -1,5 +1,6 @@
 import { ABILITIES, SKILLS, abilityModifier, type AbilityKey, type SkillKey } from './abilities'
-import { conditionEffects } from './conditions'
+import { conditionEffects, parseCondition } from './conditions'
+import { classDamageRiders, rageDamageBonus } from './riders'
 import { classResources } from './resources'
 import { THIRD_CASTER_SUBCLASSES, type RulesBundle } from './rules-bundle'
 import { casterLevel, casterTypeOf, pactSlots, spellSlots, type ClassLevels } from './spellcasting'
@@ -364,6 +365,9 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     const n = normalizeName(w.name)
     return [...profKey].some((p) => p.startsWith(n) || n.startsWith(p.replace(/s$/, '')))
   }
+  // Rage: stav „Raging“ (hráč ho zapíná tlačítkem a platí 1 použití) přidá bonus ke zranění útokům zblízka na STR.
+  const raging = input.state.conditions.some((c) => parseCondition(c).key === 'raging')
+  const rageBonus = rageDamageBonus(classes, bundle)
   const addAttack = (id: string, name: string, w: InventoryItem | null) => {
     const stats = w?.weapon
     const props = (stats?.properties ?? []).map((p) => p.toLowerCase())
@@ -400,7 +404,11 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     const dmgSources: Source[] = [{ label: `Modifikátor ${ability.toUpperCase()}`, value: signed(mod(ability)) }]
     if (magic) dmgSources.push({ label: 'Magický bonus', value: signed(magic) })
     dmgSources.push(...effectSources('damage.all'))
-    const dmgBase = mod(ability) + magic + sumEffects('damage.all')
+    let dmgBase = mod(ability) + magic + sumEffects('damage.all')
+    if (raging && rageBonus > 0 && ability === 'str' && !ranged) {
+      dmgBase += rageBonus
+      dmgSources.push({ label: 'Rage', value: signed(rageBonus) })
+    }
     attacks.push({
       id,
       name,
@@ -412,6 +420,9 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
       ability,
       proficient,
       notes,
+      weapon: w !== null,
+      ranged,
+      finesse: props.includes('finesse'),
     })
   }
   addAttack('unarmed', 'Unarmed Strike', null)
@@ -495,6 +506,11 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     })
   }
 
+  const rageResource = resources.find((r) => r.key === 'barbarian.rage')
+  const rage: ComputedSheet['rage'] = rageResource
+    ? { active: raging, damageBonus: rageBonus, resourceKey: rageResource.key, usesLeft: rageResource.current, usesMax: rageResource.max.value }
+    : null
+
   return {
     totalLevel,
     classSummary: classes.map((c) => `${bundle.classes[c.classIndex]?.name ?? c.classIndex} ${c.level}`).join(' / '),
@@ -517,5 +533,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     attunement: { used: input.items.filter((i) => i.attuned).length, max: MAX_ATTUNEMENT },
     proficiencies,
     conditions,
+    damageRiders: classDamageRiders(classes, bundle),
+    rage,
   }
 }

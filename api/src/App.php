@@ -23,6 +23,7 @@ use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
 use Dnd\Controllers\SessionController;
 use Dnd\Controllers\SummaryController;
+use Dnd\Controllers\CompanionController;
 use Dnd\Controllers\TacticsController;
 use Dnd\Controllers\AdminController;
 use Throwable;
@@ -206,6 +207,12 @@ final class App
         $r->add('POST', '/characters/{id}/tactics/reorder', [TacticsController::class, 'reorder']);
         $r->add('PATCH', '/tactics/{id}', [TacticsController::class, 'update']);
         $r->add('DELETE', '/tactics/{id}', [TacticsController::class, 'delete']);
+        $r->add('GET', '/characters/{id}/companions', [CompanionController::class, 'index']);
+        $r->add('POST', '/characters/{id}/companions', [CompanionController::class, 'create']);
+        $r->add('PATCH', '/companions/{id}', [CompanionController::class, 'update']);
+        $r->add('DELETE', '/companions/{id}', [CompanionController::class, 'delete']);
+        $r->add('POST', '/companions/{id}/hp', [CompanionController::class, 'hp']);
+        $r->add('POST', '/companions/{id}/duplicate', [CompanionController::class, 'duplicate']);
 
         // Kostky: hody na serveru a sdílený log kampaně
         $r->add('POST', '/campaigns/{id}/rolls', [DiceController::class, 'roll']);

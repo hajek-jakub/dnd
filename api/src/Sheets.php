@@ -204,6 +204,25 @@ final class Sheets
     }
 
     /**
+     * Postava, jejíž podrobnosti smí volající číst: majitel, DM a (když má postava visibility 'full') ostatní členové kampaně.
+     * Cizinec dostane 404, člen jen s veřejným náhledem 403. Vrací jen sloupce potřebné pro kontroly.
+     * @param array{id:string} $user
+     * @return array<string, mixed>
+     */
+    public static function loadReadable(string $id, array $user): array
+    {
+        $row = Ids::isUuid($id) ? Db::one('SELECT id, campaign_id, owner_id, visibility FROM characters WHERE id = ?', [$id]) : null;
+        $role = $row === null ? null : Access::role($user['id'], (string) $row['campaign_id']);
+        if ($row === null || $role === null) {
+            throw HttpError::notFound('Postava nenalezena.');
+        }
+        if ($role !== 'dm' && $row['owner_id'] !== $user['id'] && $row['visibility'] !== 'full') {
+            throw HttpError::forbidden('Tuto postavu vidíš jen v omezeném náhledu.');
+        }
+        return $row;
+    }
+
+    /**
      * Zranění nebo léčení: zranění nejdřív spotřebuje dočasná HP, výsledek se ořízne na 0 až max.
      * @return array{hp:int, temp:int}
      */
