@@ -107,7 +107,8 @@ Připomínku den předem posílá server sám, kdykoli má někdo aplikaci otev�
 nastav v administraci Endory **cron** (každých 15 minut). Dvě možnosti:
 
 - příkaz: `php /cesta/k/_sub/dnd/api/bin/remind.php` (přesnou cestu najdeš v administraci Endory u cronu), nebo
-- adresa: `POST https://dnd.hajekjakub.cz/api/admin/reminders` s hlavičkou `X-Migrate-Key: <migrate_key z api/config.production.php>` (pro externí službu, např. cron-job.org).
+- adresa (plánovač Endory umí jen zavolat URL): `https://dnd.hajekjakub.cz/api/cron/reminders?key=<migrate_key z api/config.production.php>`, typ „Crontab formát“, čas `*/15 * * * *`. Přidání úlohy volá adresu metodou HEAD, ta nic nedělá. Klíč je v adrese, proto ji nikam nesdílej;
+- pro externí službu (např. cron-job.org) jde i `POST https://dnd.hajekjakub.cz/api/admin/reminders` s hlavičkou `X-Migrate-Key`.
 
 Volání je bezpečné opakovat, připomínka se pošle jen jednou. Hodina připomínky je `session_reminder_hour` (výchozí 17) a časové pásmo `timezone` (výchozí Europe/Prague) v konfiguraci.
 

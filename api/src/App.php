@@ -245,5 +245,8 @@ final class App
         $r->add('POST', '/admin/seed', [AdminController::class, 'seed'], auth: false);
         $r->add('POST', '/admin/diagnostics', [AdminController::class, 'diagnostics'], auth: false);
         $r->add('POST', '/admin/reminders', [AdminController::class, 'reminders'], auth: false);
+        // Pro plánovač (cron) na hostingu: umí jen volat adresu, takže klíč je v adrese. HEAD (kontrola existence při přidání úlohy) nic nedělá.
+        $r->add('GET', '/cron/reminders', [AdminController::class, 'cronReminders'], auth: false);
+        $r->add('HEAD', '/cron/reminders', [AdminController::class, 'cronHead'], auth: false);
     }
 }

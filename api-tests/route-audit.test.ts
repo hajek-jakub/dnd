@@ -49,7 +49,7 @@ describe('audit tras API', () => {
     for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/message-drafts', '/message-drafts/{id}', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative', '/campaigns/{id}/loot', '/loot/folders/{id}', '/loot/entries/{id}', '/campaigns/{id}/ai', '/ai/conversations/{id}', '/ai/proposals/{id}/apply', '/campaigns/{id}/calendar', '/campaigns/{id}/availability', '/campaigns/{id}/sessions', '/sessions/{id}']) {
       expect(routes.some((r) => r.pattern === p), p).toBe(true)
     }
-    expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/reminders', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/health'])
+    expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/reminders', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/cron/reminders', '/health'])
   })
 
   it('každá chráněná trasa bez přihlášení vrátí 401', async () => {

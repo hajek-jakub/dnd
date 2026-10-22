@@ -104,6 +104,30 @@ final class AdminController
         return Response::json(['sent' => Sessions::remindDue()]);
     }
 
+    /**
+     * Připomínky session pro cron hostingu, který umí jen volat adresu: `GET /api/cron/reminders?key=<migrate_key>`.
+     * Špatný klíč se hlásí jako 404 a počítá se do limitu, aby šel klíč jen těžko hádat.
+     */
+    public static function cronReminders(Request $req): Response
+    {
+        $key = (string) Config::get('migrate_key', '');
+        $given = (string) ($req->query['key'] ?? '');
+        if ($key === '' || !hash_equals($key, $given)) {
+            try {
+                RateLimiter::hit('cron:' . $req->ip, 20, 600);
+            } catch (PDOException) {
+            }
+            throw HttpError::notFound();
+        }
+        return Response::json(['sent' => Sessions::remindDue()]);
+    }
+
+    /** Kontrola existence adresy plánovačem (metoda HEAD): nic nedělá, nic neprozradí. */
+    public static function cronHead(Request $req): Response
+    {
+        return Response::json(['ok' => true]);
+    }
+
     private static function requireKey(Request $req): void
     {
         $key = (string) Config::get('migrate_key', '');

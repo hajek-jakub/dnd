@@ -159,6 +159,16 @@ describe('plánování session (kalendář)', () => {
       expect([401, 403, 404]).toContain((await new Client().post('/admin/reminders', {})).status)
     })
 
+    it('adresa pro cron hostingu: bez klíče a se špatným klíčem 404, se správným 200, HEAD nic nedělá', async () => {
+      const anon = new Client()
+      expect((await anon.get('/cron/reminders')).status).toBe(404)
+      expect((await anon.get('/cron/reminders?key=spatny')).status).toBe(404)
+      const ok = await anon.get('/cron/reminders?key=test-migrate')
+      expectStatus(ok, 200)
+      expect(ok.body.sent).toEqual(expect.any(Number))
+      expectStatus(await anon.request('HEAD', '/cron/reminders'), 200)
+    })
+
     it('session dnes se připomene právě jednou všem členům včetně DM; budoucí ne', async () => {
       const owner = await registerUser('dm3')
       const cid = await createCampaign(owner, 'Připomínky')
