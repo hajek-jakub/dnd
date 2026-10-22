@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { ApiError } from '@/lib/api'
+import { SRD_CONDITIONS } from '@/engine'
 import { EFFECT_TARGETS } from '@/features/sheet/effects'
 import { CoinFields } from '@/features/sheet/CoinFields'
 import { PriceFields, type PriceMode } from '@/features/sheet/PriceFields'
@@ -286,37 +287,23 @@ function ItemPicker({ campaignId, targets, onClose }: DialogProps) {
   )
 }
 
-const SRD_CONDITIONS = [
-  'Blinded',
-  'Charmed',
-  'Deafened',
-  'Exhaustion',
-  'Frightened',
-  'Grappled',
-  'Incapacitated',
-  'Invisible',
-  'Paralyzed',
-  'Petrified',
-  'Poisoned',
-  'Prone',
-  'Restrained',
-  'Stunned',
-  'Unconscious',
-]
-
 function ConditionForm({ campaignId, targets, onClose }: DialogProps) {
   const [name, setName] = useState('Poisoned')
   const [set, setSet] = useState(true)
   const mutation = useSetCondition(campaignId)
+  const [level, setLevel] = useState(1)
   const valid = name.trim().length > 0
+  // Exhaustion má úroveň 1 až 6; zrušení ji nepotřebuje (smaže se bez ohledu na úroveň).
+  const isExhaustion = name.trim().toLowerCase() === 'exhaustion'
+  const finalName = isExhaustion && set ? `Exhaustion ${level}` : name.trim()
 
   function submit() {
     if (!valid) return
     mutation.mutate(
-      { characterIds: targets.map((t) => t.id), name: name.trim(), set },
+      { characterIds: targets.map((t) => t.id), name: finalName, set },
       {
         onSuccess: () => {
-          toast.success(set ? `Stav nastaven: ${name.trim()}` : `Stav zrušen: ${name.trim()}`)
+          toast.success(set ? `Stav nastaven: ${finalName}` : `Stav zrušen: ${finalName}`)
           onClose()
         },
         onError: (e) => toast.error(errorText(e, 'Stav se nepodařilo změnit.')),
@@ -344,6 +331,19 @@ function ConditionForm({ campaignId, targets, onClose }: DialogProps) {
           ))}
         </datalist>
       </div>
+      {isExhaustion && set && (
+        <div role="group" aria-label="Úroveň Exhaustion" className="space-y-2">
+          <Label>Úroveň vyčerpání</Label>
+          <div className="grid grid-cols-6 gap-2">
+            {[1, 2, 3, 4, 5, 6].map((l) => (
+              <Button key={l} type="button" aria-pressed={level === l} variant={level === l ? 'default' : 'outline'} onClick={() => setLevel(l)}>
+                {l}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">Nová úroveň nahradí předchozí. Dopady (nevýhody, rychlost, HP) se na sheetu spočítají samy.</p>
+        </div>
+      )}
       <Button type="submit" size="lg" className="w-full" disabled={!valid || mutation.isPending}>
         {set ? 'Nastavit stav' : 'Zrušit stav'}
       </Button>

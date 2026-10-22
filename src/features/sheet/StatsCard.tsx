@@ -16,7 +16,7 @@ export function StatsCard() {
       </Stat>
       <Stat label="Iniciativa">
         <ComputedValue title="Iniciativa" computed={sheet.initiative} overrideKey="initiative" format={formatModifier} className="w-full text-2xl" />
-        <RollButton label="Iniciativa" expression={d20(sheet.initiative.value)} text="Hod" className="-mt-2" initiative />
+        <RollButton label="Iniciativa" expression={d20(sheet.initiative.value)} text="Hod" className="-mt-2" initiative kind="check" />
       </Stat>
       <Stat label="Rychlost">
         <ComputedValue title="Rychlost" computed={sheet.speed} overrideKey="speed" format={(n) => `${n} ft`} className="w-full text-2xl" />

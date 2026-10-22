@@ -15,6 +15,7 @@ use Dnd\Request;
 use Dnd\WebPush;
 use Dnd\Response;
 use Dnd\Seeder;
+use Dnd\Sessions;
 use PDOException;
 
 final class AdminController
@@ -91,6 +92,16 @@ final class AdminController
         } catch (\Throwable $e) {
             return ['supported' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Pošle připomínky session, které už mají přijít (den předem večer). Hosting nemá cron, takže je to i součást `/summary`;
+     * tuto trasu lze volat externí službou (např. každých 15 minut) pro případ, že nikdo nemá aplikaci otevřenou.
+     */
+    public static function reminders(Request $req): Response
+    {
+        self::requireKey($req);
+        return Response::json(['sent' => Sessions::remindDue()]);
     }
 
     private static function requireKey(Request $req): void

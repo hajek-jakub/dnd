@@ -58,6 +58,9 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   }
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Ahoj' } })
   await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis', body: '# Nadpis\n- odrážka\n**tučně**', pinned: true } })
+  const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  await page.request.post(`/api/campaigns/${campaignId}/availability`, { data: { days: [inDays(3), inDays(4), inDays(10)], available: true } })
+  await page.request.post(`/api/campaigns/${campaignId}/sessions`, { data: { date: inDays(10), time: '18:00', note: 'Poznámka k session, která je docela dlouhá a musí se zalomit' } })
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(300, 200)) } } })).json()).map.id as string
   await page.request.post(`/api/maps/${map}/pins`, { data: { x: 50, y: 50, title: 'Bod', description: 'Popis' } })
 
@@ -94,6 +97,7 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
       },
     ],
     ['deník', `/campaigns/${campaignId}/journal`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
+    ['kalendář', `/campaigns/${campaignId}/calendar`, async (p) => void (await expect(p.getByRole('heading', { name: 'Kalendář', level: 1 })).toBeVisible())],
     [
       'zprávy: připravené',
       `/campaigns/${campaignId}/messages?t=drafts`,

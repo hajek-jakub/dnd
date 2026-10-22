@@ -1,7 +1,7 @@
 import { createDecipheriv, createECDH, createPublicKey, hkdfSync, randomBytes, verify } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { PUSH_MOCK_PORT } from './global-setup'
-import { Client, createCampaign, expectStatus, joinAsPlayer, makePng, registerUser, uniqueName, type TestUser } from './client'
+import { Client, createCampaign, expectStatus, joinAsPlayer, makePng, registerUser, testDbExec, uniqueName, type TestUser } from './client'
 
 const MOCK = `http://127.0.0.1:${PUSH_MOCK_PORT}`
 const CHARACTER = { abilityScores: { str: 10, dex: 14, con: 12, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter' }] }
@@ -132,7 +132,7 @@ describe('push notifikace', () => {
       expect(res.body.available).toBe(true)
       expect(res.body.publicKey).toBe(publicKey)
       expect(Buffer.from(publicKey, 'base64url')).toHaveLength(65)
-      expect(res.body.categories).toEqual(['messages', 'dm', 'maps', 'journal'])
+      expect(res.body.categories).toEqual(['messages', 'dm', 'maps', 'journal', 'sessions'])
     })
 
     it('diagnostika serveru ověří, že umí šifrovat a podepisovat push', async () => {
@@ -170,8 +170,8 @@ describe('push notifikace', () => {
       const device = newDevice()
       const q = `/push/subscription?endpoint=${encodeURIComponent(device.endpoint)}`
       expect((await bob.client.get(q)).body.subscription).toBeNull()
-      expect((await subscribe(bob, device)).categories).toEqual(['messages', 'dm', 'maps', 'journal'])
-      expect((await bob.client.get(q)).body.subscription.categories).toHaveLength(4)
+      expect((await subscribe(bob, device)).categories).toEqual(['messages', 'dm', 'maps', 'journal', 'sessions'])
+      expect((await bob.client.get(q)).body.subscription.categories).toHaveLength(5)
       const patched = await bob.client.patch('/push/subscription', { endpoint: device.endpoint, categories: ['maps', 'messages', 'messages'] })
       expectStatus(patched, 200)
       expect(patched.body.subscription.categories).toEqual(['messages', 'maps'])
@@ -193,7 +193,7 @@ describe('push notifikace', () => {
       expect((await bob.client.get(q)).body.subscription.categories).toEqual(['maps'])
 
       // sdílený telefon: carol se přihlásí a zařízení převezme, bob už nic nedostane; volbu bobovi nezdědí
-      expect((await subscribe(carol, device)).categories).toHaveLength(4)
+      expect((await subscribe(carol, device)).categories).toHaveLength(5)
       expect((await bob.client.get(q)).body.subscription).toBeNull()
       expect((await carol.client.get(q)).body.subscription).not.toBeNull()
       await carol.client.delete(q)
@@ -314,6 +314,41 @@ describe('push notifikace', () => {
       const [msg] = await waitFor(dev, 1)
       expect(decrypt(dev, msg!.body).body).toBe('Nový zápis v deníku: Pro všechny')
       await bob.client.delete(`/push/subscription?endpoint=${encodeURIComponent(dev.endpoint)}`)
+    })
+
+    it('termín session a připomínka den předem: push dostanou hráči se zapnutou kategorií, připomínka jen jednou', async () => {
+      const dev = newDevice('session')
+      const off = newDevice('sessionoff')
+      await subscribe(bob, dev, ['sessions'])
+      await subscribe(carol, off, ['messages'])
+      const local = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Prague' })
+      const day = (offset: number) => local.format(new Date(Date.now() + offset * 86_400_000))
+      const created = await dm.client.post(`/campaigns/${campaignId}/sessions`, { date: day(30), time: '18:00' })
+      expectStatus(created, 201)
+      const [announce] = await waitFor(dev, 1)
+      const payload = decrypt(dev, announce!.body)
+      expect(payload.body).toContain('Další session')
+      expect(payload.body).toContain('18:00')
+      expect(payload.category).toBe('sessions')
+      expect(payload.url).toBe(`campaigns/${campaignId}/calendar`)
+      expect(await received(off)).toHaveLength(0) // kategorie vypnutá
+
+      // připomínka: session „dnes“ s vynulovanou značkou, spustí ji klíčem chráněná trasa
+      const today = (await dm.client.post(`/campaigns/${campaignId}/sessions`, { date: day(0) })).body.session.id
+      testDbExec('UPDATE game_sessions SET reminded_at = NULL WHERE id = ?', [today])
+      const key = { 'X-Migrate-Key': 'test-migrate' }
+      const first = await dm.client.request('POST', '/admin/reminders', {}, key)
+      expectStatus(first, 200)
+      expect(first.body.sent).toBeGreaterThanOrEqual(1)
+      await waitFor(dev, 3)
+      const bodies = (await received(dev)).map((r) => decrypt(dev, r.body).body)
+      expect(bodies.some((b) => b.startsWith('Dnes hrajeme'))).toBe(true)
+      const count = (await received(dev)).length
+      expectStatus(await dm.client.request('POST', '/admin/reminders', {}, key), 200) // podruhé už nic nepošle
+      await new Promise((r) => setTimeout(r, 800))
+      expect(await received(dev)).toHaveLength(count)
+      await bob.client.delete(`/push/subscription?endpoint=${encodeURIComponent(dev.endpoint)}`)
+      await carol.client.delete(`/push/subscription?endpoint=${encodeURIComponent(off.endpoint)}`)
     })
 
     it('hody kostkou push nikdy neposílají', async () => {

@@ -1,4 +1,5 @@
 import { ABILITIES, SKILLS, abilityModifier, type AbilityKey, type SkillKey } from './abilities'
+import { conditionEffects } from './conditions'
 import { classResources } from './resources'
 import { THIRD_CASTER_SUBCLASSES, type RulesBundle } from './rules-bundle'
 import { casterLevel, casterTypeOf, pactSlots, spellSlots, type ClassLevels } from './spellcasting'
@@ -67,7 +68,8 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   const ruleset = input.rules?.ruleset ?? '2014'
   const classes = groupClasses(input)
   const totalLevel = Math.max(1, input.levels.length)
-  const effects = activeEffects(input)
+  const conditions = conditionEffects(input.state.conditions, ruleset)
+  const effects = [...activeEffects(input), ...conditions.effects]
   const effectsFor = (...targets: string[]) => effects.filter((e) => targets.includes(e.target))
   const sumEffects = (...targets: string[]) => effectsFor(...targets).reduce((n, e) => n + e.value, 0)
   const effectSources = (...targets: string[]): Source[] => effectsFor(...targets).map((e) => ({ label: e.source, value: signed(e.value) }))
@@ -125,11 +127,16 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     skills[s.key] = { ...makeComputed(`skill.${s.key}`, base, sources, ov), proficiency: prof, ability: s.ability }
   }
 
-  // --- pasivní vnímání
+  // --- pasivní vnímání (pasivní hodnota není k20, takže se postih Exhaustion 2024 do ní nepromítá)
+  const passivePenaltyBack = skills.perception.overridden ? 0 : conditions.d20Penalty
   const passivePerception = makeComputed(
     'passivePerception',
-    10 + skills.perception.value + sumEffects('passive.perception'),
-    [{ label: 'Základ', value: 10 }, { label: 'Vnímání', value: signed(skills.perception.value) }, ...effectSources('passive.perception')],
+    10 + skills.perception.value + passivePenaltyBack + sumEffects('passive.perception'),
+    [
+      { label: 'Základ', value: 10 },
+      { label: 'Vnímání', value: signed(skills.perception.value + passivePenaltyBack) },
+      ...effectSources('passive.perception'),
+    ],
     ov,
   )
 
@@ -262,6 +269,15 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   }
   speedBase += sumEffects('speed')
   speedSources.push(...effectSources('speed'))
+  if (conditions.speedHalved.length > 0 && speedBase > 0) {
+    speedBase = Math.floor(speedBase / 2)
+    speedSources.push({ label: `${conditions.speedHalved.join(', ')}: poloviční`, value: '×½' })
+  }
+  if (conditions.speedZero.length > 0) {
+    speedBase = 0
+    speedSources.push({ label: `${conditions.speedZero.join(', ')}: rychlost 0`, value: '=0' })
+  }
+  speedBase = Math.max(0, speedBase)
   const speed = makeComputed('speed', speedBase, speedSources, ov)
 
   // --- HP
@@ -285,6 +301,10 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   const hpFlat = sumEffects('hp.max')
   hpBase += hpFlat
   hpSources.push(...effectSources('hp.max'))
+  if (conditions.hpMaxHalved.length > 0) {
+    hpBase = Math.floor(hpBase / 2)
+    hpSources.push({ label: `${conditions.hpMaxHalved.join(', ')}: poloviční maximum`, value: '×½' })
+  }
   const hpMax = makeComputed('hp.max', hpBase, hpSources, ov)
 
   // --- hit dice
@@ -486,7 +506,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     initiative,
     speed,
     ac,
-    hp: { max: hpMax, current: Math.max(0, input.state.hpCurrent), temp: Math.max(0, input.state.hpTemp) },
+    hp: { max: hpMax, current: Math.max(0, conditions.hpMaxHalved.length > 0 ? Math.min(input.state.hpCurrent, hpMax.value) : input.state.hpCurrent), temp: Math.max(0, input.state.hpTemp) },
     hitDice,
     attacks,
     attacksPerAction: 1 + extraAttacks,
@@ -496,5 +516,6 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     martialArtsDie,
     attunement: { used: input.items.filter((i) => i.attuned).length, max: MAX_ATTUNEMENT },
     proficiencies,
+    conditions,
   }
 }

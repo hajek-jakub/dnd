@@ -72,6 +72,14 @@ test('DM rozdá item, bonus a stav; hráč na telefonu dostane oznámení a vid�
     await dm.getByRole('dialog', { name: 'Stav postavy' }).getByRole('button', { name: 'Nastavit stav' }).click()
     await expect(elfka.getByRole('list', { name: 'Stavy' })).toContainText('Poisoned')
 
+    // Exhaustion má úroveň; dopady stavů se na sheetu spočítají samy
+    await dm.getByRole('button', { name: 'Stav', exact: true }).click()
+    const exhaustion = dm.getByRole('dialog', { name: 'Stav postavy' })
+    await exhaustion.getByLabel('Stav', { exact: true }).fill('Exhaustion')
+    await exhaustion.getByRole('button', { name: '3', exact: true }).click()
+    await exhaustion.getByRole('button', { name: 'Nastavit stav' }).click()
+    await expect(elfka.getByRole('list', { name: 'Stavy' })).toContainText('Exhaustion 3')
+
     // zranění
     await dm.getByRole('button', { name: 'Zranění / léčení' }).click()
     await dm.getByLabel('Kolik HP').fill('3')
@@ -85,6 +93,13 @@ test('DM rozdá item, bonus a stav; hráč na telefonu dostane oznámení a vid�
     await expect(player.getByText('Shield of Faith').first()).toBeVisible()
     await expect(player.getByText('do long restu')).toBeVisible()
     await expect(player.getByRole('list', { name: 'Stavy' })).toContainText('Poisoned')
+    // Poisoned: nevýhoda na útoky se u tlačítka hodu ukáže a nastaví sama; Exhaustion 3 (2014) polovinu rychlosti
+    await expect(player.getByTestId('condition-impacts')).toContainText('Nevýhoda na útoky a zkoušky vlastností')
+    await expect(player.getByTestId('condition-impacts')).toContainText('Exhaustion 3')
+    await expect(player.getByRole('button', { name: /Hodit: Unarmed Strike: útok.*nevýhoda kvůli stavu Poisoned/ })).toBeVisible()
+    await expect(player.getByRole('button', { name: 'Rychlost: 15' })).toBeVisible()
+    await dm.getByRole('button', { name: 'Zrušit stav Exhaustion 3 u Elfka' }).click()
+    await expect(player.getByRole('button', { name: 'Rychlost: 30' })).toBeVisible({ timeout: 45_000 })
     await expect(player.getByRole('button', { name: 'Zrušit bonus Shield of Faith' })).toHaveCount(0) // hráč bonus zrušit nemůže
 
     // oznámení v seznamu

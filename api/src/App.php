@@ -21,6 +21,7 @@ use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\PushController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
+use Dnd\Controllers\SessionController;
 use Dnd\Controllers\SummaryController;
 use Dnd\Controllers\TacticsController;
 use Dnd\Controllers\AdminController;
@@ -159,6 +160,12 @@ final class App
         $r->add('POST', '/campaigns/{id}/dm/effects', [DmController::class, 'addEffect']);
         $r->add('DELETE', '/effects/{effectId}', [DmController::class, 'removeEffect']);
         $r->add('DELETE', '/characters/{id}/effects/long-rest', [DmController::class, 'expireLongRestEffects']);
+        // Plánování session: kalendář dostupnosti hráčů a termíny od DM
+        $r->add('GET', '/campaigns/{id}/calendar', [SessionController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/availability', [SessionController::class, 'setAvailability']);
+        $r->add('POST', '/campaigns/{id}/sessions', [SessionController::class, 'create']);
+        $r->add('PATCH', '/sessions/{id}', [SessionController::class, 'update']);
+        $r->add('DELETE', '/sessions/{id}', [SessionController::class, 'delete']);
         $r->add('GET', '/summary', [SummaryController::class, 'index']);
         // Push notifikace (Web Push): odběr zařízení, výběr kategorií, zkouška
         $r->add('GET', '/push/config', [PushController::class, 'config']);
@@ -237,5 +244,6 @@ final class App
         $r->add('POST', '/admin/migrate', [AdminController::class, 'migrate'], auth: false);
         $r->add('POST', '/admin/seed', [AdminController::class, 'seed'], auth: false);
         $r->add('POST', '/admin/diagnostics', [AdminController::class, 'diagnostics'], auth: false);
+        $r->add('POST', '/admin/reminders', [AdminController::class, 'reminders'], auth: false);
     }
 }

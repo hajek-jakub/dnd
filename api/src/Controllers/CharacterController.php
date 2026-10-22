@@ -418,10 +418,7 @@ final class CharacterController
                         if (!is_string($name) || $name === '' || mb_strlen($name) > 40) {
                             throw HttpError::validation('Neplatný stav (condition).', 'ops');
                         }
-                        $conditions = array_values(array_diff($conditions, [$name]));
-                        if (($op['set'] ?? null) === true) {
-                            $conditions[] = $name;
-                        }
+                        [$conditions] = Sheets::toggleCondition($conditions, $name, ($op['set'] ?? null) === true);
                         break;
                     default:
                         throw HttpError::validation('Neznámá operace: ' . $op['op'], 'ops');

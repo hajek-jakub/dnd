@@ -1,5 +1,6 @@
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon, StarIcon, Trash2Icon, ZapIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { combineMode } from '@/engine'
 import { Button } from '@/components/ui/button'
 import { RollButton } from '@/features/dice/RollButton'
 import { useSheet } from '@/features/sheet/sheet-context'
@@ -102,7 +103,7 @@ function RunButton({ tactic, ctx }: { tactic: Tactic; ctx: RunContext }) {
       return
     }
     batch.mutate(
-      { attacks: plan.attacks, mode: settings.mode, hidden: settings.hidden, characterId: character.id },
+      { attacks: plan.attacks, mode: combineMode(settings.mode, sheet.conditions.attack.mode), hidden: settings.hidden, characterId: character.id },
       {
         onSuccess: (results: BatchResult[]) => ctx.onResults({ title: tactic.title, results, hidden: settings.hidden, paid }),
         onError: (e) => toast.error(e instanceof Error ? e.message : 'Hody se nepodařily.'),
@@ -165,7 +166,7 @@ export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<T
       }
       actions={
         <>
-          {hit && <RollButton label={`${tactic.title}: útok`} expression={hit} text="Útok" />}
+          {hit && <RollButton label={`${tactic.title}: útok`} expression={hit} text="Útok" kind="attack" />}
           {dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} text="Zranění" />}
           {dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} crit text="Krit" />}
           <RunButton tactic={tactic} ctx={ctx} />

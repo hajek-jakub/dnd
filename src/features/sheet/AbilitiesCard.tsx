@@ -31,7 +31,7 @@ export function AbilitiesCard() {
                 overrideKey={`ability.${a}`}
                 className="min-h-11 text-sm text-muted-foreground"
               />
-              <RollButton label={`Zkouška: ${ABILITY_LABELS[a]}`} expression={d20(sheet.abilities[a].modifier)} text="Hod" />
+              <RollButton label={`Zkouška: ${ABILITY_LABELS[a]}`} expression={d20(sheet.abilities[a].modifier - sheet.conditions.d20Penalty)} text="Hod" kind="check" />
             </li>
           ))}
         </ul>
@@ -58,6 +58,11 @@ export function SavesCard() {
                 />
                 <span className="sr-only">{sheet.saves[a].proficient ? 'Proficient: ' : ''}</span>
                 {ABILITY_LABELS[a]}
+                {sheet.conditions.saves[a].autoFail.length > 0 && (
+                  <span className="rounded bg-red-600/10 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">
+                    automaticky neúspěch ({sheet.conditions.saves[a].autoFail.join(', ')})
+                  </span>
+                )}
               </span>
               <span className="flex justify-center">
                 <ComputedValue
@@ -67,7 +72,7 @@ export function SavesCard() {
                   format={formatModifier}
                 />
               </span>
-              <RollButton label={`Záchranný hod: ${ABILITY_LABELS[a]}`} expression={d20(sheet.saves[a].value)} className="-my-1" />
+              <RollButton label={`Záchranný hod: ${ABILITY_LABELS[a]}`} expression={d20(sheet.saves[a].value)} className="-my-1" kind={{ save: a }} />
             </li>
           ))}
         </ul>
@@ -121,7 +126,7 @@ export function SkillsCard() {
                 <span className="flex justify-center">
                   <ComputedValue title={SKILL_LABELS[s.key]} computed={skill} overrideKey={`skill.${s.key}`} format={formatModifier} />
                 </span>
-                <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} />
+                <RollButton label={SKILL_LABELS[s.key]} expression={d20(skill.value)} kind="check" />
               </li>
             )
           })}

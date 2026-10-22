@@ -318,14 +318,13 @@ final class DmController
             throw HttpError::validation('Zadej set: true/false.', 'set');
         }
         $set = $in['set'];
+        // Exhaustion má úroveň (nastavení nahradí předchozí, zrušení smaže všechny); název v oznámení je už s úrovní.
+        [, $name] = Sheets::toggleCondition([], $name, $set);
         $count = Db::transaction(static function () use ($params, $user, $in, $name, $set): int {
             $chars = self::targets($params['id'], $in);
             foreach ($chars as $char) {
                 $list = Sheets::json($char['conditions'], []);
-                $list = array_values(array_diff(is_array($list) ? $list : [], [$name]));
-                if ($set) {
-                    $list[] = $name;
-                }
+                [$list] = Sheets::toggleCondition(is_array($list) ? $list : [], $name, $set);
                 Db::exec('UPDATE characters SET conditions = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [Sheets::enc($list), $char['id']]);
                 Notifications::push((string) $char['owner_id'], $user['id'], $params['id'], (string) $char['id'], 'condition', ($set ? 'DM ti nastavil stav: ' : 'DM ti zrušil stav: ') . $name);
             }

@@ -6,6 +6,7 @@ namespace Dnd\Controllers;
 
 use Dnd\Push;
 use Dnd\Request;
+use Dnd\Sessions;
 
 /**
  * Jedna odpověď místo tří dotazů, které aplikace posílá pořád dokola (oznámení, nepřečtené zprávy, nové zápisy v deníku).
@@ -18,6 +19,8 @@ final class SummaryController
     {
         // Dotaz posílá jen viditelné okno aplikace: kdo se ptá, má aplikaci otevřenou a push nepotřebuje.
         Push::touch($user['id']);
+        // Hosting nemá cron: připomínky session spouští ten, kdo má právě aplikaci otevřenou (levný indexovaný dotaz).
+        Sessions::remindDue();
         return [
             'notifications' => NotificationController::index($req, $params, $user),
             'messages' => MessageController::unreadOverview($req, $params, $user),

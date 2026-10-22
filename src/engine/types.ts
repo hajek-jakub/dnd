@@ -1,4 +1,5 @@
 import type { AbilityKey, SkillKey } from './abilities'
+import type { ConditionEffects } from './conditions'
 
 /** Hodnota z enginu: výsledek výpočtu, případně ručně přepsaná, vždy s původem (z čeho se skládá). */
 export interface Computed<T = number> {
@@ -180,4 +181,6 @@ export interface ComputedSheet {
   martialArtsDie: string | null
   attunement: { used: number; max: number }
   proficiencies: string[]
+  /** Dopady stavů (Poisoned, Exhaustion, ...) na hody, rychlost a HP. */
+  conditions: ConditionEffects
 }

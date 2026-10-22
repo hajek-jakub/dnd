@@ -205,6 +205,24 @@ describe('DM panel a oznámení', () => {
       expect((await sheet(carol, carolChar)).state.conditions).toEqual(['Poisoned'])
       expect((await notes(bob)).notifications.map((x) => x.text)).toEqual(expect.arrayContaining(['DM ti nastavil stav: Poisoned', 'DM ti zrušil stav: Poisoned']))
     })
+
+    it('Exhaustion má úroveň: nastavení nahradí předchozí, zrušení smaže všechny', async () => {
+      await dmPost('conditions', { characterIds: [bobChar], name: 'Poisoned', set: true })
+      await dmPost('conditions', { characterIds: [bobChar], name: 'Exhaustion 2', set: true })
+      expect((await sheet(bob, bobChar)).state.conditions).toEqual(['Poisoned', 'Exhaustion 2'])
+      await dmPost('conditions', { characterIds: [bobChar], name: 'exhaustion 4', set: true }) // nahradí, velikost písmen nevadí
+      expect((await sheet(bob, bobChar)).state.conditions).toEqual(['Poisoned', 'Exhaustion 4'])
+      await dmPost('conditions', { characterIds: [bobChar], name: 'Exhaustion', set: true }) // bez čísla = úroveň 1
+      expect((await sheet(bob, bobChar)).state.conditions).toEqual(['Poisoned', 'Exhaustion 1'])
+      for (const name of ['Exhaustion 0', 'Exhaustion 7']) {
+        expect((await dmPost('conditions', { characterIds: [bobChar], name, set: true })).status, name).toBe(422)
+      }
+      expect((await sheet(bob, bobChar)).state.conditions).toEqual(['Poisoned', 'Exhaustion 1'])
+      await dmPost('conditions', { characterIds: [bobChar], name: 'Exhaustion', set: false }) // zruší bez ohledu na úroveň
+      expect((await sheet(bob, bobChar)).state.conditions).toEqual(['Poisoned'])
+      await dmPost('conditions', { characterIds: [bobChar], name: 'Poisoned', set: false })
+      expect((await notes(bob)).notifications.map((x) => x.text)).toEqual(expect.arrayContaining(['DM ti nastavil stav: Exhaustion 4', 'DM ti zrušil stav: Exhaustion']))
+    })
   })
 
   describe('bonusy a efekty', () => {

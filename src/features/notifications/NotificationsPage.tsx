@@ -32,7 +32,11 @@ export function NotificationsPage() {
             <li key={n.id} className={cn('flex flex-wrap items-baseline justify-between gap-2 py-3', !n.read && 'font-medium')}>
               <span>
                 {!n.read && <span aria-label="Nepřečtené" className="mr-2 inline-block size-2 rounded-full bg-primary" />}
-                {n.characterId ? (
+                {n.kind === 'session' ? (
+                  <Link to={`/campaigns/${n.campaignId}/calendar`} className="underline-offset-4 hover:underline">
+                    {n.text}
+                  </Link>
+                ) : n.characterId ? (
                   <Link to={`/characters/${n.characterId}`} className="underline-offset-4 hover:underline">
                     {n.text}
                   </Link>

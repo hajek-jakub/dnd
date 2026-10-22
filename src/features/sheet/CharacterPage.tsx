@@ -1,3 +1,4 @@
+import { ConditionImpacts } from './ConditionImpacts'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeftIcon, SparklesIcon, TrendingUpIcon } from 'lucide-react'
@@ -113,6 +114,7 @@ function SheetView() {
           ))}
         </ul>
       )}
+      <ConditionImpacts />
 
       <div className="sticky top-14 z-10 -mx-4 bg-background/95 backdrop-blur tab:-mx-6 tab:flex tab:flex-wrap tab:items-center tab:justify-between tab:gap-x-4 tab:px-6">
         <nav aria-label="Části karty postavy" className="overflow-x-auto px-4 py-2 tab:px-0">

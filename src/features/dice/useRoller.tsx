@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import { ApiError } from '@/lib/api'
+import { combineMode } from '@/engine'
 import { useRollMutation, type DiceRoll, type RollMode } from './api'
 import { describeRoll, naturalNote } from './format'
 import { useRollOverlay } from './roll-overlay-context'
@@ -23,8 +24,9 @@ export function useRoller(campaignId: string, characterId?: string) {
   const overlay = useRollOverlay()
   const mutation = useRollMutation(campaignId)
 
-  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; hidden?: boolean; initiative?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
-    const mode = options.mode ?? settings.mode
+  function roll(label: string, expression: string, options: { crit?: boolean; mode?: RollMode; conditionMode?: RollMode; hidden?: boolean; initiative?: boolean; onResult?: (r: DiceRoll) => void } = {}) {
+    // Výhoda a nevýhoda ze stavů (Poisoned, ...) se spojí s volbou hráče; výhoda a nevýhoda se ruší.
+    const mode = options.mode ?? combineMode(settings.mode, options.conditionMode ?? 'normal')
     const hidden = options.hidden ?? settings.hidden
     const crit = options.crit === true
     const token = overlay.begin({ label, expression, mode, crit, hidden, again: () => roll(label, expression, options) })

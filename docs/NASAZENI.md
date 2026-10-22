@@ -101,6 +101,13 @@ Každá další verze se nasazuje stejným příkazem `npm run deploy`. Data v d
 2. Do pole „Kód pozvánky nebo registrační heslo“ zadej `registration_key` z kroku 3, zvol si jméno a heslo.
 3. Založ kampaň, vytvoř pozvánku a pošli hráčům odkaz. Hráč na odkaz klepne, zaregistruje se (kód se vyplní sám) a je v kampani.
 
+## Připomínky session
+
+Připomínku den předem posílá server sám, když má někdo aplikaci otevřenou (Endora nemá cron). Aby přišla i tehdy, když ji večer nikdo neotevře,
+můžeš nechat externí službu (např. cron-job.org, zdarma) volat každých 15 minut `POST https://dnd.hajekjakub.cz/api/admin/reminders`
+s hlavičkou `X-Migrate-Key: <migrate_key z api/config.production.php>`. Volání je bezpečné opakovat (připomínka se pošle jen jednou).
+Hodina připomínky je `session_reminder_hour` (výchozí 17) a časové pásmo `timezone` (výchozí Europe/Prague) v konfiguraci.
+
 ## Zálohy
 
 Data jsou v MySQL na Endoře. V administraci Endory najdeš export databáze (často přes phpMyAdmin, volba „Exportovat“).

@@ -140,6 +140,33 @@ final class Sheets
     }
 
     /** @return mixed */
+    /**
+     * Nastaví nebo zruší stav v seznamu stavů. Exhaustion je jediný stav s úrovní 1 až 6 a v seznamu je nejvýš jednou:
+     * nastavení „Exhaustion 3“ nahradí předchozí úroveň, zrušení „Exhaustion“ (s jakoukoli úrovní) smaže všechny.
+     * Vrací nový seznam a kanonický název stavu (u nastavení Exhaustion s číslem).
+     * @param array<int,mixed> $list
+     * @return array{0: array<int,string>, 1: string}
+     */
+    public static function toggleCondition(array $list, string $name, bool $set): array
+    {
+        $name = trim($name);
+        $isExhaustion = (bool) preg_match('/^exhaustion(?:\s+(\d+))?$/i', $name, $m);
+        if ($isExhaustion) {
+            $level = isset($m[1]) ? (int) $m[1] : 1;
+            if ($set && ($level < 1 || $level > 6)) {
+                throw HttpError::validation('Úroveň Exhaustion je 1 až 6.', 'name');
+            }
+            $name = $set ? 'Exhaustion ' . max(1, min(6, $level)) : 'Exhaustion';
+            $list = array_values(array_filter($list, static fn($c) => !is_string($c) || !preg_match('/^exhaustion(?:\s+\d+)?$/i', trim($c))));
+        } else {
+            $list = array_values(array_filter($list, static fn($c) => $c !== $name));
+        }
+        if ($set) {
+            $list[] = $name;
+        }
+        return [$list, $name];
+    }
+
     public static function json(mixed $value, mixed $default): mixed
     {
         if (!is_string($value) || $value === '') {

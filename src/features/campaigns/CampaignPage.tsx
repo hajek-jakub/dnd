@@ -25,6 +25,7 @@ import { RULESETS, rulesetOf } from './ruleset'
 import { DiceDock } from '@/features/dice/DiceDock'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 import { JournalPreview } from '@/features/journal/JournalPreview'
+import { SessionPreview } from '@/features/sessions/SessionPreview'
 import { usePageTitle } from '@/lib/page-title'
 
 // Karta s postavou počítá sheet enginem, proto se načítá až po úvodní stránce.
@@ -65,6 +66,9 @@ export function CampaignPage() {
       {/* Telefon: vše pod sebou. Tablet a počítač: moje postava a deník vlevo, družina a NPC vpravo. */}
       {campaignId && (
         <Masonry columns="tab:grid-cols-2">
+          <MasonryItem className="tab:col-span-2">
+            <SessionPreview campaignId={campaignId} isDm={isDm} />
+          </MasonryItem>
           <MasonryItem>
             <Suspense fallback={null}>
               <MyCharacterCard campaignId={campaignId} />

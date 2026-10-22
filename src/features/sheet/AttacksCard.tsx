@@ -59,7 +59,7 @@ export function AttacksCard() {
                     className="justify-self-start"
                   />
                   <div className="flex items-center">
-                    <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} />
+                    <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} kind="attack" />
                   </div>
 
                   <span className="text-muted-foreground">Zranění</span>

@@ -44,7 +44,7 @@ export function SpellcastingCard() {
               </Row>
               <Row
                 label="Bonus k útoku kouzlem"
-                action={<RollButton label={`${c.className}: útok kouzlem`} expression={d20(c.attackBonus.value)} />}
+                action={<RollButton label={`${c.className}: útok kouzlem`} expression={d20(c.attackBonus.value)} kind="attack" />}
               >
                 <ComputedValue
                   title={`${c.className}: bonus k útoku kouzlem`}

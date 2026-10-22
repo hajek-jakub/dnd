@@ -6,6 +6,7 @@ export const PUSH_CATEGORIES = [
   { id: 'dm', label: 'Změny od DM', hint: 'DM ti dal item, peníze nebo bonus, upravil životy nebo stav; předání mezi hráči.' },
   { id: 'maps', label: 'Nové mapy', hint: 'DM zveřejnil mapu.' },
   { id: 'journal', label: 'Deník', hint: 'DM přidal zápis do deníku.' },
+  { id: 'sessions', label: 'Session', hint: 'DM zadal termín další session a připomínka den předem.' },
 ] as const
 
 export type PushCategory = (typeof PUSH_CATEGORIES)[number]['id']

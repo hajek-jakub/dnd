@@ -20,6 +20,7 @@ const loaders = {
   loot: () => import('@/features/loot/LootPage').then((m) => ({ default: m.LootPage })),
   maps: () => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })),
   journal: () => import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
+  calendar: () => import('@/features/sessions/CalendarPage').then((m) => ({ default: m.CalendarPage })),
   mapView: () => import('@/features/maps/MapViewPage'),
   messages: () => import('@/features/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })),
   notifications: () => import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
@@ -35,6 +36,7 @@ const DmPage = lazy(loaders.dm)
 const LootPage = lazy(loaders.loot)
 const MapsPage = lazy(loaders.maps)
 const JournalPage = lazy(loaders.journal)
+const CalendarPage = lazy(loaders.calendar)
 const MapViewPage = lazy(loaders.mapView)
 const MessagesPage = lazy(loaders.messages)
 const NotificationsPage = lazy(loaders.notifications)
@@ -105,6 +107,7 @@ export default function App() {
             <Route path="campaigns/:campaignId/dm/loot" element={<LootPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
             <Route path="campaigns/:campaignId/journal" element={<JournalPage />} />
+            <Route path="campaigns/:campaignId/calendar" element={<CalendarPage />} />
             <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />
             <Route path="campaigns/:campaignId/maps/:mapId" element={<MapViewPage />} />
             <Route path="notifications" element={<NotificationsPage />} />

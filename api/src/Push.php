@@ -18,7 +18,7 @@ use Throwable;
 final class Push
 {
     /** Kategorie, které si uživatel zapíná a vypíná. */
-    public const CATEGORIES = ['messages', 'dm', 'maps', 'journal'];
+    public const CATEGORIES = ['messages', 'dm', 'maps', 'journal', 'sessions'];
 
     /** Jak dlouho po posledním dotazu aplikace (jednou za ~6 s, jen viditelné okno) se uživatel považuje za „aplikace je otevřená“: `push_presence_seconds`, výchozí 12. */
     private const MAX_PER_USER = 10;

@@ -75,6 +75,9 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'x'.repeat(300) } })
   await page.request.post(`/api/campaigns/${campaignId}/message-drafts`, { data: { title: 'Dlouhý název připravené zprávy, který se musí zalomit', body: 'Text '.repeat(150), to: 'all' } })
   await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis s dlouhým názvem '.repeat(4), body: 'Text '.repeat(200), pinned: true } })
+  const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  await page.request.post(`/api/campaigns/${campaignId}/availability`, { data: { days: [inDays(3), inDays(4), inDays(10)], available: true } })
+  await page.request.post(`/api/campaigns/${campaignId}/sessions`, { data: { date: inDays(10), time: '18:00', note: 'Poznámka k session, která je docela dlouhá a musí se zalomit' } })
   await page.request.post(`/api/campaigns/${campaignId}/dm-notes`, { data: { body: 'Poznámka\n'.repeat(5) } })
   const map = (await (await page.request.post(`/api/campaigns/${campaignId}/maps`, { multipart: { name: 'Mapa s hodně dlouhým názvem, aby se zalomil', image: { name: 'm.png', mimeType: 'image/png', buffer: Buffer.from(makePng(600, 400)) } } })).json()).map.id as string
   await page.request.post(`/api/maps/${map}/pins`, { data: { x: 50, y: 50, title: 'Bod s dlouhým názvem '.repeat(3), description: 'Popis '.repeat(60) } })
@@ -108,6 +111,7 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     ['panel DM', `/campaigns/${campaignId}/dm`],
     ['loot a itemy', `/campaigns/${campaignId}/dm/loot`],
     ['deník', `/campaigns/${campaignId}/journal`],
+    ['kalendář', `/campaigns/${campaignId}/calendar`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
     ['zprávy: připravené', `/campaigns/${campaignId}/messages?t=drafts`],
     ['mapy', `/campaigns/${campaignId}/maps`],

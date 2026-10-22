@@ -20,7 +20,7 @@ const fill = (pattern: string, ids: Record<string, string> = {}) => pattern.repl
 describe('audit tras API', () => {
   let owner: TestUser
   let outsider: TestUser
-  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string; draft: string; tactic: string; enemy: string; folder: string; lootEntry: string; conversation: string }
+  let ids: { campaign: string; character: string; map: string; pin: string; note: string; entry: string; draft: string; tactic: string; enemy: string; folder: string; lootEntry: string; conversation: string; session: string }
 
   beforeAll(async () => {
     // „aidm“ na začátku jména: majitel smí AI pomocníka (claude_users v api/config.test.php), takže audit projde i jeho trasy se skutečnou konverzací
@@ -40,15 +40,16 @@ describe('audit tras API', () => {
     // Konverzace vznikne i bez odpovědi AI (napodobený server odpoví výchozím textem; když je rozpočet testů vyčerpaný, vrátí chybu, ale id ano).
     const conversation = (await owner.client.post(`/campaigns/${campaign}/ai/conversations`, { message: 'Audit' })).body.conversation.id
     const draft = (await owner.client.post(`/campaigns/${campaign}/message-drafts`, { body: 'Koncept', to: 'all' })).body.draft.id
-    ids = { campaign, character, map, pin, note, entry, draft, tactic, enemy, folder, lootEntry, conversation }
+    const session = (await owner.client.post(`/campaigns/${campaign}/sessions`, { date: new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10) })).body.session.id
+    ids = { campaign, character, map, pin, note, entry, draft, tactic, enemy, folder, lootEntry, conversation, session }
   })
 
   it('tabulka tras se načetla (a obsahuje všechny moduly)', () => {
     expect(routes.length).toBeGreaterThan(60)
-    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/message-drafts', '/message-drafts/{id}', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative', '/campaigns/{id}/loot', '/loot/folders/{id}', '/loot/entries/{id}', '/campaigns/{id}/ai', '/ai/conversations/{id}', '/ai/proposals/{id}/apply']) {
+    for (const p of ['/campaigns/{id}/messages', '/campaigns/{id}/message-drafts', '/message-drafts/{id}', '/campaigns/{id}/rolls', '/campaigns/{id}/maps', '/characters/{id}/adjust', '/campaigns/{id}/dm/hp', '/pins/{id}', '/campaigns/{id}/journal', '/journal/{id}', '/characters/{id}/tactics', '/tactics/{id}', '/campaigns/{id}/enemies', '/enemies/{id}', '/campaigns/{id}/initiative', '/enemies/{id}/initiative', '/campaigns/{id}/loot', '/loot/folders/{id}', '/loot/entries/{id}', '/campaigns/{id}/ai', '/ai/conversations/{id}', '/ai/proposals/{id}/apply', '/campaigns/{id}/calendar', '/campaigns/{id}/availability', '/campaigns/{id}/sessions', '/sessions/{id}']) {
       expect(routes.some((r) => r.pattern === p), p).toBe(true)
     }
-    expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/health'])
+    expect(PUBLIC.map((r) => r.pattern).sort()).toEqual(['/admin/diagnostics', '/admin/migrate', '/admin/reminders', '/admin/seed', '/auth/login', '/auth/logout', '/auth/me', '/auth/register', '/health'])
   })
 
   it('každá chráněná trasa bez přihlášení vrátí 401', async () => {
@@ -63,19 +64,19 @@ describe('audit tras API', () => {
 
   it('veřejné administrátorské trasy bez klíče nic neprovedou', async () => {
     const anon = new Client()
-    for (const p of ['/admin/migrate', '/admin/seed', '/admin/diagnostics']) {
+    for (const p of ['/admin/migrate', '/admin/seed', '/admin/diagnostics', '/admin/reminders']) {
       const res = await anon.post(p, {})
       expect([401, 403, 404], p).toContain(res.status)
     }
   })
 
   it('cizinec dostane u cizí kampaně a jejích věcí 404 (nikdy 2xx), na žádné trase 5xx', async () => {
-    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry, draft: ids.draft, tactic: ids.tactic, enemy: ids.enemy, folder: ids.folder, lootEntry: ids.lootEntry, conversation: ids.conversation }
+    const real: Record<string, string> = { campaign: ids.campaign, character: ids.character, map: ids.map, pin: ids.pin, note: ids.note, entry: ids.entry, draft: ids.draft, tactic: ids.tactic, enemy: ids.enemy, folder: ids.folder, lootEntry: ids.lootEntry, conversation: ids.conversation, session: ids.session }
     const failures: string[] = []
     for (const r of PROTECTED) {
       if (!r.pattern.includes('{')) continue
       // které id patří do které trasy
-      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : r.pattern.startsWith('/message-drafts/') ? 'draft' : r.pattern.startsWith('/tactics/') ? 'tactic' : r.pattern.startsWith('/enemies/') ? 'enemy' : r.pattern.startsWith('/loot/folders/') ? 'folder' : r.pattern.startsWith('/loot/entries/') ? 'lootEntry' : r.pattern.startsWith('/ai/conversations/') ? 'conversation' : null
+      const kind = r.pattern.startsWith('/campaigns/') ? 'campaign' : r.pattern.startsWith('/characters/') ? 'character' : r.pattern.startsWith('/maps/') ? 'map' : r.pattern.startsWith('/pins/') ? 'pin' : r.pattern.startsWith('/dm-notes/') ? 'note' : r.pattern.startsWith('/journal/') ? 'entry' : r.pattern.startsWith('/message-drafts/') ? 'draft' : r.pattern.startsWith('/tactics/') ? 'tactic' : r.pattern.startsWith('/enemies/') ? 'enemy' : r.pattern.startsWith('/loot/folders/') ? 'folder' : r.pattern.startsWith('/loot/entries/') ? 'lootEntry' : r.pattern.startsWith('/ai/conversations/') ? 'conversation' : r.pattern.startsWith('/sessions/') ? 'session' : null
       if (kind === null) continue
       const url = fill(r.pattern, { id: real[kind]! })
       const res = await outsider.client.request(r.method, url, r.method === 'GET' || r.method === 'DELETE' ? undefined : {})
