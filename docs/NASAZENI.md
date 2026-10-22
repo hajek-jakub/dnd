@@ -103,10 +103,13 @@ Každá další verze se nasazuje stejným příkazem `npm run deploy`. Data v d
 
 ## Připomínky session
 
-Připomínku den předem posílá server sám, když má někdo aplikaci otevřenou (Endora nemá cron). Aby přišla i tehdy, když ji večer nikdo neotevře,
-můžeš nechat externí službu (např. cron-job.org, zdarma) volat každých 15 minut `POST https://dnd.hajekjakub.cz/api/admin/reminders`
-s hlavičkou `X-Migrate-Key: <migrate_key z api/config.production.php>`. Volání je bezpečné opakovat (připomínka se pošle jen jednou).
-Hodina připomínky je `session_reminder_hour` (výchozí 17) a časové pásmo `timezone` (výchozí Europe/Prague) v konfiguraci.
+Připomínku den předem posílá server sám, kdykoli má někdo aplikaci otevřenou. Aby přišla i tehdy, když ji večer nikdo neotevře,
+nastav v administraci Endory **cron** (každých 15 minut). Dvě možnosti:
+
+- příkaz: `php /cesta/k/_sub/dnd/api/bin/remind.php` (přesnou cestu najdeš v administraci Endory u cronu), nebo
+- adresa: `POST https://dnd.hajekjakub.cz/api/admin/reminders` s hlavičkou `X-Migrate-Key: <migrate_key z api/config.production.php>` (pro externí službu, např. cron-job.org).
+
+Volání je bezpečné opakovat, připomínka se pošle jen jednou. Hodina připomínky je `session_reminder_hour` (výchozí 17) a časové pásmo `timezone` (výchozí Europe/Prague) v konfiguraci.
 
 ## Zálohy
 
