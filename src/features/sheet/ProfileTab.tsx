@@ -45,7 +45,7 @@ export function ProfileTab() {
   )
 }
 
-/** Jazyky postavy. Hráči, kteří sdílejí jazyk, si v Zprávách můžou psát tak, že to nikdo jiný (ani DM) nevidí. */
+/** Jazyky postavy. Hráči, kteří sdílejí jazyk, si v Zprávách můžou psát tak, že to vidí jen oni a DM. */
 function LanguagesCard() {
   const { character, update } = useSheet()
   const [name, setName] = useState('')
@@ -102,7 +102,7 @@ function LanguagesCard() {
             </Button>
           </form>
         )}
-        <p className="text-xs text-muted-foreground">Jazyky se vybírají ze seznamu, aby se hráči ve Zprávách spolehlivě shodli. Když stejný jazyk umí i jiný hráč, můžete si psát tak, že to nikdo jiný (ani DM) neuvidí.</p>
+        <p className="text-xs text-muted-foreground">Jazyky se vybírají ze seznamu, aby se hráči ve Zprávách spolehlivě shodli. Když stejný jazyk umí i jiný hráč, můžete si psát tak, že to uvidíte jen vy a DM.</p>
       </CardContent>
     </Card>
   )

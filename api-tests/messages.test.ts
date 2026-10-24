@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, type TestUser } from './client'
+import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, testDbExec, type TestUser } from './client'
 
 describe('zprávy v kampani', () => {
   let dm: TestUser
@@ -216,23 +216,37 @@ describe('zprávy v kampani', () => {
       expectStatus(await character(gm, 'NPC Skřet', ['Orc']), 201) // DM jazyky nesdílí
     })
 
-    it('hráč napíše v jazyce: vidí ho jen hráči, kteří jazyk umí (ne DM, ne ostatní)', async () => {
+    const recipientIds = (message: any) => (message.recipients as { id: string }[]).map((r) => r.id).sort()
+
+    it('hráč napíše v jazyce: vidí ho hráči, kteří jazyk umí, a DM (ostatní hráči ne)', async () => {
       const res = await say(p1, 'Orc', 'Zradíme ho')
       expectStatus(res, 201)
-      expect(res.body.message).toMatchObject({ thread: 'lang:orc', recipients: [{ id: p2.id }] })
-      for (const u of [p1, p2]) expect((await read(u)).messages.map((m) => m.body), u.username).toContain('Zradíme ho')
-      for (const u of [p3, p4, gm]) expect((await read(u)).messages.map((m) => m.body), u.username).not.toContain('Zradíme ho')
-      // odpověď jde jen Aje, DM s NPC se nepočítá
+      expect(res.body.message.thread).toBe('lang:orc')
+      expect(recipientIds(res.body.message)).toEqual([p2.id, gm.id].sort())
+      for (const u of [p1, p2, gm]) expect((await read(u)).messages.map((m) => m.body), u.username).toContain('Zradíme ho')
+      for (const u of [p3, p4]) expect((await read(u)).messages.map((m) => m.body), u.username).not.toContain('Zradíme ho')
+      // odpověď jde Aje a DM; DM s NPC, které jazyk umí, je jen čtenář, ne mluvčí
       const reply = await say(p2, 'orc', 'Souhlas')
-      expect(reply.body.message.recipients).toEqual([expect.objectContaining({ id: p1.id })])
+      expect(recipientIds(reply.body.message)).toEqual([p1.id, gm.id].sort())
       expect((await read(p1)).messages.map((m) => m.body)).toContain('Souhlas')
-      expect((await read(gm)).messages.map((m) => m.body)).not.toContain('Souhlas')
+      expect((await read(gm)).messages.map((m) => m.body)).toContain('Souhlas')
+      expect((await read(gm)).unread['lang:orc']).toBeGreaterThanOrEqual(2)
     })
 
-    it('rozlišuje jazyky (Elvish jde jen k Cyře, i když je zapsaný malými písmeny)', async () => {
+    it('zprávy v jazyce odeslané dřív, než je DM četl, mu zůstanou skryté', async () => {
+      const res = await say(p1, 'Orc', 'Ještě z doby před DM')
+      expectStatus(res, 201)
+      // stará zpráva: DM v příjemcích nebyl
+      testDbExec('DELETE FROM message_recipients WHERE message_id = ? AND user_id = ?', [res.body.message.id, gm.id])
+      expect((await read(gm)).messages.map((m) => m.body)).not.toContain('Ještě z doby před DM')
+      expect((await read(p2)).messages.map((m) => m.body)).toContain('Ještě z doby před DM')
+    })
+
+    it('rozlišuje jazyky (Elvish jde jen k Cyře a DM, i když je zapsaný malými písmeny)', async () => {
       const res = await say(p1, 'Elvish', 'Elfí tajemství')
       expectStatus(res, 201)
-      expect(res.body.message).toMatchObject({ thread: 'lang:elvish', recipients: [{ id: p3.id }] })
+      expect(res.body.message.thread).toBe('lang:elvish')
+      expect(recipientIds(res.body.message)).toEqual([p3.id, gm.id].sort())
       expect((await read(p2)).messages.map((m) => m.body)).not.toContain('Elfí tajemství')
       expect((await read(p3)).messages.map((m) => m.body)).toContain('Elfí tajemství')
     })

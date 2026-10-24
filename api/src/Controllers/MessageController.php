@@ -20,11 +20,11 @@ use Dnd\Response;
  *  - skupinový chat (thread 'group'): píše i čte každý člen kampaně,
  *  - soukromá konverzace DM a hráče (thread 'dm:<id hráče>'): hráč smí psát jen DM, DM smí psát hráči,
  *  - tajná zpráva od DM více hráčům (thread 'secret'): vidí ji jen DM a příjemci,
- *  - zpráva v jazyce (thread 'lang:<jazyk>'): píše hráč, který jazyk umí, a čtou ji ostatní hráči, kteří ho umí (v okamžiku odeslání).
- *    DM ji nevidí (platí obecné pravidlo níže), takže si hráči můžou psát, když nechtějí, aby to někdo slyšel.
+ *  - zpráva v jazyce (thread 'lang:<jazyk>'): píše hráč, který jazyk umí, a čtou ji ostatní hráči, kteří ho umí (v okamžiku odeslání), a DM.
+ *    DM je mezi příjemci, takže ji vidí podle obecného pravidla níže; zprávy z doby, kdy se DM nepřidával, mu zůstanou skryté.
  * Připravené zprávy (koncepty, jen DM): text a příjemci se nachystají předem a odešlou se jako běžná zpráva (deliver); koncept vidí jen jeho autor.
  * Viditelnost drží jediné pravidlo (visibleSql): skupinové vidí každý člen, ostatní jen odesílatel a příjemci.
- * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal. Hráči si mezi sebou soukromě píšou jen přes jazyky, které sdílejí.
+ * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal. Hráči si mezi sebou píšou jen přes jazyky, které sdílejí (a DM to čte).
  */
 final class MessageController
 {
@@ -391,7 +391,7 @@ final class MessageController
     // ------------------------------------------------------------------ pomocné
 
     /**
-     * Cíl zprávy v jazyce: vlákno a příjemci (ostatní hráči, kteří jazyk umí). Píše jen hráč, který jazyk sám umí.
+     * Cíl zprávy v jazyce: vlákno a příjemci (ostatní hráči, kteří jazyk umí, a DM). Píše jen hráč, který jazyk sám umí.
      * @return array{0: string, 1: list<string>}
      */
     private static function languageTarget(string $role, string $userId, string $campaignId, mixed $language): array
@@ -416,6 +416,10 @@ final class MessageController
         }
         if ($recipients === []) {
             throw HttpError::validation('Tento jazyk neumí žádný další hráč.', 'to');
+        }
+        // DM zprávu čte (jako příjemce), i když jazyk nezná; psát v jazyce nemůže. Starší zprávy bez DM v příjemcích mu zůstanou skryté.
+        foreach (Db::all("SELECT user_id FROM campaign_members WHERE campaign_id = ? AND role = 'dm'", [$campaignId]) as $r) {
+            $recipients[] = (string) $r['user_id'];
         }
         return ['lang:' . $slug, $recipients];
     }

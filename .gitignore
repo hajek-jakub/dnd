@@ -30,3 +30,4 @@ dist-ssr
 !.env.deploy.example
 playwright-report
 test-results
+.claude/settings.local.json

@@ -6,7 +6,7 @@ namespace Dnd;
 
 /**
  * Jazyky hráčů v kampani. Jazyk je položka `Language: <název>` v `extra_proficiencies` postavy (stejně jako v seedu).
- * Hráč zná jazyk, když ho zná kterákoli jeho postava v kampani. DM se nepočítá (jazykové zprávy jsou jen mezi hráči).
+ * Hráč zná jazyk, když ho zná kterákoli jeho postava v kampani. DM se nepočítá (v jazyce píšou jen hráči, DM zprávy jen čte).
  * Z názvu vzniká `slug` (malá písmena, čísla, pomlčky), podle kterého se jazyk porovnává a který je v názvu vlákna `lang:<slug>`.
  */
 final class Languages

@@ -25,6 +25,12 @@ interface ThreadInfo {
   language?: string
 }
 
+/** Popisek vlákna `lang:<slug>` podle číselníku (pro vlákna, kde jazyk neznám: DM, nebo jazyk už postava nemá). */
+function languageThreadLabel(thread: string): string {
+  const slug = thread.slice(5)
+  return languageLabel(LANGUAGE_CATALOG.find((l) => l.name.toLowerCase().replace(/[^a-z]+/g, '-') === slug)?.name ?? slug.replace(/^./u, (c) => c.toUpperCase()))
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso)
   const today = new Date()
@@ -56,6 +62,10 @@ export function MessagesPage() {
         list.push({ id: `dm:${m.userId}`, label: m.displayName, hint: 'Soukromě mezi tebou a hráčem', icon: 'private' })
       }
       list.push({ id: 'secret', label: 'Tajné zprávy', hint: 'Jen vybraní hráči', icon: 'secret' })
+      // Vlákna v jazycích, kde už hráči něco napsali; DM je jen čte.
+      for (const t of new Set(messages.filter((m) => m.thread.startsWith('lang:')).map((m) => m.thread))) {
+        list.push({ id: t, label: languageThreadLabel(t), hint: 'Hráči, kteří umí tento jazyk. Ty jen čteš.', icon: 'language' })
+      }
       list.push({ id: 'drafts', label: 'Připravené zprávy', hint: 'Nachystej předem, odešli jedním klepnutím', icon: 'draft' })
     } else {
       if (dmMember) list.push({ id: `dm:${me}`, label: `${dmMember.displayName} (DM)`, hint: 'Soukromě jen mezi tebou a DM', icon: 'private' })
@@ -65,12 +75,11 @@ export function MessagesPage() {
       for (const l of languages) {
         if (l.speakers.length === 0 && !messages.some((m) => m.thread === `lang:${l.slug}`)) continue
         shown.add(l.slug)
-        list.push({ id: `lang:${l.slug}`, label: languageLabel(l.name), hint: `Jen hráči, kteří umí tento jazyk (${l.speakers.map((s) => s.name).join(', ') || 'nikdo další'}). DM to nevidí.`, icon: 'language', language: l.name })
+        list.push({ id: `lang:${l.slug}`, label: languageLabel(l.name), hint: `Hráči, kteří umí tento jazyk (${l.speakers.map((s) => s.name).join(', ') || 'nikdo další'}), a DM.`, icon: 'language', language: l.name })
       }
       for (const t of new Set(messages.filter((m) => m.thread.startsWith('lang:')).map((m) => m.thread))) {
         if (shown.has(t.slice(5))) continue
-        const name = languageLabel(LANGUAGE_CATALOG.find((l) => l.name.toLowerCase().replace(/[^a-z]+/g, '-') === t.slice(5))?.name ?? t.slice(5).replace(/^./u, (c) => c.toUpperCase()))
-        list.push({ id: t, label: name, hint: 'Jazyk, který už nemáš na postavě (staré zprávy zůstávají)', icon: 'language' })
+        list.push({ id: t, label: languageThreadLabel(t), hint: 'Jazyk, který už nemáš na postavě (staré zprávy zůstávají)', icon: 'language' })
       }
     }
     return list
@@ -149,7 +158,7 @@ export function MessagesPage() {
           </ul>
           {!isDm && !threads.some((t) => t.icon === 'language') && (
             <p className="mt-3 text-xs text-muted-foreground">
-              Znáš s jiným hráčem společný jazyk? Přidej ho postavě (Postava → Jazyky) a objeví se tu vlákno, které nikdo jiný (ani DM) neuvidí.
+              Znáš s jiným hráčem společný jazyk? Přidej ho postavě (Postava → Jazyky) a objeví se tu vlákno, které uvidí jen hráči s tím jazykem a DM.
             </p>
           )}
         </nav>
@@ -253,6 +262,7 @@ function Composer({
     )
   }
 
+  if (readOnly && isDm) return <p className="text-sm text-muted-foreground">V jazyce si píšou jen hráči, kteří ho umí. Ty zprávy jen čteš.</p>
   if (readOnly) return <p className="text-sm text-muted-foreground">Tenhle jazyk už tvoje postava neumí, nové zprávy v něm psát nejde.</p>
   if (!canWrite) return <p className="text-sm text-muted-foreground">Tajné zprávy posílá jen DM. Odpovědět mu můžeš soukromě ve vlákně s DM.</p>
 
