@@ -193,3 +193,36 @@ describe('registrace a přihlášení', () => {
     expect(ok.body.applied).toEqual([])
   })
 })
+
+describe('barva motivu (accent)', () => {
+  it('každý uživatel má svou barvu: uloží se, vrátí se v /auth/me i po přihlášení a jde vrátit na výchozí', async () => {
+    const a = await registerUser('accenta')
+    const b = await registerUser('accentb')
+    expect((await a.client.get('/auth/me')).body.user.accent).toBeNull()
+
+    const set = await a.client.patch('/profile', { accent: '#2F7D32' })
+    expectStatus(set, 200)
+    expect(set.body.user.accent).toBe('#2f7d32')
+    expect(set.body.user.displayName).toBe(a.username) // jméno se nezměnilo
+    expect((await a.client.get('/auth/me')).body.user.accent).toBe('#2f7d32')
+    expect((await b.client.get('/auth/me')).body.user.accent).toBeNull()
+
+    const other = new Client()
+    const login = await other.post('/auth/login', { username: a.username, password: PASSWORD })
+    expect(login.body.user.accent).toBe('#2f7d32')
+
+    expectStatus(await a.client.patch('/profile', { accent: null }), 200)
+    expect((await a.client.get('/auth/me')).body.user.accent).toBeNull()
+  })
+
+  it('neplatná barva je 422, prázdná změna 422, anonym 401', async () => {
+    const a = await registerUser('accentbad')
+    for (const accent of ['red', '#12345', '#1234567', 'rgb(1,2,3)', 42, '#ggg000']) {
+      const res = await a.client.patch('/profile', { accent })
+      expect(res.status).toBe(422)
+      expect(res.body.error.field).toBe('accent')
+    }
+    expect((await a.client.patch('/profile', {})).status).toBe(422)
+    expect((await new Client().patch('/profile', { accent: '#000000' })).status).toBe(401)
+  })
+})

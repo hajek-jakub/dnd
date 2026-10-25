@@ -6,6 +6,8 @@ export interface User {
   id: string
   username: string
   displayName: string
+  /** barva motivu aplikace (#rrggbb), null = výchozí */
+  accent: string | null
 }
 
 export interface CampaignSummary {

@@ -3,12 +3,20 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useQueryClient } from '@tanstack/react-query'
 import { api, onUnauthorized } from '@/lib/api'
 import type { User } from '@/lib/types'
+import { useTheme } from '@/components/theme-context'
 import { AuthContext, type AuthState } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const { setAccent } = useTheme()
+
+  // Barva motivu patří účtu: po přihlášení (i na jiném zařízení) se použije barva uživatele.
+  const accent = user ? user.accent ?? null : undefined
+  useEffect(() => {
+    if (accent !== undefined) setAccent(accent)
+  }, [accent, setAccent])
 
   useEffect(() => {
     let active = true

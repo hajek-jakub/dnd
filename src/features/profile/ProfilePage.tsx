@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { ApiError } from '@/lib/api'
 import { useAuth } from '@/features/auth/auth-context'
 import { useTheme, type Theme } from '@/components/theme-context'
+import { AccentPicker } from './AccentPicker'
 import { rememberCampaign, useActiveCampaign } from '@/features/campaigns/active-campaign'
 import { RoleBadge } from '@/features/campaigns/RoleBadge'
 import { cn } from '@/lib/utils'
@@ -84,6 +85,7 @@ export function ProfilePage() {
               </Button>
             ))}
           </div>
+          <AccentPicker />
           <Button variant="outline" className="w-full" onClick={() => void logout()}>
             Odhlásit se
           </Button>

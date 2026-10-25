@@ -6,7 +6,7 @@ Přihlašuje se jménem a heslem (žádný e-mail). Nový hráč se zaregistruje
 ## Dolní lišta a kampaň
 
 Dole je pořád vidět lišta **Domů · Postava · Inventář · Deník · Mapy · Zprávy** (DM má místo Postavy a Inventáře **Panel DM**). **Inventář** otevře rovnou inventář tvé postavy; stejný odkaz je i na úvodní stránce kampaně pod kartou postavy. Míří vždy do tvé aktivní kampaně, takže ji nemusíš pokaždé vybírat: aplikace si pamatuje, kde jsi hrál naposledy.
-Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň, změnit vzhled (světlý/tmavý) nebo se odhlásit** můžeš v Profilu (ikona vpravo nahoře).
+Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň, změnit vzhled (světlý/tmavý), barvu aplikace nebo se odhlásit** můžeš v Profilu (ikona vpravo nahoře). Barva aplikace (Profil → Vzhled) je tvoje: předvolby jako Druidský les nebo Arkánní modř, nebo libovolná vlastní barva; uloží se k účtu, takže platí na telefonu i počítači a ostatní mají svou.
 
 ## Pro hráče
 

@@ -18,7 +18,7 @@ final class Auth
         }
         $hash = hash('sha256', $token);
         $row = Db::one(
-            'SELECT u.id, u.username, u.display_name, s.last_seen
+            'SELECT u.id, u.username, u.display_name, u.accent, s.last_seen
              FROM sessions s JOIN users u ON u.id = s.user_id
              WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP()',
             [$hash],
@@ -35,7 +35,7 @@ final class Auth
             );
             self::setCookie($token, $request->https);
         }
-        return ['id' => $row['id'], 'username' => $row['username'], 'display_name' => $row['display_name']];
+        return ['id' => $row['id'], 'username' => $row['username'], 'display_name' => $row['display_name'], 'accent' => $row['accent']];
     }
 
     /** @return array{id:string,username:string,display_name:string} */
@@ -105,6 +105,7 @@ final class Auth
             'id' => $user['id'],
             'username' => $user['username'],
             'displayName' => $user['display_name'],
+            'accent' => $user['accent'] ?? null,
         ];
     }
 }

@@ -1,7 +1,33 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ACCENT_VARS, accentHex, accentVars, isAccentHex } from './accent'
 import { ThemeContext, type Theme } from './theme-context'
 
 const STORAGE_KEY = 'dnd-theme'
+/** Poslední barva přihlášeného uživatele, ať se po načtení stránky neukáže na chvíli červená. */
+const ACCENT_KEY = 'dnd-accent'
+
+function readStoredAccent(): string | null {
+  try {
+    const value = localStorage.getItem(ACCENT_KEY)
+    return isAccentHex(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function applyAccent(accent: string | null, resolved: 'light' | 'dark') {
+  const style = document.documentElement.style
+  const vars = accent ? accentVars(accent, resolved) : null
+  for (const name of ACCENT_VARS) {
+    if (vars?.[name]) style.setProperty(name, vars[name])
+    else style.removeProperty(name)
+  }
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"][media="(prefers-color-scheme: light)"]')
+  if (meta) {
+    meta.dataset.default ??= meta.content
+    meta.content = accent ? accentHex(accent) : meta.dataset.default
+  }
+}
 
 function readStoredTheme(): Theme {
   try {
@@ -33,10 +59,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const resolvedTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
+  const [accent, setAccentState] = useState<string | null>(readStoredAccent)
 
   useEffect(() => {
     applyTheme(resolvedTheme)
   }, [resolvedTheme])
+
+  useEffect(() => {
+    applyAccent(accent, resolvedTheme)
+  }, [accent, resolvedTheme])
+
+  const setAccent = useCallback((next: string | null) => {
+    setAccentState(next)
+    try {
+      if (next) localStorage.setItem(ACCENT_KEY, next)
+      else localStorage.removeItem(ACCENT_KEY)
+    } catch {
+      // bez úložiště platí barva do zavření stránky
+    }
+  }, [])
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next)
@@ -47,6 +88,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ theme, resolvedTheme, setTheme }), [theme, resolvedTheme, setTheme])
+  const value = useMemo(() => ({ theme, resolvedTheme, setTheme, accent, setAccent }), [theme, resolvedTheme, setTheme, accent, setAccent])
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

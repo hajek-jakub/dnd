@@ -25,3 +25,19 @@ export function useChangePassword() {
     mutationFn: (input: { currentPassword: string; newPassword: string }) => api.post('/auth/password', input),
   })
 }
+
+/** Barva motivu: změní se hned (optimisticky), při chybě se vrátí. */
+export function useUpdateAccent() {
+  const { user, setUser } = useAuth()
+  return useMutation({
+    mutationFn: (accent: string | null) => api.patch<{ user: User }>('/profile', { accent }),
+    onMutate: (accent) => {
+      const previous = user
+      if (user) setUser({ ...user, accent })
+      return { previous }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) setUser(context.previous)
+    },
+  })
+}

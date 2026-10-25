@@ -87,7 +87,7 @@ final class AuthController
         RateLimiter::hit($keyIp, 8, 900);
         RateLimiter::hit($keyUser, 30, 900);
 
-        $row = Db::one('SELECT id, username, display_name, password_hash FROM users WHERE username = ?', [$username]);
+        $row = Db::one('SELECT id, username, display_name, accent, password_hash FROM users WHERE username = ?', [$username]);
         // I u neexistujícího jména se ověřuje hash, ať se podle rychlosti odpovědi nedá jméno uhodnout.
         $hash = $row['password_hash'] ?? '$2y$10$abcdefghijklmnopqrstuuAbCdEfGhIjKlMnOpQrStUvWxYzAbCdE';
         $ok = password_verify($password, (string) $hash);
@@ -105,6 +105,7 @@ final class AuthController
             'id' => (string) $row['id'],
             'username' => (string) $row['username'],
             'display_name' => (string) $row['display_name'],
+            'accent' => $row['accent'],
         ])]);
     }
 
@@ -147,9 +148,24 @@ final class AuthController
     /** @param array{id:string,username:string,display_name:string} $user */
     public static function updateProfile(Request $req, array $params, array $user): Response
     {
-        $displayName = Input::string($req->json(), 'displayName', 1, 60, 'Zobrazované jméno');
-        Db::exec('UPDATE users SET display_name = ? WHERE id = ?', [$displayName, $user['id']]);
-        $user['display_name'] = $displayName;
+        $data = $req->json();
+        if (!array_key_exists('displayName', $data) && !array_key_exists('accent', $data)) {
+            throw HttpError::validation('Není co změnit.');
+        }
+        if (array_key_exists('displayName', $data)) {
+            $displayName = Input::string($data, 'displayName', 1, 60, 'Zobrazované jméno');
+            Db::exec('UPDATE users SET display_name = ? WHERE id = ?', [$displayName, $user['id']]);
+            $user['display_name'] = $displayName;
+        }
+        if (array_key_exists('accent', $data)) {
+            $accent = $data['accent'];
+            if ($accent !== null && !(is_string($accent) && preg_match('/^#[0-9a-fA-F]{6}$/', $accent) === 1)) {
+                throw HttpError::validation('Barva musí být ve tvaru #rrggbb.', 'accent');
+            }
+            $accent = $accent === null ? null : strtolower($accent);
+            Db::exec('UPDATE users SET accent = ? WHERE id = ?', [$accent, $user['id']]);
+            $user['accent'] = $accent;
+        }
         return Response::json(['user' => Auth::payload($user)]);
     }
 }
