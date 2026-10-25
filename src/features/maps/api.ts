@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { NpcPlace } from '@/features/journal/npc-api'
 
 export interface MapInfo {
   id: string
@@ -104,6 +105,14 @@ export function useDeleteMap(campaignId: string) {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/maps/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['maps', campaignId] }),
+  })
+}
+
+/** Všechny body kampaně, které uživatel vidí (výběr „kde se NPC nachází“). Načte se jen při otevření formuláře. */
+export function useCampaignPins(campaignId: string) {
+  return useQuery({
+    queryKey: ['campaign-pins', campaignId],
+    queryFn: async () => (await api.get<{ pins: NpcPlace[] }>(`/campaigns/${campaignId}/pins`)).pins,
   })
 }
 

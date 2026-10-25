@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
-import { PlusIcon, XIcon } from 'lucide-react'
+import { PlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
 import { useCharacters } from '@/features/sheet/api'
 import { ApiError } from '@/lib/api'
-import { useAddCharacterNpcs, useCreateNpc, useJournalNpcs } from './npc-api'
+import { SearchPicker, type PickerOption } from '@/components/SearchPicker'
+import { useAddCharacterNpcs, useCreateNpc, useJournalNpcs, type JournalNpc } from './npc-api'
 import { sortNpcs } from './npc-list'
 
 /**
@@ -18,7 +18,7 @@ export function NpcPicker({
   campaignId,
   value,
   onChange,
-  id = 'journal-npc-add',
+  id = 'journal-npc',
   label = 'NPC a postavy v zápisu',
   removeSuffix = 'ze zápisu',
 }: {
@@ -41,6 +41,7 @@ export function NpcPicker({
   const available = sorted.filter((n) => !value.includes(n.id))
   const inDirectory = new Set(npcs.map((n) => n.characterId).filter(Boolean))
   const fromCampaign = characters.filter((c) => !inDirectory.has(c.id)).sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  const toOption = (n: JournalNpc): PickerOption => ({ id: n.id, label: n.name, hint: [n.race, n.characterKind === 'pc' ? 'postava hráče' : null].filter(Boolean).join(', ') || undefined })
   const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'NPC se nepodařilo přidat.')
 
   function pick(raw: string) {
@@ -70,42 +71,21 @@ export function NpcPicker({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      {selected.length > 0 && (
-        <ul aria-label="Vybraná NPC" className="flex flex-wrap gap-2">
-          {selected.map((n) => (
-            <li key={n.id} className="inline-flex min-h-11 items-center gap-1 rounded-full border bg-muted pl-3 text-sm font-medium">
-              {n.name}
-              <button type="button" aria-label={`Odebrat ${n.name} ${removeSuffix}`} onClick={() => onChange(value.filter((id) => id !== n.id))} className="flex size-11 items-center justify-center rounded-full hover:bg-background">
-                <XIcon aria-hidden className="size-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <NativeSelect id={id} value="" onChange={(e) => pick(e.target.value)} disabled={addCharacters.isPending}>
-        <option value="">Přidat NPC nebo postavu…</option>
-        {available.length > 0 && (
-          <optgroup label="Z přehledu NPC">
-            {available.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.name}
-                {n.race ? ` (${n.race})` : ''}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {fromCampaign.length > 0 && (
-          <optgroup label="Postavy z kampaně (přidají se do přehledu)">
-            {fromCampaign.map((c) => (
-              <option key={c.id} value={`char:${c.id}`}>
-                {c.name}
-                {c.kind === 'npc' ? ' (NPC)' : ''}
-              </option>
-            ))}
-          </optgroup>
-        )}
-      </NativeSelect>
+      <SearchPicker
+        label={label}
+        selectedLabel="Vybraná NPC"
+        selected={selected.map(toOption)}
+        options={[
+          ...available.map(toOption),
+          ...fromCampaign.map((c) => ({ id: `char:${c.id}`, label: c.name, hint: c.kind === 'npc' ? 'NPC z kampaně' : 'postava z kampaně' })),
+        ]}
+        onAdd={pick}
+        onRemove={(npcId) => onChange(value.filter((v) => v !== npcId))}
+        removeLabel={(o) => `Odebrat ${o.label} ${removeSuffix}`}
+        placeholder="Hledat NPC nebo postavu…"
+        empty="V přehledu zatím nejsou žádná NPC. Přidej nové."
+        disabled={addCharacters.isPending}
+      />
       {creating ? (
         <div className="space-y-3 rounded-xl border p-3">
           <div className="space-y-2">

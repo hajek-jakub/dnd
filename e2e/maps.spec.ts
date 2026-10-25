@@ -169,7 +169,9 @@ test('místa a postavy: k bodu se přiřadí NPC z deníku, bod ukáže popis a 
   // bod s NPC z deníku
   await addPin(page, 'Přidat bod', 'Hospoda U Draka', {
     beforeSave: async (dialog) => {
-      await dialog.getByLabel('Kdo se tu nachází (NPC a postavy z deníku)').selectOption({ label: 'Hostinský Brom (Dwarf)' })
+      // hledání bez diakritiky, výsledky jsou tlačítka
+      await dialog.getByLabel('Kdo se tu nachází (NPC a postavy z deníku)').fill('hostinsky')
+      await dialog.getByRole('list', { name: /výsledky/ }).getByRole('button', { name: /Hostinský Brom/ }).click()
       await expect(dialog.getByRole('button', { name: 'Odebrat Hostinský Brom z bodu' })).toBeVisible()
     },
   })
@@ -191,6 +193,20 @@ test('místa a postavy: k bodu se přiřadí NPC z deníku, bod ukáže popis a 
   await expect(page.getByRole('heading', { name: 'Hospoda U Draka', level: 2 })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Kdo se tu nachází' }).getByText('Hostinský Brom')).toBeVisible()
   await expectNoHorizontalScroll(page)
+
+  // místo jde nastavit i v úpravě NPC: druhý bod, hledání podle mapy
+  await addPin(page, 'Přidat bod', 'Kovárna', { shift: 120 })
+  await page.goto(`/campaigns/${campaignId}/journal/npcs?npc=${npc}`)
+  await page.getByRole('button', { name: 'Upravit' }).click()
+  const form = page.getByRole('dialog', { name: 'Upravit NPC' })
+  await expect(form.getByRole('list', { name: 'Vybraná místa' })).toContainText('Hospoda U Draka')
+  await form.getByLabel('Kde se nachází (body na mapě)').fill('vesn')
+  await form.getByRole('list', { name: /výsledky/ }).getByRole('button', { name: /Kovárna/ }).click()
+  await form.getByRole('button', { name: 'Odebrat místo Hospoda U Draka' }).click()
+  await form.getByRole('button', { name: 'Uložit' }).click()
+  await expect(page.getByRole('region', { name: 'Na mapě' }).getByRole('link')).toHaveText([/Kovárna/])
+  await page.getByRole('region', { name: 'Na mapě' }).getByRole('link', { name: /Kovárna/ }).click()
+  await expect(page.getByRole('region', { name: 'Kdo se tu nachází' }).getByText('Hostinský Brom')).toBeVisible()
 
   // odebrání NPC z bodu
   await page.getByRole('button', { name: 'Upravit' }).click()

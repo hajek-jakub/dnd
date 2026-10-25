@@ -11,6 +11,8 @@ import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useCampaign } from '@/features/campaigns/api'
+import { SearchPicker } from '@/components/SearchPicker'
+import { useCampaignPins } from '@/features/maps/api'
 import { emojiOf } from '@/features/maps/pin-icons'
 import { Avatar } from '@/features/sheet/Avatar'
 import { useCharacters } from '@/features/sheet/api'
@@ -223,7 +225,7 @@ function NpcDetail({ campaignId, npc, entries, isDm, onEdit }: { campaignId: str
             <Button variant="outline" onClick={onEdit}>
               <PencilIcon aria-hidden /> Upravit
             </Button>
-            <Button
+            {npc.characterKind !== 'pc' && <Button
               variant="ghost"
               aria-label={`Smazat NPC ${npc.name}`}
               onClick={() => {
@@ -233,7 +235,7 @@ function NpcDetail({ campaignId, npc, entries, isDm, onEdit }: { campaignId: str
               }}
             >
               <Trash2Icon aria-hidden /> Smazat
-            </Button>
+            </Button>}
           </>
         )}
       </div>
@@ -241,7 +243,7 @@ function NpcDetail({ campaignId, npc, entries, isDm, onEdit }: { campaignId: str
       <section aria-label="Na mapě" className="space-y-2 border-t pt-4">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Na mapě ({npc.places.length})</h3>
         {npc.places.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Zatím není na žádném bodu mapy. Přidáš ho u bodu na mapě (Upravit → Kdo se tu nachází).</p>
+          <p className="text-sm text-muted-foreground">Zatím není na žádném bodu mapy. Přidáš ho v Upravit (Kde se nachází) nebo u bodu na mapě.</p>
         ) : (
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
             {npc.places.map((p) => (
@@ -396,6 +398,7 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
   const [race, setRace] = useState(npc?.race ?? '')
   const [description, setDescription] = useState(npc?.description ?? '')
   const [visibility, setVisibility] = useState<JournalNpc['visibility']>(npc?.visibility ?? 'all')
+  const [pinIds, setPinIds] = useState<string[]>(npc?.places.map((p) => p.pinId) ?? [])
   const fromCharacter = npc?.characterId != null
   const valid = name.trim() !== ''
   const pending = create.isPending || update.isPending
@@ -404,7 +407,7 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
     e.preventDefault()
     if (!valid) return
     const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'NPC se nepodařilo uložit.')
-    const common = { description, ...(isDm ? { visibility } : {}) }
+    const common = { description, pinIds, ...(isDm ? { visibility } : {}) }
     if (npc) update.mutate({ id: npc.id, ...common, ...(fromCharacter ? {} : { name: name.trim(), race: race.trim() }) }, { onSuccess: onDone, onError })
     else
       create.mutate(
@@ -435,6 +438,7 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
         <Textarea id="npc-description" rows={6} maxLength={5000} autoFocus={fromCharacter} value={description} onChange={(e) => setDescription(e.target.value)} />
         <p className="text-xs text-muted-foreground">Vzhled, povaha, čím se živí. Příběh NPC piš jako zápisy v deníku a přiřaď je k němu. Formátování: **tučně**, *kurzíva*.</p>
       </div>
+      <PlacePicker campaignId={campaignId} value={pinIds} onChange={setPinIds} />
       {isDm && (
         <div className="space-y-2">
           <Label htmlFor="npc-visibility">Kdo NPC uvidí</Label>
@@ -504,5 +508,24 @@ function CampaignCharactersForm({ campaignId, npcs, onDone }: { campaignId: stri
         </Button>
       </div>
     </form>
+  )
+}
+
+/** Kde se NPC nachází: body ze všech map kampaně, které uživatel vidí, s hledáním podle názvu bodu i mapy. */
+function PlacePicker({ campaignId, value, onChange }: { campaignId: string; value: string[]; onChange: (ids: string[]) => void }) {
+  const { data: pins = [], isPending } = useCampaignPins(campaignId)
+  const toOption = (p: (typeof pins)[number]) => ({ id: p.pinId, label: p.title, hint: p.mapName, icon: <span aria-hidden>{emojiOf(p.icon)}</span> })
+  return (
+    <SearchPicker
+      label="Kde se nachází (body na mapě)"
+      selectedLabel="Vybraná místa"
+      selected={pins.filter((p) => value.includes(p.pinId)).map(toOption)}
+      options={pins.filter((p) => !value.includes(p.pinId)).map(toOption)}
+      onAdd={(id) => onChange([...value, id])}
+      onRemove={(id) => onChange(value.filter((v) => v !== id))}
+      removeLabel={(o) => `Odebrat místo ${o.label}`}
+      placeholder="Hledat bod nebo mapu…"
+      empty={isPending ? 'Načítám body…' : 'Na mapách zatím nejsou žádné body.'}
+    />
   )
 }

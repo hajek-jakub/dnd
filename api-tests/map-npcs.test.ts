@@ -89,6 +89,58 @@ describe('NPC na bodech mapy (místo ↔ postavy)', () => {
     expect((await pinsOf(dm)).find((p) => p.id === id)?.npcIds).toEqual([traitor])
   })
 
+  it('místo jde nastavit i u NPC (pinIds): jen body, které uživatel vidí; skryté body DM hráč nezmění', async () => {
+    const all = async (u: TestUser) => {
+      const res = await u.client.get(`/campaigns/${campaignId}/pins`)
+      expectStatus(res, 200)
+      return res.body.pins as { pinId: string; title: string; mapName: string }[]
+    }
+    const dmPins = await all(dm)
+    const bobPins = await all(bob)
+    const id = (list: typeof dmPins, title: string) => list.find((p) => p.title === title)!.pinId
+    expect(bobPins.map((p) => p.title)).toContain('Hospoda')
+    expect(bobPins.map((p) => p.title)).not.toContain('Tajný sklep') // bod jen pro DM
+    expect(bobPins.map((p) => p.title)).not.toContain('Doupě') // skrytá mapa
+    expect(dmPins.map((p) => p.title)).toEqual(expect.arrayContaining(['Hospoda', 'Tajný sklep', 'Doupě']))
+    expectStatus(await eve.client.get(`/campaigns/${campaignId}/pins`), 404)
+
+    // nové NPC rovnou s místem; bod, který hráč nevidí, nejde (nic se nezaloží)
+    expectStatus(await bob.client.post(`/campaigns/${campaignId}/journal/npcs`, { name: 'Špeh', pinIds: [id(dmPins, 'Tajný sklep')] }), 422)
+    expect((await npcsOf(dm)).some((n) => n.name === 'Špeh')).toBe(false)
+    const created = await bob.client.post(`/campaigns/${campaignId}/journal/npcs`, { name: 'Pekař', pinIds: [id(bobPins, 'Hospoda')] })
+    expectStatus(created, 201)
+    expect(created.body.npc.places.map((p: any) => p.title)).toEqual(['Hospoda'])
+    const smith = (await bob.client.post(`/campaigns/${campaignId}/journal/npcs`, { name: 'Kovář' })).body.npc.id as string
+    // hráč nepřiřadí bod, který nevidí
+    expectStatus(await bob.client.patch(`/journal-npcs/${smith}`, { pinIds: [id(dmPins, 'Tajný sklep')] }), 422)
+    expectStatus(await bob.client.patch(`/journal-npcs/${smith}`, { pinIds: ['x'] }), 422)
+    const set = await bob.client.patch(`/journal-npcs/${smith}`, { pinIds: [id(bobPins, 'Hospoda')] })
+    expectStatus(set, 200)
+    expect(set.body.npc.places.map((p: any) => p.title)).toEqual(['Hospoda'])
+    expect((await pinsOf(dm)).find((p) => p.title === 'Hospoda')?.npcIds).toContain(smith)
+
+    // DM přidá skrytý bod; hráč při úpravě míst ho neodebere
+    expectStatus(await dm.client.patch(`/journal-npcs/${smith}`, { pinIds: [id(dmPins, 'Hospoda'), id(dmPins, 'Tajný sklep')] }), 200)
+    expect(await placesOf(bob, smith)).toEqual(['Vesnice: Hospoda'])
+    expectStatus(await bob.client.patch(`/journal-npcs/${smith}`, { pinIds: [] }), 200)
+    expect(await placesOf(bob, smith)).toEqual([])
+    expect(await placesOf(dm, smith)).toEqual(['Vesnice: Tajný sklep'])
+    // cizí NPC hráč nemění
+    expectStatus(await bob.client.patch(`/journal-npcs/${innkeeper}`, { pinIds: [] }), 403)
+  })
+
+  it('postavy hráčů jsou v přehledu NPC samy a smazat je nejde', async () => {
+    const scores = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
+    const hero = (await bob.client.post(`/campaigns/${campaignId}/characters`, { name: 'Bobův hrdina', race: 'Elf', abilityScores: scores, levels: [{ classIndex: 'fighter' }] })).body.character.id as string
+    const entry = (await npcsOf(dm)).find((n: any) => n.characterId === hero) as any
+    expect(entry).toMatchObject({ name: 'Bobův hrdina', race: 'Elf', characterKind: 'pc' })
+    // jen jednou, i po dalším načtení
+    expect((await npcsOf(bob)).filter((n: any) => n.characterId === hero)).toHaveLength(1)
+    // hráč je autor, popis smí upravit
+    expectStatus(await bob.client.patch(`/journal-npcs/${entry.id}`, { description: 'Hledá bratra.' }), 200)
+    expectStatus(await dm.client.delete(`/journal-npcs/${entry.id}`), 422)
+  })
+
   it('smazání NPC ho z bodů odebere, smazání bodu odebere místo u NPC', async () => {
     const guard = await npc(dm, { name: 'Strážný' })
     const gate = await pin(dm, { title: 'Brána', npcIds: [guard, innkeeper] })

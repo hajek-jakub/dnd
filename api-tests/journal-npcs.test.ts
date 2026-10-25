@@ -159,7 +159,7 @@ describe('přehled NPC v deníku', () => {
     })
 
     it('hromadné přidání je všechno nebo nic', async () => {
-      const a = await character(bob, { name: 'Hromadná A' })
+      const a = await character(dm, { name: 'Hromadná A', kind: 'npc' })
       const before = (await npcs(dm)).length
       expectStatus(await addNpc(dm, { characterIds: [a, '00000000-0000-4000-8000-000000000000'] }), 422)
       expect((await npcs(dm)).length).toBe(before)

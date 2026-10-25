@@ -203,6 +203,7 @@ final class App
         $r->add('GET', '/maps/{id}/image', [MapController::class, 'image']);
         $r->add('GET', '/maps/{id}/pins', [MapController::class, 'pins']);
         $r->add('POST', '/maps/{id}/pins', [MapController::class, 'createPin']);
+        $r->add('GET', '/campaigns/{id}/pins', [MapController::class, 'campaignPins']);
         $r->add('PATCH', '/pins/{id}', [MapController::class, 'updatePin']);
         $r->add('DELETE', '/pins/{id}', [MapController::class, 'deletePin']);
 

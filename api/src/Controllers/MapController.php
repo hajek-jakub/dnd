@@ -163,6 +163,36 @@ final class MapController
         return ['pins' => self::payloads($rows, $user['id'], $role)];
     }
 
+    /**
+     * Všechny body kampaně, které uživatel vidí (na mapách, které vidí), pro výběr „kde se NPC nachází“.
+     * @param array{id:string} $user
+     */
+    public static function campaignPins(Request $req, array $params, array $user): array
+    {
+        $role = Access::requireMember($user, $params['id']);
+        return ['pins' => self::placesSql($params['id'], $user['id'], $role)];
+    }
+
+    /**
+     * Body kampaně, které uživatel vidí, ve tvaru místa (`pinId`, `mapId`, `mapName`, `title`, `icon`), seřazené podle map a názvu.
+     * @param list<string>|null $pinIds jen tyto body (null = všechny)
+     * @return list<array<string, mixed>>
+     */
+    public static function placesSql(string $campaignId, string $userId, string $role, ?array $pinIds = null): array
+    {
+        if ($pinIds === []) {
+            return [];
+        }
+        $only = $pinIds === null ? '' : ' AND p.id IN (' . implode(',', array_fill(0, count($pinIds), '?')) . ')';
+        $rows = Db::all(
+            'SELECT p.id, p.map_id, p.title, p.icon, m.name AS map_name FROM map_pins p JOIN maps m ON m.id = p.map_id
+             WHERE m.campaign_id = ? AND (m.visible = 1 OR ? = \'dm\') AND ' . self::visibleSql() . $only . '
+             ORDER BY m.position, m.created_at, p.title',
+            [$campaignId, $role, ...self::visibleArgs($userId, $role), ...($pinIds ?? [])],
+        );
+        return array_map(static fn (array $r): array => ['pinId' => $r['id'], 'mapId' => $r['map_id'], 'mapName' => $r['map_name'], 'title' => $r['title'], 'icon' => $r['icon']], $rows);
+    }
+
     /** @param array{id:string} $user */
     public static function createPin(Request $req, array $params, array $user): Response
     {

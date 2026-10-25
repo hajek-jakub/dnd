@@ -18,8 +18,10 @@ use Dnd\Response;
  *  - DM může NPC držet skryté (`visibility = dm`), dokud ho družina nepotká; hráč o skrytém NPC neví (404),
  *  - do přehledu jde přidat i postavu nebo NPC postavu z kampaně (`characterIds`): jméno a rasu pak určuje postava,
  *  - propojení se zápisem (`journal_entry_npcs`) nastavuje autor zápisu nebo DM přes `npcIds` u zápisu,
- *  - propojení s bodem mapy (`map_pin_npcs`, kde se NPC nachází) nastavuje autor bodu nebo DM přes `npcIds` u bodu;
- *    NPC pak v `places` ukazuje jen body, které uživatel na mapě vidí.
+ *  - propojení s bodem mapy (`map_pin_npcs`, kde se NPC nachází) nastavuje autor bodu nebo DM přes `npcIds` u bodu,
+ *    nebo ten, kdo smí upravit NPC, přes `pinIds` u NPC (jen body, které vidí; body, které nevidí, zůstanou);
+ *    NPC pak v `places` ukazuje jen body, které uživatel na mapě vidí,
+ *  - postavy hráčů jsou v přehledu vždy (doplní se samy při načtení, autor = hráč) a smazat je nejde, dokud postava existuje.
  */
 final class JournalNpcController
 {
@@ -30,6 +32,7 @@ final class JournalNpcController
     public static function index(Request $req, array $params, array $user): array
     {
         $role = Access::requireMember($user, $params['id']);
+        self::ensurePlayerCharacters($params['id']);
         $rows = Db::all(
             self::select() . ' WHERE n.campaign_id = ? AND ' . self::visibleSql() . ' ORDER BY COALESCE(c.name, n.name), n.created_at',
             [$params['id'], $role],
@@ -66,15 +69,17 @@ final class JournalNpcController
             return Response::json(['npcs' => array_map(static fn (string $id): array => self::one($id, $user['id'], $role), $created)], 201);
         }
 
-        $id = self::insert(
-            $campaignId,
-            $user['id'],
-            Input::string($data, 'name', 1, 100, 'Jméno'),
-            Input::optionalString($data, 'race', 100, 'Rasa') ?? '',
-            Input::optionalString($data, 'description', 5000, 'Popis') ?? '',
-            $visibility,
-            null,
-        );
+        $name = Input::string($data, 'name', 1, 100, 'Jméno');
+        $race = Input::optionalString($data, 'race', 100, 'Rasa') ?? '';
+        $description = Input::optionalString($data, 'description', 5000, 'Popis') ?? '';
+        $pinIds = self::checkPins($data['pinIds'] ?? [], $campaignId, $user['id'], $role);
+        $id = Db::transaction(static function () use ($campaignId, $user, $name, $race, $description, $visibility, $pinIds): string {
+            $id = self::insert($campaignId, $user['id'], $name, $race, $description, $visibility, null);
+            foreach ($pinIds as $pinId) {
+                Db::exec('INSERT INTO map_pin_npcs (pin_id, npc_id) VALUES (?, ?)', [$pinId, $id]);
+            }
+            return $id;
+        });
         return Response::json(['npc' => self::one($id, $user['id'], $role)], 201);
     }
 
@@ -106,11 +111,24 @@ final class JournalNpcController
             $sets[] = 'visibility = ?';
             $values[] = self::visibility($data, $role, (string) $npc['visibility']);
         }
-        if ($sets !== []) {
-            $sets[] = 'updated_at = UTC_TIMESTAMP()';
-            $values[] = $npc['id'];
-            Db::exec('UPDATE journal_npcs SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
-        }
+        $pinIds = array_key_exists('pinIds', $data) ? self::checkPins($data['pinIds'], (string) $npc['campaign_id'], $user['id'], $role) : null;
+        Db::transaction(static function () use ($sets, $values, $npc, $pinIds, $user, $role): void {
+            if ($sets !== []) {
+                $sets[] = 'updated_at = UTC_TIMESTAMP()';
+                $values[] = $npc['id'];
+                Db::exec('UPDATE journal_npcs SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
+            }
+            if ($pinIds !== null) {
+                // mění se jen body, které uživatel vidí; propojení s ostatními (skrytými) body zůstanou
+                $visible = array_map(static fn (array $p): string => (string) $p['pinId'], MapController::placesSql((string) $npc['campaign_id'], $user['id'], $role));
+                foreach (array_diff($visible, $pinIds) as $pinId) {
+                    Db::exec('DELETE FROM map_pin_npcs WHERE pin_id = ? AND npc_id = ?', [$pinId, $npc['id']]);
+                }
+                foreach ($pinIds as $pinId) {
+                    Db::exec('INSERT IGNORE INTO map_pin_npcs (pin_id, npc_id) VALUES (?, ?)', [$pinId, $npc['id']]);
+                }
+            }
+        });
         return ['npc' => self::one((string) $npc['id'], $user['id'], $role)];
     }
 
@@ -118,6 +136,9 @@ final class JournalNpcController
     public static function delete(Request $req, array $params, array $user): ?array
     {
         [$npc] = self::load($params['id'], $user);
+        if ($npc['c_kind'] === 'pc') {
+            throw HttpError::validation('Postava hráče je v přehledu vždy, smazat ji nejde.', 'id');
+        }
         Db::exec('DELETE FROM journal_npcs WHERE id = ?', [$npc['id']]);
         return null;
     }
@@ -263,6 +284,48 @@ final class JournalNpcController
     }
 
     // ------------------------------------------------------------------ pomocné
+
+    /** Doplní do přehledu postavy hráčů, které v něm ještě nejsou (autor záznamu je hráč, takže popis smí upravit on i DM). */
+    private static function ensurePlayerCharacters(string $campaignId): void
+    {
+        $missing = Db::all(
+            "SELECT c.id, c.name, c.race, c.owner_id FROM characters c
+             WHERE c.campaign_id = ? AND c.kind = 'pc' AND c.owner_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM journal_npcs n WHERE n.campaign_id = c.campaign_id AND n.character_id = c.id)",
+            [$campaignId],
+        );
+        foreach ($missing as $c) {
+            // INSERT IGNORE: souběžné načtení téže stránky narazí na unikátní klíč (kampaň, postava) a nic nezdvojí
+            Db::exec(
+                "INSERT IGNORE INTO journal_npcs (id, campaign_id, character_id, name, race, description, visibility, created_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, '', 'all', ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+                [Ids::uuid(), $campaignId, $c['id'], $c['name'], (string) $c['race'], $c['owner_id']],
+            );
+        }
+    }
+
+    /**
+     * Ověří body pro „kde se NPC nachází“: každý musí být z kampaně a uživatel ho musí vidět (jinak 422, nic neprozradí).
+     * @return list<string>
+     */
+    private static function checkPins(mixed $ids, string $campaignId, string $userId, string $role): array
+    {
+        if (!is_array($ids) || count($ids) > self::MAX_LINKS) {
+            throw HttpError::validation('Seznam míst je neplatný (nejvýš ' . self::MAX_LINKS . ').', 'pinIds');
+        }
+        $out = [];
+        foreach ($ids as $id) {
+            if (!is_string($id) || !Ids::isUuid($id)) {
+                throw HttpError::validation('Neplatné místo.', 'pinIds');
+            }
+            $out[$id] = $id;
+        }
+        $out = array_values($out);
+        if (count(MapController::placesSql($campaignId, $userId, $role, $out)) !== count($out)) {
+            throw HttpError::validation('Některé místo na mapě neexistuje.', 'pinIds');
+        }
+        return $out;
+    }
 
     private static function select(): string
     {

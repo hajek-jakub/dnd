@@ -214,7 +214,7 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
         <Label htmlFor="pin-desc">Popis</Label>
         <Textarea id="pin-desc" rows={3} maxLength={2000} className="min-h-20" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
-<NpcPicker campaignId={campaignId} value={npcIds} onChange={setNpcIds} id="pin-npc-add" label="Kdo se tu nachází (NPC a postavy z deníku)" removeSuffix="z bodu" />
+<NpcPicker campaignId={campaignId} value={npcIds} onChange={setNpcIds} id="pin-npc" label="Kdo se tu nachází (NPC a postavy z deníku)" removeSuffix="z bodu" />
       <div role="group" aria-label="Ikona" className="flex flex-wrap gap-2">
         {PIN_ICONS.map((i) => (
           <button

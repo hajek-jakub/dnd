@@ -34,6 +34,8 @@ export interface NpcInput {
   race?: string
   description?: string
   visibility?: JournalNpc['visibility']
+  /** body na mapách, kde se nachází (mění jen body, které uživatel vidí) */
+  pinIds?: string[]
 }
 
 const key = (campaignId: string) => ['journal-npcs', campaignId]
@@ -50,7 +52,10 @@ export function useCreateNpc(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: NpcInput & { name: string }) => (await api.post<{ npc: JournalNpc }>(`/campaigns/${campaignId}/journal/npcs`, input)).npc,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key(campaignId) }),
+    onSuccess: (_npc, input) => {
+      void queryClient.invalidateQueries({ queryKey: key(campaignId) })
+      if (input.pinIds) void queryClient.invalidateQueries({ queryKey: ['map-pins'] })
+    },
   })
 }
 
@@ -70,7 +75,10 @@ export function useUpdateNpc(campaignId: string) {
       const { id, ...patch } = input
       return (await api.patch<{ npc: JournalNpc }>(`/journal-npcs/${id}`, patch)).npc
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key(campaignId) }),
+    onSuccess: (_npc, input) => {
+      void queryClient.invalidateQueries({ queryKey: key(campaignId) })
+      if (input.pinIds) void queryClient.invalidateQueries({ queryKey: ['map-pins'] })
+    },
   })
 }
 

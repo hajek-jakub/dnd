@@ -168,3 +168,21 @@ test('přehled NPC jde číst a psát na telefonu i na počítači bez posouván
   await page.getByRole('button', { name: 'Napsat zápis' }).click()
   await expectNoHorizontalScroll(page)
 })
+
+test('postavy hráčů jsou v přehledu NPC samy: filtr Postavy hráčů je ukáže a smazat je nejde', async ({ page }) => {
+  await registerDm(page, 'npcpcs')
+  const { campaignId } = await newCampaign(page, 'Postavy v přehledu')
+  const created = await page.request.post(`/api/campaigns/${campaignId}/characters`, {
+    data: { name: 'Obalatomi', race: 'Tiefling', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'monk', hpRoll: null }] },
+  })
+  expect(created.ok()).toBeTruthy()
+  await page.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Alrik' } })
+  await page.goto(`/campaigns/${campaignId}/journal/npcs`)
+  await page.getByRole('group', { name: 'Druh' }).getByRole('button', { name: 'Postavy hráčů' }).click()
+  await expect(page.getByRole('link', { name: /Obalatomi/ })).toContainText('postava hráče')
+  await expect(page.getByRole('link', { name: /Alrik/ })).toHaveCount(0)
+  await page.getByRole('link', { name: /Obalatomi/ }).click()
+  const detail = page.getByRole('article', { name: 'NPC Obalatomi' })
+  await expect(detail.getByRole('button', { name: 'Upravit' })).toBeVisible()
+  await expect(detail.getByRole('button', { name: /Smazat NPC/ })).toHaveCount(0)
+})
