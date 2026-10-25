@@ -1,6 +1,6 @@
 import { ConditionImpacts } from './ConditionImpacts'
-import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon, SparklesIcon, TrendingUpIcon } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Masonry, MasonryItem } from '@/components/Masonry'
@@ -40,6 +40,9 @@ const TABS = [
 ] as const
 type TabId = (typeof TABS)[number]['id']
 
+/** Záložka je v adrese (`?tab=inventory`), takže na ni jde odkázat (dolní lišta, úvodní stránka kampaně) a obnovení stránky ji zachová. */
+const tabFromParam = (value: string | null): TabId => TABS.find((t) => t.id === value)?.id ?? 'overview'
+
 export function CharacterPage() {
   const { id } = useParams<{ id: string }>()
   const { data: character, isPending, error } = useCharacter(id)
@@ -59,7 +62,9 @@ export function CharacterPage() {
 function SheetView() {
   const { character, sheet, canEdit, adjust } = useSheet()
   usePageTitle(character.name)
-  const [tab, setTab] = useState<TabId>('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = tabFromParam(searchParams.get('tab'))
+  const setTab = (next: TabId) => setSearchParams(next === 'overview' ? {} : { tab: next }, { replace: true })
   useEffect(() => {
     // Spodní lišta pak míří na tuhle postavu a do její kampaně.
     rememberCampaign(character.campaignId)

@@ -29,10 +29,10 @@ test('vytvoření postavy, klikání HP, přepis hodnoty, odpočinek a featury',
   await page.getByLabel('Level', { exact: true }).selectOption('5')
   await page.getByLabel('Subclass').selectOption('open-hand')
   await page.getByRole('button', { name: 'Standardní sada' }).click()
-  await page.getByLabel(/^Obratnost/).fill('16')
-  await page.getByLabel(/^Moudrost/).fill('15')
-  await page.getByLabel(/^Odolnost/).fill('13')
-  await page.getByLabel(/Akrobacie/).check()
+  await page.getByLabel(/^Dexterity/).fill('16')
+  await page.getByLabel(/^Wisdom/).fill('15')
+  await page.getByLabel(/^Constitution/).fill('13')
+  await page.getByLabel(/Acrobatics/).check()
   await page.getByRole('button', { name: 'Vytvořit postavu' }).click()
 
   // sheet

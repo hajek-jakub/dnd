@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, type TestUser } from './client'
+import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, testDbExec, type TestUser } from './client'
 
 describe('deník kampaně', () => {
   let dm: TestUser
@@ -68,32 +68,52 @@ describe('deník kampaně', () => {
       expectStatus(await carol.client.delete(`/journal/${picked.id}`), 404)
     })
 
-    it('soukromý zápis hráče vidí jen on, ani DM ne', async () => {
-      const note = await create(bob, { title: 'Bobův zápisek', body: 'tajná úvaha' })
+    it('hráč píše do společného deníku: zápis vidí celá družina včetně DM, autor ho upraví a smaže', async () => {
+      const note = await create(bob, { title: 'Bobův zápis', body: 'viděl jsem kováře' })
       expectStatus(note, 201)
-      expect(note.body.entry).toMatchObject({ visibility: 'owner', mine: true, canEdit: true })
-      expect(await titles(bob)).toContain('Bobův zápisek')
-      expect(await titles(dm)).not.toContain('Bobův zápisek')
-      expect(await titles(carol)).not.toContain('Bobův zápisek')
-      expectStatus(await dm.client.patch(`/journal/${note.body.entry.id}`, { title: 'DM mění' }), 404)
-      expectStatus(await dm.client.delete(`/journal/${note.body.entry.id}`), 404)
+      expect(note.body.entry).toMatchObject({ visibility: 'all', mine: true, canEdit: true, isNew: false })
+      for (const u of [bob, carol, dm]) expect(await titles(u)).toContain('Bobův zápis')
+      expect((await list(carol)).entries.find((e) => e.title === 'Bobův zápis')).toMatchObject({ mine: false, canEdit: false, createdByName: expect.any(String) })
+      // cizí hráč zápis nemění, DM ano
+      expectStatus(await carol.client.patch(`/journal/${note.body.entry.id}`, { title: 'Hacknuto' }), 403)
+      expectStatus(await carol.client.delete(`/journal/${note.body.entry.id}`), 403)
       const edit = await bob.client.patch(`/journal/${note.body.entry.id}`, { title: 'Upraveno', body: 'nové' })
       expectStatus(edit, 200)
       expect(edit.body.entry).toMatchObject({ title: 'Upraveno', body: 'nové' })
+      expectStatus(await dm.client.patch(`/journal/${note.body.entry.id}`, { topic: 'Postavy' }), 200)
       expectStatus(await bob.client.delete(`/journal/${note.body.entry.id}`), 204)
-      expect(await titles(bob)).not.toContain('Upraveno')
+      expect(await titles(dm)).not.toContain('Upraveno')
     })
 
-    it('hráč nezveřejní zápis ani ho nepřipne a nemůže měnit zápis DM', async () => {
-      for (const visibility of ['all', 'selected', 'dm']) expectStatus(await create(bob, { visibility, viewerIds: [carol.id] }), 403)
+    it('starý soukromý zápisek hráče vidí jen jeho autor, ani DM ne, a autor ho smí zveřejnit', async () => {
+      const note = (await create(bob, { title: 'Starý zápisek' })).body.entry
+      testDbExec("UPDATE journal_entries SET visibility = 'owner' WHERE id = ?", [note.id])
+      expect(await titles(bob)).toContain('Starý zápisek')
+      expect(await titles(dm)).not.toContain('Starý zápisek')
+      expect(await titles(carol)).not.toContain('Starý zápisek')
+      expectStatus(await dm.client.patch(`/journal/${note.id}`, { title: 'DM mění' }), 404)
+      expectStatus(await dm.client.delete(`/journal/${note.id}`), 404)
+      expectStatus(await carol.client.patch(`/journal/${note.id}`, { title: 'x' }), 404)
+      // zůstat soukromý jde, jiná omezená viditelnost ne
+      expectStatus(await bob.client.patch(`/journal/${note.id}`, { visibility: 'owner', title: 'Pořád soukromý' }), 200)
+      expectStatus(await bob.client.patch(`/journal/${note.id}`, { visibility: 'dm' }), 403)
+      const shared = await bob.client.patch(`/journal/${note.id}`, { visibility: 'all' })
+      expectStatus(shared, 200)
+      expect(shared.body.entry.visibility).toBe('all')
+      for (const u of [dm, carol]) expect(await titles(u)).toContain('Pořád soukromý')
+      // zveřejněný zápis už soukromým nebude
+      expectStatus(await bob.client.patch(`/journal/${note.id}`, { visibility: 'owner' }), 403)
+    })
+
+    it('hráč nezakládá soukromé ani omezené zápisy, nepřipíná a nemůže měnit zápis DM', async () => {
+      for (const visibility of ['owner', 'selected', 'dm']) expectStatus(await create(bob, { visibility, viewerIds: [carol.id] }), 403)
       expectStatus(await create(bob, { pinned: true }), 403)
       const own = (await create(bob, { title: 'Moje' })).body.entry
-      expectStatus(await bob.client.patch(`/journal/${own.id}`, { visibility: 'all' }), 403)
+      expectStatus(await bob.client.patch(`/journal/${own.id}`, { visibility: 'dm' }), 403)
       expectStatus(await bob.client.patch(`/journal/${own.id}`, { pinned: true }), 403)
       const shared = (await create(dm, { title: 'Sdílený zápis' })).body.entry
       expectStatus(await bob.client.patch(`/journal/${shared.id}`, { title: 'Hacknuto' }), 403)
       expectStatus(await bob.client.delete(`/journal/${shared.id}`), 403)
-      expect(await titles(carol)).not.toContain('Moje')
     })
 
     it('DM zápis upraví, změní viditelnost, vybrané hráče a téma', async () => {

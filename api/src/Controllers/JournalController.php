@@ -14,9 +14,9 @@ use Dnd\Request;
 use Dnd\Response;
 
 /**
- * Deník kampaně: zápisy podle témat.
- *  - DM zakládá zápisy pro všechny (all), vybrané hráče (selected) nebo jen pro sebe (dm) a může je připnout,
- *  - hráč smí psát jen vlastní soukromé zápisy (owner), které nevidí nikdo jiný, ani DM,
+ * Deník kampaně: jeden společný deník celé družiny, zápisy podle témat.
+ *  - zápis může napsat každý člen kampaně a vidí ho všichni (all); DM navíc vybrané hráče (selected) nebo jen sebe (dm) a může zápisy připnout,
+ *  - starší soukromé zápisky hráčů (owner) vidí dál jen jejich autor (ani DM) a autor je může zveřejnit; nové už hráč soukromě nezakládá,
  *  - upravit nebo smazat zápis smí autor, DM jen zápisy, které sám vidí (cizí soukromé zápisy mu připadají jako 404).
  * Stejná pravidla viditelnosti jako u bodů na mapě.
  */
@@ -47,12 +47,13 @@ final class JournalController
         }
         $data = $req->json();
         $fields = self::fields($data, true);
-        $visibility = $data['visibility'] ?? ($role === 'dm' ? 'all' : 'owner');
-        $viewers = self::checkVisibility($visibility, $data, $role, $params['id']);
+        $visibility = $data['visibility'] ?? 'all';
+        $viewers = self::checkVisibility($visibility, $data, $role, $params['id'], null);
         $pinned = self::pinned($data, $role);
+        $npcIds = array_key_exists('npcIds', $data) ? JournalNpcController::checkLinks($data['npcIds'], $params['id'], $role) : [];
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $params, $user, $fields, $visibility, $viewers, $pinned): void {
+        Db::transaction(static function () use ($id, $params, $user, $fields, $visibility, $viewers, $pinned, $npcIds, $role): void {
             Db::exec(
                 'INSERT INTO journal_entries (id, campaign_id, topic, title, body, visibility, pinned, created_by, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
@@ -61,13 +62,20 @@ final class JournalController
             foreach ($viewers as $v) {
                 Db::exec('INSERT INTO journal_viewers (entry_id, user_id) VALUES (?, ?)', [$id, $v]);
             }
+            if ($npcIds !== []) {
+                JournalNpcController::replaceLinks($id, $npcIds, $role);
+            }
         });
-        // Nový zápis od DM dostanou hráči, kteří ho vidí, i jako push (soukromé zápisky hráčů a zápisy jen pro DM ne).
-        if ($role === 'dm' && ($visibility === 'all' || $visibility === 'selected')) {
+        // Nový zápis dostanou i jako push ostatní, kdo ho vidí (zápisy jen pro DM ne). Zápis hráče jde celé družině včetně DM.
+        if ($visibility === 'all' || $visibility === 'selected') {
             $to = $visibility === 'all'
-                ? array_map(static fn (array $r): string => (string) $r['user_id'], Db::all("SELECT user_id FROM campaign_members WHERE campaign_id = ? AND role = 'player'", [$params['id']]))
+                ? array_map(
+                    static fn (array $r): string => (string) $r['user_id'],
+                    Db::all('SELECT user_id FROM campaign_members WHERE campaign_id = ? AND user_id <> ?' . ($role === 'dm' ? " AND role = 'player'" : ''), [$params['id'], $user['id']]),
+                )
                 : array_values(array_diff($viewers, [$user['id']]));
-            Push::queue($to, 'journal', $params['id'], 'Nový zápis v deníku: ' . $fields['title'], 'campaigns/' . $params['id'] . '/journal', 'journal-' . $id);
+            $by = $role === 'dm' ? '' : ((string) Db::value('SELECT display_name FROM users WHERE id = ?', [$user['id']]) . ': ');
+            Push::queue($to, 'journal', $params['id'], $by . 'Nový zápis v deníku: ' . $fields['title'], 'campaigns/' . $params['id'] . '/journal', 'journal-' . $id);
         }
         // Autor vlastní zápis nikdy nemá jako nový.
         return Response::json(['entry' => self::one($id, $user['id'], $role, null)], 201);
@@ -96,15 +104,15 @@ final class JournalController
         $viewers = null;
         if (array_key_exists('visibility', $data) || array_key_exists('viewerIds', $data)) {
             $visibility = $data['visibility'] ?? $entry['visibility'];
-            if ($entry['visibility'] === 'owner' && $visibility !== 'owner') {
-                throw HttpError::forbidden('Soukromý zápis nejde zveřejnit.');
-            }
-            $viewers = self::checkVisibility($visibility, $data + ['viewerIds' => self::viewerIds((string) $entry['id'])], $role, (string) $entry['campaign_id']);
+            // Soukromý zápisek hráče smí jeho autor zveřejnit, zpátky už ne.
+            $viewers = self::checkVisibility($visibility, $data + ['viewerIds' => self::viewerIds((string) $entry['id'])], $role, (string) $entry['campaign_id'], (string) $entry['visibility']);
             $sets[] = 'visibility = ?';
             $values[] = $visibility;
         }
-        Db::transaction(static function () use ($entry, $sets, $values, $viewers): void {
-            if ($sets !== []) {
+        $npcIds = array_key_exists('npcIds', $data) ? JournalNpcController::checkLinks($data['npcIds'], (string) $entry['campaign_id'], $role) : null;
+        Db::transaction(static function () use ($entry, $sets, $values, $viewers, $npcIds, $role): void {
+            $linksChanged = $npcIds !== null && JournalNpcController::replaceLinks((string) $entry['id'], $npcIds, $role);
+            if ($sets !== [] || $linksChanged) {
                 $sets[] = 'updated_at = UTC_TIMESTAMP()';
                 $values[] = $entry['id'];
                 Db::exec('UPDATE journal_entries SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
@@ -240,19 +248,20 @@ final class JournalController
      * @param array<string, mixed> $data
      * @return list<string>
      */
-    private static function checkVisibility(mixed $visibility, array $data, string $role, string $campaignId): array
+    private static function checkVisibility(mixed $visibility, array $data, string $role, string $campaignId, ?string $current): array
     {
         if (!is_string($visibility) || !in_array($visibility, ['all', 'selected', 'dm', 'owner'], true)) {
             throw HttpError::validation('Neplatná viditelnost.', 'visibility');
         }
         if ($role !== 'dm') {
-            if ($visibility !== 'owner') {
-                throw HttpError::forbidden('Hráč může psát jen soukromé zápisy, které uvidí jen on.');
+            // Deník je společný: hráč píše zápisy pro celou družinu. Starý soukromý zápisek smí nechat soukromý nebo zveřejnit.
+            if ($visibility !== 'all' && !($visibility === 'owner' && $current === 'owner')) {
+                throw HttpError::forbidden('Hráč může psát jen zápisy pro celou družinu.');
             }
             return [];
         }
         if ($visibility === 'owner') {
-            throw HttpError::validation("Soukromé zápisy (owner) jsou jen pro hráče. DM použije 'dm'.", 'visibility');
+            throw HttpError::validation("Soukromé zápisky (owner) jsou jen pro hráče. DM použije 'dm'.", 'visibility');
         }
         if ($visibility !== 'selected') {
             return [];
@@ -298,7 +307,8 @@ final class JournalController
                 $viewers[$v['entry_id']][] = $v['user_id'];
             }
         }
-        return array_map(static function (array $r) use ($userId, $role, $since, $viewers): array {
+        $npcs = JournalNpcController::linkMap(array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows)), $role);
+        return array_map(static function (array $r) use ($userId, $role, $since, $viewers, $npcs): array {
             $mine = $r['created_by'] === $userId;
             $changed = max((string) $r['created_at'], (string) $r['updated_at']);
             $out = [
@@ -308,6 +318,7 @@ final class JournalController
                 'body' => $r['body'],
                 'visibility' => $r['visibility'],
                 'pinned' => (bool) $r['pinned'],
+                'npcIds' => $npcs[(string) $r['id']] ?? [],
                 'createdBy' => $r['created_by'],
                 'createdByName' => $r['author_name'],
                 'mine' => $mine,

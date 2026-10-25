@@ -1,17 +1,23 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { PlusIcon, ShieldIcon, WindIcon } from 'lucide-react'
+import { BackpackIcon, ChevronRightIcon, PlusIcon, ShieldIcon, WindIcon } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/auth-context'
 import { Avatar } from '@/features/sheet/Avatar'
 import { useCharacters, useEngineBundle } from '@/features/sheet/api'
 import { deriveSheet } from '@/features/sheet/model'
+import { formatCoins } from '@/features/sheet/money'
 import type { CharacterFull } from '@/features/sheet/types'
 import { cn } from '@/lib/utils'
 import { useCampaign } from './api'
 import { engineRulesOf } from './ruleset'
 
-/** Moje postava na úvodní stránce kampaně: HP, AC, rychlost a stavy na první pohled a odkaz na celý sheet. */
+const itemsLabel = (n: number) => `${n} ${n === 1 ? 'položka' : n >= 2 && n <= 4 ? 'položky' : 'položek'}`
+
+/**
+ * Moje postava na úvodní stránce kampaně: HP, AC, rychlost a stavy na první pohled, odkaz na celý sheet a přímý odkaz na inventář
+ * (někteří hráči appku používají jen na inventář, takže se nemají prokliknout přes postavu).
+ */
 export default function MyCharacterCard({ campaignId }: { campaignId: string }) {
   const { user } = useAuth()
   const { data: campaign } = useCampaign(campaignId)
@@ -42,51 +48,63 @@ export default function MyCharacterCard({ campaignId }: { campaignId: string }) 
         const hp = derived?.hpCurrent ?? 0
         const percent = max > 0 ? Math.max(0, Math.min(100, Math.round((hp / max) * 100))) : 0
         return (
-          <Link
-            key={c.id}
-            to={`/characters/${c.id}`}
-            className="block rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/50"
-          >
-            <div className="flex items-center gap-4">
-              <Avatar id={c.id} name={c.name} version={c.photoVersion} className="size-16 text-2xl" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-xl font-semibold">{c.name}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {[c.race, derived?.sheet.classSummary ?? c.classSummary].filter(Boolean).join(' · ')} · level {c.level}
-                </p>
-              </div>
-            </div>
-            {derived && (
-              <div className="mt-3 space-y-3">
-                <div>
-                  <p className="mb-1 flex items-baseline justify-between text-sm">
-                    <span className="font-medium">
-                      HP {hp} / {max}
-                      {c.state.hpTemp > 0 && <span className="text-muted-foreground"> (+{c.state.hpTemp})</span>}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{percent} %</span>
+          <div key={c.id} className="overflow-hidden rounded-2xl border bg-card shadow-sm transition-colors focus-within:border-primary/50 hover:border-primary/50">
+            <Link to={`/characters/${c.id}`} className="block p-4">
+              <div className="flex items-center gap-4">
+                <Avatar id={c.id} name={c.name} version={c.photoVersion} className="size-16 text-2xl" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-xl font-semibold">{c.name}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {[c.race, derived?.sheet.classSummary ?? c.classSummary].filter(Boolean).join(' · ')} · level {c.level}
                   </p>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-                    <div className={cn('h-full rounded-full', percent > 50 ? 'bg-green-500' : percent > 25 ? 'bg-amber-500' : 'bg-red-500')} style={{ width: `${percent}%` }} />
+                </div>
+              </div>
+              {derived && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <p className="mb-1 flex items-baseline justify-between text-sm">
+                      <span className="font-medium">
+                        HP {hp} / {max}
+                        {c.state.hpTemp > 0 && <span className="text-muted-foreground"> (+{c.state.hpTemp})</span>}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{percent} %</span>
+                    </p>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                      <div className={cn('h-full rounded-full', percent > 50 ? 'bg-green-500' : percent > 25 ? 'bg-amber-500' : 'bg-red-500')} style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 font-medium">
+                      <ShieldIcon aria-hidden className="size-4" /> AC {derived.sheet.ac.value}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 font-medium">
+                      <WindIcon aria-hidden className="size-4" /> {derived.sheet.speed.value} ft
+                    </span>
+                    {c.inspiration && <span className="rounded-full bg-amber-500/15 px-3 py-1 font-medium text-amber-700 dark:text-amber-300">★ inspirace</span>}
+                    {c.state.conditions.map((cond) => (
+                      <span key={cond} className="rounded-full border border-amber-500 bg-amber-500/10 px-3 py-1">
+                        {cond}
+                      </span>
+                    ))}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 font-medium">
-                    <ShieldIcon aria-hidden className="size-4" /> AC {derived.sheet.ac.value}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 font-medium">
-                    <WindIcon aria-hidden className="size-4" /> {derived.sheet.speed.value} ft
-                  </span>
-                  {c.inspiration && <span className="rounded-full bg-amber-500/15 px-3 py-1 font-medium text-amber-700 dark:text-amber-300">★ inspirace</span>}
-                  {c.state.conditions.map((cond) => (
-                    <span key={cond} className="rounded-full border border-amber-500 bg-amber-500/10 px-3 py-1">
-                      {cond}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Link>
+              )}
+            </Link>
+            <Link
+              to={`/characters/${c.id}?tab=inventory`}
+              data-testid="inventory-shortcut"
+              className="flex min-h-14 items-center gap-3 border-t bg-muted/40 px-4 py-2 transition-colors hover:bg-muted"
+            >
+              <BackpackIcon aria-hidden className="size-5 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">Inventář</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {itemsLabel(c.items.length)} · {formatCoins(c.currency) || '0 gp'}
+                </span>
+              </span>
+              <ChevronRightIcon aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+            </Link>
+          </div>
         )
       })}
     </section>

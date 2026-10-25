@@ -215,7 +215,7 @@ export function SpellCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, {
         <Field label="Útok" value={d.toHit ?? ''} />
         <Field label="Dosah" value={d.range} />
         <Field label="Trvání" value={d.duration} />
-        <Field label="Záchranný hod" value={d.save} />
+        <Field label="Saving throw" value={d.save} />
         {d.effect && <p className="text-sm text-muted-foreground">{d.effect}</p>}
       </div>
     </Shell>

@@ -72,9 +72,13 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   ]) {
     await page.request.post(`/api/characters/${character}/tactics`, { data: t })
   }
-  await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'x'.repeat(300) } })
+  const longMessage = (await (await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'x'.repeat(300) } })).json()).message.id as number
+  await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Odpověď s dlouhým textem '.repeat(10), replyToId: longMessage } })
+  for (const emoji of ['\u{1F44D}', '\u{1F525}', '\u{1F3B2}', '\u{1F602}', '\u{1F622}', '\u{1F44F}']) await page.request.post(`/api/messages/${longMessage}/reactions`, { data: { emoji } })
   await page.request.post(`/api/campaigns/${campaignId}/message-drafts`, { data: { title: 'Dlouhý název připravené zprávy, který se musí zalomit', body: 'Text '.repeat(150), to: 'all' } })
-  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis s dlouhým názvem '.repeat(4), body: 'Text '.repeat(200), pinned: true } })
+  const npc = (await (await page.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Hostinský s hodně dlouhým jménem, aby se zalomilo '.repeat(2).slice(0, 100), race: 'Půlčík s dlouhým popisem rasy '.repeat(3).slice(0, 100), description: 'Popis '.repeat(200) } })).json()).npc.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Čmuchal', race: 'Gnóm' } })
+  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis s dlouhým názvem '.repeat(4), body: 'Text '.repeat(200), pinned: true, npcIds: [npc] } })
   const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
   await page.request.post(`/api/campaigns/${campaignId}/availability`, { data: { days: [inDays(3), inDays(4), inDays(10)], available: true } })
   await page.request.post(`/api/campaigns/${campaignId}/sessions`, { data: { date: inDays(10), time: '18:00', note: 'Poznámka k session, která je docela dlouhá a musí se zalomit' } })
@@ -111,6 +115,8 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
     ['panel DM', `/campaigns/${campaignId}/dm`],
     ['loot a itemy', `/campaigns/${campaignId}/dm/loot`],
     ['deník', `/campaigns/${campaignId}/journal`],
+    ['deník: NPC', `/campaigns/${campaignId}/journal/npcs`],
+    ['deník: detail NPC', `/campaigns/${campaignId}/journal/npcs?npc=${npc}`],
     ['kalendář', `/campaigns/${campaignId}/calendar`],
     ['zprávy', `/campaigns/${campaignId}/messages?t=group`],
     ['zprávy: připravené', `/campaigns/${campaignId}/messages?t=drafts`],

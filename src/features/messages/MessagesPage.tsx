@@ -1,41 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, ClipboardListIcon, LanguagesIcon, LockIcon, MessageSquareIcon, SendIcon, UsersIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowLeftIcon, ClipboardListIcon, LanguagesIcon, LockIcon, MessageSquareIcon, UsersIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
 import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
-import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { LANGUAGE_CATALOG, languageLabel } from '@/features/sheet/languages'
 import { DraftsPanel } from './DraftsPanel'
-import { useMarkThreadRead, useMessages, useSendMessage, type ChatMessage } from './api'
+import { useMarkThreadRead, useMessages } from './api'
+import type { ThreadInfo } from './Composer'
+import { ThreadChat } from './ThreadChat'
 import { usePageTitle } from '@/lib/page-title'
-
-interface ThreadInfo {
-  id: string
-  label: string
-  hint: string
-  icon: 'group' | 'private' | 'secret' | 'language' | 'draft'
-  /** název jazyka u vlákna `lang:<jazyk>` */
-  language?: string
-}
 
 /** Popisek vlákna `lang:<slug>` podle číselníku (pro vlákna, kde jazyk neznám: DM, nebo jazyk už postava nemá). */
 function languageThreadLabel(thread: string): string {
   const slug = thread.slice(5)
   return languageLabel(LANGUAGE_CATALOG.find((l) => l.name.toLowerCase().replace(/[^a-z]+/g, '-') === slug)?.name ?? slug.replace(/^./u, (c) => c.toUpperCase()))
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso)
-  const today = new Date()
-  const time = d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
-  return d.toDateString() === today.toDateString() ? time : `${d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' })} ${time}`
 }
 
 export function MessagesPage() {
@@ -180,10 +162,12 @@ export function MessagesPage() {
                   <DraftsPanel campaignId={campaignId} players={members?.filter((m) => m.role === 'player') ?? []} />
                 ) : (
                   <>
-                    <MessageList messages={threadMessages} me={me} />
-                    <Composer
+                    <ThreadChat
+                      key={selected.id}
                       campaignId={campaignId}
                       thread={selected}
+                      messages={threadMessages}
+                      me={{ id: me, name: user?.displayName ?? '' }}
                       isDm={isDm}
                       recipientsForDm={members?.filter((m) => m.role === 'player') ?? []}
                       dmId={dmMember?.userId}
@@ -196,134 +180,5 @@ export function MessagesPage() {
         )}
       </div>
     </>
-  )
-}
-
-function MessageList({ messages, me }: { messages: ChatMessage[]; me: string }) {
-  const end = useRef<HTMLDivElement>(null)
-  const count = messages.length
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: 'end' })
-  }, [count])
-
-  return (
-    <div role="log" aria-label="Zprávy" aria-live="polite" className="scroll-area max-h-[50dvh] min-h-40 space-y-3 pr-2">
-      {messages.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nic není. Napiš první zprávu.</p>}
-      {messages.map((m) => {
-        const mine = m.senderId === me
-        return (
-          <div key={m.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
-            <p className="text-xs text-muted-foreground">
-              {mine ? 'Ty' : m.senderName} · {formatTime(m.createdAt)}
-              {(m.thread === 'secret' || m.thread.startsWith('lang:')) && m.recipients.length > 0 && ` · pro: ${m.recipients.map((r) => (r.id === me ? 'tebe' : r.name)).join(', ')}`}
-            </p>
-            <p className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2', mine ? 'bg-primary text-primary-foreground' : 'bg-muted')}>{m.body}</p>
-          </div>
-        )
-      })}
-      <div ref={end} />
-    </div>
-  )
-}
-
-function Composer({
-  campaignId,
-  thread,
-  isDm,
-  recipientsForDm,
-  dmId,
-}: {
-  campaignId: string
-  thread: ThreadInfo
-  isDm: boolean
-  recipientsForDm: { userId: string; displayName: string }[]
-  dmId: string | undefined
-}) {
-  const send = useSendMessage(campaignId)
-  const [text, setText] = useState('')
-  const [picked, setPicked] = useState<Set<string>>(new Set())
-
-  // Příjemci podle vlákna: skupina všem, soukromé jednomu, tajné vybraným (jen DM).
-  const secret = thread.id === 'secret'
-  const to: 'all' | string[] | { language: string } | null =
-    thread.id === 'group' ? 'all' : thread.language ? { language: thread.language } : secret ? (isDm && picked.size >= 2 ? [...picked] : null) : thread.id.startsWith('dm:') ? [isDm ? thread.id.slice(3) : (dmId ?? '')] : null
-  const canWrite = !secret || isDm
-  const valid = text.trim().length > 0 && to !== null && !(Array.isArray(to) && to[0] === '')
-  const readOnly = thread.id.startsWith('lang:') && !thread.language
-
-  function submit() {
-    if (!valid || to === null || send.isPending) return
-    send.mutate(
-      { to, body: text.trim() },
-      {
-        onSuccess: () => setText(''),
-        onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Zprávu se nepodařilo odeslat.'),
-      },
-    )
-  }
-
-  if (readOnly && isDm) return <p className="text-sm text-muted-foreground">V jazyce si píšou jen hráči, kteří ho umí. Ty zprávy jen čteš.</p>
-  if (readOnly) return <p className="text-sm text-muted-foreground">Tenhle jazyk už tvoje postava neumí, nové zprávy v něm psát nejde.</p>
-  if (!canWrite) return <p className="text-sm text-muted-foreground">Tajné zprávy posílá jen DM. Odpovědět mu můžeš soukromě ve vlákně s DM.</p>
-
-  return (
-    <form
-      className="space-y-2"
-      onSubmit={(e) => {
-        e.preventDefault()
-        submit()
-      }}
-    >
-      {secret && (
-        <fieldset className="space-y-1">
-          <legend className="text-sm font-medium">Komu (vyber aspoň dva hráče)</legend>
-          <div className="flex flex-wrap gap-2">
-            {recipientsForDm.map((m) => (
-              <label key={m.userId} className="flex min-h-11 items-center gap-2 rounded-lg border px-3">
-                <input
-                  type="checkbox"
-                  className="size-5"
-                  checked={picked.has(m.userId)}
-                  onChange={(e) =>
-                    setPicked((p) => {
-                      const next = new Set(p)
-                      if (e.target.checked) next.add(m.userId)
-                      else next.delete(m.userId)
-                      return next
-                    })
-                  }
-                />
-                {m.displayName}
-              </label>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">Jednomu hráči piš soukromě v jeho vlákně.</p>
-        </fieldset>
-      )}
-      <Label htmlFor="message-body" className="sr-only">
-        Zpráva
-      </Label>
-      <Textarea
-        id="message-body"
-        rows={2}
-        maxLength={4000}
-        className="min-h-20"
-        placeholder="Napiš zprávu…"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-            e.preventDefault()
-            submit()
-          }
-        }}
-      />
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">Ctrl+Enter odešle</span>
-        <Button type="submit" disabled={!valid || send.isPending}>
-          <SendIcon aria-hidden /> Odeslat
-        </Button>
-      </div>
-    </form>
   )
 }

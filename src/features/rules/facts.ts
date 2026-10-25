@@ -78,7 +78,7 @@ export function factsFor(e: RuleDetail): Fact[] {
     }
     case 'class': {
       add('Hit die', num(d.hit_die) !== null ? `d${d.hit_die}` : null)
-      add('Záchrany', names(d.saving_throws).join(', '))
+      add('Saving throws', names(d.saving_throws).join(', '))
       add('Subclassy', names(d.subclasses).join(', '))
       add('Proficiencies', names(d.proficiencies).join(', '))
       break

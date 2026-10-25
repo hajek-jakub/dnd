@@ -172,7 +172,7 @@ export function TacticForm({
               {field('range', 'Dosah', { placeholder: '90 ft' })}
               {field('duration', 'Trvání', { placeholder: '1 hodina' })}
             </div>
-            {field('save', 'Záchranný hod', { placeholder: 'WIS DC 14' })}
+            {field('save', 'Saving throw', { placeholder: 'WIS DC 14' })}
             <div className="grid grid-cols-2 gap-3">
               {field('toHit', 'Kouzelný útok', { placeholder: 'd20+6' })}
               {field('count', 'Útoků na použití', { placeholder: '2 paprsky' })}

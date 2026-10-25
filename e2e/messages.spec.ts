@@ -71,6 +71,7 @@ test('skupinový chat, soukromě DM a hráč a tajná zpráva: každý vidí jen
 
     // --- tajná zpráva pro Boba i Carol (jeden příjemce nestačí)
     await dm.getByRole('button', { name: /Tajné zprávy/ }).click()
+    await expect(dm.getByText('Komu (vyber aspoň dva hráče)')).toBeVisible() // vlákno se přepnulo (rozepsaný text se mezi vlákny nepřenáší)
     await dm.getByLabel('Zpráva', { exact: true }).fill('Zrádce je kovář')
     await dm.getByRole('checkbox', { name: bobName }).check()
     await expect(dm.getByRole('button', { name: 'Odeslat' })).toBeDisabled()

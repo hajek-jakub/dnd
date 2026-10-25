@@ -61,10 +61,10 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     // --- klik na dovednost: okno s točící se kostkou, pak hozené číslo a součet (ne toast)
     await bob.goto(`/characters/${charId}`)
     await expect(bob.getByRole('heading', { name: 'Bořek', level: 1 })).toBeVisible()
-    await bob.getByRole('button', { name: /^Hodit: Atletika \(1d20\+5\)$/ }).click() // STR +3, proficiency +2
+    await bob.getByRole('button', { name: /^Hodit: Athletics \(1d20\+5\)$/ }).click() // STR +3, proficiency +2
     await expect(rollWindow(bob).locator('[data-die="20"][data-state="rolling"]')).toBeVisible() // kostka se točí, než dorazí server
     let win = await settled(bob)
-    await expect(win.getByText('Atletika', { exact: true })).toBeVisible()
+    await expect(win.getByText('Athletics', { exact: true })).toBeVisible()
     await expect(win.locator('[data-die="20"][data-state="landed"]')).toHaveCount(1)
     const natural = Number(await win.locator('[data-die="20"] text').first().textContent())
     expect(Number(await win.getByTestId('roll-result-total').getAttribute('data-total'))).toBe(natural + 5)
@@ -96,7 +96,7 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await bob.getByRole('button', { name: 'Normálně' }).click()
 
     // --- "Hodit znovu" hodí stejný výraz
-    await bob.getByRole('button', { name: /^Hodit: Atletika/ }).click()
+    await bob.getByRole('button', { name: /^Hodit: Athletics/ }).click()
     await settled(bob)
     await rollWindow(bob).getByRole('button', { name: 'Hodit znovu' }).click()
     win = await settled(bob)
@@ -107,7 +107,7 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await bob.getByRole('button', { name: 'Kostky', exact: true }).click()
     const bobDock = bob.getByRole('dialog', { name: 'Kostky' })
     const bobLog = log(bob)
-    await expect(bobLog.getByText(/Atletika/).first()).toBeVisible()
+    await expect(bobLog.getByText(/Athletics/).first()).toBeVisible()
     await expect(bobLog.getByText(/Plamenný meč · Plamenný meč: útok|Plamenný meč: útok/)).toBeVisible()
     await expect(bobLog.getByText(/\(kritický\)/).first()).toBeVisible()
     await expect(bobLog.getByText(/výhoda: /)).toBeVisible()
@@ -143,7 +143,7 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await dm.goto(`/campaigns/${campaignId}`)
     await dm.getByRole('button', { name: 'Kostky', exact: true }).click()
     const dmLog = log(dm)
-    await expect(dmLog.getByText(/Atletika/).first()).toBeVisible({ timeout: 15_000 })
+    await expect(dmLog.getByText(/Athletics/).first()).toBeVisible({ timeout: 15_000 })
     await expect(dmLog.getByText(/1d100/)).toBeVisible()
     await expect(dmLog.getByText(/Bořek/).first()).toBeVisible() // hod za postavu nese jméno postavy
 
@@ -151,7 +151,7 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await carol.goto(`/campaigns/${campaignId}`)
     await carol.getByRole('button', { name: 'Kostky', exact: true }).click()
     const carolLog = log(carol)
-    await expect(carolLog.getByText(/Atletika/).first()).toBeVisible({ timeout: 15_000 })
+    await expect(carolLog.getByText(/Athletics/).first()).toBeVisible({ timeout: 15_000 })
     await expect(carolLog.getByText(/1d100/)).toHaveCount(0)
     await expectNoHorizontalScroll(carol)
   } finally {

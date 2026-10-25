@@ -2,7 +2,7 @@ import { devices, type Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 import { newContext, registerDm, registerViaUi, uniqueName } from './helpers'
 
-// Deník: DM píše zápisy podle témat, hráč na telefonu je čte a vidí, co je nové; soukromé zápisky vidí jen jejich autor.
+// Deník je společný: DM i hráči píšou zápisy podle témat, hráč na telefonu čte a vidí, co je nové; DM zápis hráče vidí.
 
 async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -19,7 +19,7 @@ async function newCampaign(page: Page, name: string): Promise<{ campaignId: stri
   return { campaignId, code }
 }
 
-test('DM píše zápisy do deníku, hráč na telefonu je čte, vidí nové a píše si soukromé zápisky', async ({ page: dm, browser, baseURL, isMobile }) => {
+test('DM píše zápisy do deníku, hráč na telefonu je čte, vidí nové a píše do společného deníku', async ({ page: dm, browser, baseURL, isMobile }) => {
   test.skip(isMobile, 'Dva kontexty si ten test staví sám (DM počítač + hráč telefon).')
   test.setTimeout(120_000)
 
@@ -69,10 +69,10 @@ test('DM píše zápisy do deníku, hráč na telefonu je čte, vidí nové a p�
     // po otevření deníku odznak zmizí
     await expect(nav.getByTestId('unread-journal-badge')).toHaveCount(0, { timeout: 40_000 })
 
-    // --- hráč si píše soukromý zápisek, DM ho nevidí
-    await player.getByRole('button', { name: 'Můj zápisek' }).click()
+    // --- hráč píše do společného deníku: žádná soukromá volba, zápis uvidí i DM
+    await player.getByRole('button', { name: 'Nový zápis' }).click()
     form = player.getByRole('dialog')
-    await expect(form.getByText('Soukromý zápisek: uvidíš ho jen ty, ani DM ne.')).toBeVisible()
+    await expect(form.getByText('Deník je společný: zápis uvidí celá družina včetně DM.')).toBeVisible()
     await expect(form.getByLabel('Kdo zápis uvidí')).toHaveCount(0)
     await form.getByLabel('Téma').fill('Moje úvahy')
     await form.getByLabel('Nadpis').fill('Je zrádce opravdu kovář?')
@@ -80,7 +80,7 @@ test('DM píše zápisy do deníku, hráč na telefonu je čte, vidí nové a p�
     await expect(player.getByText('Je zrádce opravdu kovář?')).toBeVisible()
     await dm.reload()
     await expect(dm.getByText('Co víme o Zrádci')).toBeVisible()
-    await expect(dm.getByText('Je zrádce opravdu kovář?')).toHaveCount(0)
+    await expect(dm.getByText('Je zrádce opravdu kovář?')).toBeVisible()
 
     // --- hledání a témata
     await player.getByLabel('Hledat v deníku').fill('kovář')
@@ -98,7 +98,7 @@ test('DM píše zápisy do deníku, hráč na telefonu je čte, vidí nové a p�
     await player.getByRole('button', { name: /Co víme o Zrádci/ }).click()
     await expect(player.getByRole('button', { name: 'Upravit' })).toHaveCount(0)
     await dm.getByRole('button', { name: /Co víme o Zrádci/ }).click()
-    await dm.getByRole('button', { name: 'Upravit' }).click()
+    await dm.getByRole('region', { name: 'Připnuté zápisy' }).getByRole('button', { name: 'Upravit' }).click()
     await dm.getByRole('dialog').getByLabel('Nadpis').fill('Co víme o Zrádci (aktualizace)')
     await dm.getByRole('dialog').getByRole('button', { name: 'Uložit' }).click()
     await expect(dm.getByText('Co víme o Zrádci (aktualizace)')).toBeVisible()

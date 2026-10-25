@@ -47,10 +47,10 @@ test('průvodce level upem: wizard 3 → 4 (hod na HP, ASI, nová kouzla, souhrn
 
   // 4. vlastnosti: +1 INT, +1 DEX
   await expect(page.getByRole('button', { name: 'Pokračovat' })).toBeDisabled()
-  await page.getByRole('button', { name: 'Inteligence: +1' }).click()
-  await page.getByRole('button', { name: 'Obratnost: +1' }).click()
+  await page.getByRole('button', { name: 'Intelligence: +1' }).click()
+  await page.getByRole('button', { name: 'Dexterity: +1' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Rozdáno: 2 / 2' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Síla: +1' })).toBeDisabled() // víc už nejde
+  await expect(page.getByRole('button', { name: 'Strength: +1' })).toBeDisabled() // víc už nejde
   await next(page)
 
   // 5. kouzla
@@ -62,7 +62,7 @@ test('průvodce level upem: wizard 3 → 4 (hod na HP, ASI, nová kouzla, souhrn
   // 6. souhrn
   await expect(page.getByText('Wizard 3 → 4')).toBeVisible()
   await expect(page.getByText('3 → 4 (Wizard 4)')).toBeVisible()
-  await expect(page.getByText(/Inteligence \+1, Obratnost \+1/)).toBeVisible()
+  await expect(page.getByText(/Intelligence \+1, Dexterity \+1/)).toBeVisible()
   await expect(page.getByText('Shield', { exact: true })).toBeVisible()
   await expectNoHorizontalScroll(page)
   await page.getByRole('button', { name: 'Potvrdit level up' }).click()
@@ -70,8 +70,8 @@ test('průvodce level upem: wizard 3 → 4 (hod na HP, ASI, nová kouzla, souhrn
   // sheet po level upu
   await expect(page).toHaveURL(new RegExp(`/characters/${id}$`))
   await expect(page.getByText('Wizard 4', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Obratnost \(hodnota\): 15/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Inteligence \(hodnota\): 17/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Dexterity \(hodnota\): 15/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Intelligence \(hodnota\): 17/ })).toBeVisible()
   await expect(page.getByRole('status', { name: /Sloty 2\. úrovně: 3 z 3/ })).toBeVisible()
   await page.getByRole('button', { name: 'Kouzla', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Kouzla 1. úrovně' }).getByText('Shield')).toBeVisible()
@@ -86,7 +86,7 @@ test('průvodce level upem: wizard 3 → 4 (hod na HP, ASI, nová kouzla, souhrn
   await expect(page.getByRole('main').getByText('Level 4: Wizard 4')).toHaveCount(0)
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByText('Wizard 3', { exact: false }).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Inteligence \(hodnota\): 16/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Intelligence \(hodnota\): 16/ })).toBeVisible()
   await page.getByRole('button', { name: 'Kouzla', exact: true }).click()
   await expect(page.getByText('Shield')).toHaveCount(0)
 })

@@ -26,8 +26,8 @@ final class DmController
     private const DURATIONS = ['permanent', 'long_rest', 'manual'];
     private const EFFECT_LABELS = [
         'ac' => 'AC', 'ac.unarmored' => 'AC bez zbroje', 'ac.armored' => 'AC ve zbroji', 'speed' => 'rychlost', 'initiative' => 'iniciativa', 'hp.max' => 'max HP', 'hp.perLevel' => 'HP za level', 'proficiency' => 'proficiency',
-        'passive.perception' => 'pasivní vnímání', 'attack.all' => 'útok', 'attack.melee' => 'útok na blízko', 'attack.ranged' => 'útok na dálku', 'damage.all' => 'zranění',
-        'spell.dc' => 'spell DC', 'spell.attack' => 'útok kouzlem', 'save.all' => 'záchranné hody', 'skill.all' => 'dovednosti',
+        'passive.perception' => 'passive perception', 'attack.all' => 'útok', 'attack.melee' => 'útok na blízko', 'attack.ranged' => 'útok na dálku', 'damage.all' => 'zranění',
+        'spell.dc' => 'spell DC', 'spell.attack' => 'útok kouzlem', 'save.all' => 'saving throws', 'skill.all' => 'skills',
     ];
 
     // ------------------------------------------------------------------ rozdávání

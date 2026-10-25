@@ -56,8 +56,11 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   ]) {
     await page.request.post(`/api/characters/${character}/tactics`, { data: t })
   }
-  await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Ahoj' } })
-  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis', body: '# Nadpis\n- odrážka\n**tučně**', pinned: true } })
+  const hello = (await (await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Ahoj' } })).json()).message.id as number
+  await page.request.post(`/api/campaigns/${campaignId}/messages`, { data: { to: 'all', body: 'Odpověď', replyToId: hello } })
+  await page.request.post(`/api/messages/${hello}/reactions`, { data: { emoji: '\u{1F44D}' } })
+  const npcId = (await (await page.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Gorim', race: 'Trpaslík', description: 'Kovář z **Kamenné Brány**' } })).json()).npc.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápis', body: '# Nadpis\n- odrážka\n**tučně**', pinned: true, npcIds: [npcId] } })
   const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
   await page.request.post(`/api/campaigns/${campaignId}/availability`, { data: { days: [inDays(3), inDays(4), inDays(10)], available: true } })
   await page.request.post(`/api/campaigns/${campaignId}/sessions`, { data: { date: inDays(10), time: '18:00', note: 'Poznámka k session, která je docela dlouhá a musí se zalomit' } })
@@ -97,6 +100,8 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
       },
     ],
     ['deník', `/campaigns/${campaignId}/journal`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
+    ['deník: NPC', `/campaigns/${campaignId}/journal/npcs`, async (p) => void (await expect(p.getByRole('heading', { name: 'Deník', level: 1 })).toBeVisible())],
+    ['deník: detail NPC', `/campaigns/${campaignId}/journal/npcs?npc=${npcId}`, async (p) => void (await expect(p.getByRole('heading', { name: 'Gorim', level: 2 })).toBeVisible())],
     ['kalendář', `/campaigns/${campaignId}/calendar`, async (p) => void (await expect(p.getByRole('heading', { name: 'Kalendář', level: 1 })).toBeVisible())],
     [
       'zprávy: připravené',
@@ -109,7 +114,38 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
         await expect(p.getByRole('form', { name: 'Nová připravená zpráva' })).toBeVisible()
       },
     ],
-    ['zprávy', `/campaigns/${campaignId}/messages`, async (p) => void (await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible())],
+    [
+      'zprávy',
+      `/campaigns/${campaignId}/messages`,
+      async (p) => {
+        await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible()
+        // tam, kde je vlákno hned otevřené (počítač, tablet), se zkontrolují i akce zprávy
+        const actions = p.getByRole('button', { name: /^Akce zprávy/ }).first()
+        if (await actions.waitFor({ timeout: 3000 }).then(() => true, () => false)) {
+          await actions.click()
+          await expect(p.getByRole('toolbar', { name: 'Akce zprávy' })).toBeVisible()
+        }
+      },
+    ],
+    [
+      'zprávy: výběr emoji',
+      `/campaigns/${campaignId}/messages`,
+      async (p) => {
+        await p.getByRole('button', { name: /Skupina/ }).first().click()
+        await p.getByRole('button', { name: /^Akce zprávy/ }).first().click()
+        await p.getByRole('toolbar', { name: 'Akce zprávy' }).getByRole('button', { name: 'Jiné emoji' }).click()
+        await expect(p.getByRole('dialog', { name: 'Reagovat emoji' })).toBeVisible()
+      },
+    ],
+    [
+      'zprávy: kdo reagoval',
+      `/campaigns/${campaignId}/messages`,
+      async (p) => {
+        await p.getByRole('button', { name: /Skupina/ }).first().click()
+        await p.getByRole('button', { name: /^Reakce \d/ }).first().click()
+        await expect(p.getByRole('dialog', { name: 'Reakce' })).toBeVisible()
+      },
+    ],
     ['mapy', `/campaigns/${campaignId}/maps`, async (p) => void (await expect(p.getByRole('heading', { name: 'Mapy', level: 1 })).toBeVisible())],
     ['oznámení', '/notifications', async (p) => void (await expect(p.getByRole('heading', { name: 'Oznámení' })).toBeVisible())],
     ['profil', '/profile', async (p) => void (await expect(p.getByRole('heading', { name: 'Profil a nastavení účtu', level: 1 })).toBeAttached())],
@@ -145,7 +181,7 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
   // okno s hodem kostkou (rolling i výsledek, výhoda se dvěma hody), světlý i tmavý režim
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await page.getByRole('button', { name: 'Výhoda', exact: true }).click()
-  await page.getByRole('button', { name: /^Hodit: Akrobacie/ }).click()
+  await page.getByRole('button', { name: /^Hodit: Acrobatics/ }).click()
   await expect(page.getByRole('dialog', { name: 'Hod kostkou' }).getByTestId('roll-result-total')).toBeVisible()
   for (const theme of ['light', 'dark'] as const) {
     await setTheme(page, theme)

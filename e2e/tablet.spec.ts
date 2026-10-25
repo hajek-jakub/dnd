@@ -57,8 +57,8 @@ test('iPad: sheet, domovská stránka a zprávy využijí šířku', async ({ pa
     void skills
   } else {
     expect(skills.y, 'na výšku jsou dovednosti pod dvěma sloupci').toBeGreaterThan(attacks.y)
-    const first = await box(page.getByRole('button', { name: /^Akrobacie: .* Změnit$/ }))
-    const eleventh = await box(page.getByRole('button', { name: /^Medicína: .* Změnit$/ }))
+    const first = await box(page.getByRole('button', { name: /^Acrobatics: .* Změnit$/ }))
+    const eleventh = await box(page.getByRole('button', { name: /^Medicine: .* Změnit$/ }))
     expect(eleventh.x, 'dovednosti jsou ve dvou sloupcích').toBeGreaterThan(first.x + 250)
   }
   // Režim hodu je v přilepené liště vedle záložek.

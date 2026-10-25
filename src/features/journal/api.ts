@@ -9,6 +9,8 @@ export interface JournalEntry {
   body: string
   visibility: 'all' | 'selected' | 'dm' | 'owner'
   pinned: boolean
+  /** NPC a postavy, o kterých zápis je (jen ty, které uživatel smí vidět) */
+  npcIds: string[]
   createdBy: string
   createdByName: string
   mine: boolean
@@ -27,6 +29,7 @@ export interface JournalInput {
   visibility?: JournalEntry['visibility']
   viewerIds?: string[]
   pinned?: boolean
+  npcIds?: string[]
 }
 
 export function useJournal(campaignId: string) {

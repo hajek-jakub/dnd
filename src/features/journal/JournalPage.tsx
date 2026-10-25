@@ -1,28 +1,27 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
-import { BookOpenIcon, ChevronDownIcon, PencilIcon, PinIcon, PlusIcon, SearchIcon, Trash2Icon } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { ChevronDownIcon, PencilIcon, PinIcon, PlusIcon, SearchIcon, Trash2Icon, UserRoundIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
-import { NativeSelect } from '@/components/ui/native-select'
 import { RichText } from '@/components/RichText'
-import { Textarea } from '@/components/ui/textarea'
-import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
-import { ApiError } from '@/lib/api'
+import { useCampaign } from '@/features/campaigns/api'
 import { cn } from '@/lib/utils'
-import { useCreateEntry, useDeleteEntry, useJournal, useMarkJournalRead, useUpdateEntry, type JournalEntry } from './api'
+import { useDeleteEntry, useJournal, useMarkJournalRead, type JournalEntry } from './api'
+import { EntryForm } from './EntryForm'
+import { DEFAULT_TOPICS } from './topics'
+import { JournalHeader } from './JournalTabs'
+import { fold } from './npc-list'
+import { useJournalNpcs } from './npc-api'
 import { usePageTitle } from '@/lib/page-title'
-
-const DEFAULT_TOPICS = ['Příběh', 'Místa', 'Postavy', 'Frakce', 'Úkoly', 'Předměty', 'Domácí pravidla']
 
 const VISIBILITY_LABELS: Record<JournalEntry['visibility'], string> = {
   all: 'Vidí všichni',
   selected: 'Vidí vybraní hráči',
   dm: 'Vidí jen DM',
-  owner: 'Soukromý zápisek (jen ty)',
+  owner: 'Starý soukromý zápisek (jen ty)',
 }
 
 const dateFormat = (iso: string) => new Date(iso).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' })
@@ -32,6 +31,10 @@ export function JournalPage() {
   const { data: campaign, isPending } = useCampaign(campaignId)
   usePageTitle('Deník', campaign?.name)
   const { data, isPending: entriesPending } = useJournal(campaignId)
+  const { data: npcs = [] } = useJournalNpcs(campaignId)
+  const npcById = useMemo(() => new Map(npcs.map((n) => [n.id, n])), [npcs])
+  const [params] = useSearchParams()
+  const focusId = params.get('entry')
   const markRead = useMarkJournalRead(campaignId)
   const remove = useDeleteEntry(campaignId)
   const [query, setQuery] = useState('')
@@ -50,17 +53,26 @@ export function JournalPage() {
     initialised.current = true
     const fresh = new Set(data.entries.filter((e) => e.isNew).map((e) => e.id))
     setNewIds(fresh)
-    setOpenIds(fresh)
+    // Zápis z odkazu (např. z detailu NPC) se otevře a je vidět; nové zápisy jsou také rozbalené.
+    setOpenIds(focusId && data.entries.some((e) => e.id === focusId) ? new Set([...fresh, focusId]) : fresh)
     markRead.mutate()
     // označí se jen při prvním načtení po otevření stránky
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
+  useEffect(() => {
+    if (!focusId || !data) return
+    document.getElementById(`entry-${focusId}`)?.scrollIntoView({ block: 'center' })
+  }, [focusId, data])
+
   const topics = useMemo(() => [...new Set(entries.map((e) => e.topic))].sort((a, b) => a.localeCompare(b, 'cs')), [entries])
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return entries.filter((e) => (topic === null || e.topic === topic) && (q === '' || `${e.title} ${e.body} ${e.topic}`.toLowerCase().includes(q)))
-  }, [entries, query, topic])
+    const f = fold(q)
+    return entries.filter(
+      (e) => (topic === null || e.topic === topic) && (f === '' || fold(`${e.title} ${e.body} ${e.topic} ${e.npcIds.map((id) => npcById.get(id)?.name ?? '').join(' ')}`).includes(f)),
+    )
+  }, [entries, query, topic, npcById])
   const pinned = visible.filter((e) => e.pinned)
   const byTopic = useMemo(() => {
     const map = new Map<string, JournalEntry[]>()
@@ -82,7 +94,7 @@ export function JournalPage() {
   const card = (e: JournalEntry) => {
     const open = openIds.has(e.id)
     return (
-      <li key={e.id} className={cn('rounded-xl border bg-card shadow-xs', newIds?.has(e.id) && 'border-primary/60 ring-2 ring-primary/20')}>
+      <li key={e.id} id={`entry-${e.id}`} className={cn('rounded-xl border bg-card shadow-xs', newIds?.has(e.id) && 'border-primary/60 ring-2 ring-primary/20')}>
         <button
           type="button"
           aria-expanded={open}
@@ -98,6 +110,7 @@ export function JournalPage() {
             <span className="block truncate text-xs text-muted-foreground">
               {e.topic} · {e.mine ? 'ty' : e.createdByName} · {dateFormat(e.updatedAt)}
               {e.visibility !== 'all' && ` · ${VISIBILITY_LABELS[e.visibility]}`}
+              {e.npcIds.length > 0 && ` · ${e.npcIds.length} NPC`}
             </span>
           </span>
           <ChevronDownIcon aria-hidden className={cn('size-5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
@@ -105,6 +118,24 @@ export function JournalPage() {
         {open && (
           <div className="space-y-3 border-t px-4 py-3">
             {e.body ? <RichText text={e.body} className="break-words" /> : <p className="text-sm text-muted-foreground">Zápis nemá žádný text.</p>}
+            {e.npcIds.length > 0 && (
+              <ul aria-label="NPC a postavy v zápisu" className="flex flex-wrap gap-2">
+                {e.npcIds.map((id) => {
+                  const npc = npcById.get(id)
+                  if (!npc) return null
+                  return (
+                    <li key={id}>
+                      <Link
+                        to={`/campaigns/${campaignId}/journal/npcs?npc=${id}`}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border bg-muted px-3 text-sm font-medium hover:border-primary/50"
+                      >
+                        <UserRoundIcon aria-hidden className="size-4 text-primary" /> {npc.name}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
             {e.canEdit && (
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEditing(e)}>
@@ -129,14 +160,16 @@ export function JournalPage() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <BookOpenIcon aria-hidden className="size-6 text-primary" /> Deník
-        </h1>
-        <Button onClick={() => setEditing('new')}>
-          <PlusIcon aria-hidden /> {isDm ? 'Nový zápis' : 'Můj zápisek'}
-        </Button>
-      </div>
+      <JournalHeader
+        campaignId={campaignId}
+        active="entries"
+        npcCount={npcs.length}
+        actions={
+          <Button onClick={() => setEditing('new')}>
+            <PlusIcon aria-hidden /> Nový zápis
+          </Button>
+        }
+      />
 
       <div className="space-y-3">
         <div className="relative">
@@ -166,7 +199,7 @@ export function JournalPage() {
       {entriesPending && <p className="text-muted-foreground">Načítám deník…</p>}
       {!entriesPending && entries.length === 0 && (
         <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
-          {isDm ? 'V deníku zatím nic není. Napiš první zápis, třeba o příběhu, místech nebo frakcích, a hráči ho uvidí.' : 'DM zatím nic nezapsal. Až přidá informace, uvidíš je tady. Můžeš si psát i vlastní zápisky.'}
+          {isDm ? 'V deníku zatím nic není. Napiš první zápis, třeba o příběhu, místech nebo frakcích, a hráči ho uvidí.' : 'V deníku zatím nic není. Deník je společný pro celou družinu: napiš první zápis, třeba co jste zažili, a uvidí ho všichni.'}
         </p>
       )}
       {entries.length > 0 && visible.length === 0 && <p className="text-muted-foreground">Nic nenalezeno.</p>}
@@ -184,7 +217,7 @@ export function JournalPage() {
         </section>
       ))}
 
-      <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? (isDm ? 'Nový zápis' : 'Nový zápisek') : 'Upravit zápis'}>
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Nový zápis' : 'Upravit zápis'}>
         {editing && (
           <EntryForm
             key={editing === 'new' ? 'new' : editing.id}
@@ -197,103 +230,5 @@ export function JournalPage() {
         )}
       </Modal>
     </>
-  )
-}
-
-function EntryForm({ campaignId, entry, isDm, topics, onDone }: { campaignId: string; entry: JournalEntry | null; isDm: boolean; topics: string[]; onDone: () => void }) {
-  const { data: members } = useCampaignMembers(campaignId)
-  const create = useCreateEntry(campaignId)
-  const update = useUpdateEntry(campaignId)
-  const [topic, setTopic] = useState(entry?.topic ?? 'Příběh')
-  const [title, setTitle] = useState(entry?.title ?? '')
-  const [body, setBody] = useState(entry?.body ?? '')
-  const [visibility, setVisibility] = useState<JournalEntry['visibility']>(entry?.visibility ?? (isDm ? 'all' : 'owner'))
-  const [viewers, setViewers] = useState<Set<string>>(new Set(entry?.viewerIds ?? []))
-  const [pinned, setPinned] = useState(entry?.pinned ?? false)
-  const privateNote = !isDm || entry?.visibility === 'owner'
-  const players = members?.filter((m) => m.role === 'player') ?? []
-  const valid = title.trim() !== '' && topic.trim() !== '' && (visibility !== 'selected' || viewers.size > 0)
-  const pending = create.isPending || update.isPending
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!valid) return
-    const common = {
-      topic: topic.trim(),
-      title: title.trim(),
-      body,
-      ...(privateNote ? {} : { visibility, pinned, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) }),
-    }
-    const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'Zápis se nepodařilo uložit.')
-    if (entry) update.mutate({ id: entry.id, ...common }, { onSuccess: onDone, onError })
-    else create.mutate(common, { onSuccess: onDone, onError })
-  }
-
-  return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="journal-topic">Téma</Label>
-        <Input id="journal-topic" list="journal-topics" required maxLength={60} value={topic} onChange={(e) => setTopic(e.target.value)} />
-        <datalist id="journal-topics">
-          {topics.map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="journal-title">Nadpis</Label>
-        <Input id="journal-title" required maxLength={120} autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="journal-body">Text</Label>
-        <Textarea id="journal-body" rows={8} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} />
-        <p className="text-xs text-muted-foreground">Formátování: **tučně**, *kurzíva*, „# Nadpis“, odrážky „- položka“, odkazy https://…</p>
-      </div>
-      {privateNote ? (
-        <p className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-sm">Soukromý zápisek: uvidíš ho jen ty, ani DM ne.</p>
-      ) : (
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="journal-visibility">Kdo zápis uvidí</Label>
-            <NativeSelect id="journal-visibility" value={visibility} onChange={(e) => setVisibility(e.target.value as JournalEntry['visibility'])}>
-              <option value="all">Všichni hráči</option>
-              <option value="selected">Vybraní hráči</option>
-              <option value="dm">Jen já (DM)</option>
-            </NativeSelect>
-            {visibility === 'selected' && (
-              <fieldset className="flex flex-wrap gap-2">
-                <legend className="sr-only">Vybraní hráči</legend>
-                {players.map((m) => (
-                  <label key={m.userId} className="flex min-h-11 items-center gap-2 rounded-lg border px-3">
-                    <input
-                      type="checkbox"
-                      className="size-5"
-                      checked={viewers.has(m.userId)}
-                      onChange={(e) =>
-                        setViewers((v) => {
-                          const next = new Set(v)
-                          if (e.target.checked) next.add(m.userId)
-                          else next.delete(m.userId)
-                          return next
-                        })
-                      }
-                    />
-                    {m.displayName}
-                  </label>
-                ))}
-                {players.length === 0 && <p className="text-sm text-muted-foreground">V kampani zatím nejsou žádní hráči.</p>}
-              </fieldset>
-            )}
-          </div>
-          <label className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" className="size-5" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-            Připnout nahoru (důležité)
-          </label>
-        </div>
-      )}
-      <Button type="submit" size="lg" className="w-full" disabled={!valid || pending}>
-        {entry ? 'Uložit' : 'Přidat do deníku'}
-      </Button>
-    </form>
   )
 }

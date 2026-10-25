@@ -14,6 +14,7 @@ use Dnd\Controllers\EnemyController;
 use Dnd\Controllers\InitiativeController;
 use Dnd\Controllers\InventoryController;
 use Dnd\Controllers\JournalController;
+use Dnd\Controllers\JournalNpcController;
 use Dnd\Controllers\LootController;
 use Dnd\Controllers\MapController;
 use Dnd\Controllers\MessageController;
@@ -183,6 +184,9 @@ final class App
         $r->add('POST', '/campaigns/{id}/messages', [MessageController::class, 'send']);
         $r->add('POST', '/campaigns/{id}/messages/read', [MessageController::class, 'markRead']);
         $r->add('GET', '/messages/unread', [MessageController::class, 'unreadOverview']);
+        $r->add('PATCH', '/messages/{id}', [MessageController::class, 'edit']);
+        $r->add('DELETE', '/messages/{id}', [MessageController::class, 'remove']);
+        $r->add('POST', '/messages/{id}/reactions', [MessageController::class, 'react']);
         // Připravené zprávy DM (koncepty): nachystá se text a příjemci, odešle se jedním klepnutím
         $r->add('GET', '/campaigns/{id}/message-drafts', [MessageController::class, 'drafts']);
         $r->add('POST', '/campaigns/{id}/message-drafts', [MessageController::class, 'createDraft']);
@@ -226,6 +230,11 @@ final class App
         $r->add('GET', '/journal/unread', [JournalController::class, 'unreadOverview']);
         $r->add('PATCH', '/journal/{id}', [JournalController::class, 'update']);
         $r->add('DELETE', '/journal/{id}', [JournalController::class, 'delete']);
+        // Přehled NPC v deníku (abecední seznam, propojený se zápisy)
+        $r->add('GET', '/campaigns/{id}/journal/npcs', [JournalNpcController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/journal/npcs', [JournalNpcController::class, 'create']);
+        $r->add('PATCH', '/journal-npcs/{id}', [JournalNpcController::class, 'update']);
+        $r->add('DELETE', '/journal-npcs/{id}', [JournalNpcController::class, 'delete']);
 
         // Pravidla (SRD, katalog itemů) a homebrew
         $r->add('GET', '/rules', [RulesController::class, 'index']);

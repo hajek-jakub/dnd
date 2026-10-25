@@ -20,6 +20,7 @@ const loaders = {
   loot: () => import('@/features/loot/LootPage').then((m) => ({ default: m.LootPage })),
   maps: () => import('@/features/maps/MapsPage').then((m) => ({ default: m.MapsPage })),
   journal: () => import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
+  npcs: () => import('@/features/journal/NpcPage').then((m) => ({ default: m.NpcPage })),
   calendar: () => import('@/features/sessions/CalendarPage').then((m) => ({ default: m.CalendarPage })),
   mapView: () => import('@/features/maps/MapViewPage'),
   messages: () => import('@/features/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })),
@@ -36,6 +37,7 @@ const DmPage = lazy(loaders.dm)
 const LootPage = lazy(loaders.loot)
 const MapsPage = lazy(loaders.maps)
 const JournalPage = lazy(loaders.journal)
+const NpcPage = lazy(loaders.npcs)
 const CalendarPage = lazy(loaders.calendar)
 const MapViewPage = lazy(loaders.mapView)
 const MessagesPage = lazy(loaders.messages)
@@ -52,7 +54,7 @@ const LevelUpPage = lazy(loaders.levelUp)
 function preloadRoutes() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
   if (connection?.saveData || connection?.effectiveType === '2g' || connection?.effectiveType === 'slow-2g') return
-  const queue = [loaders.character, loaders.messages, loaders.journal, loaders.dm, loaders.maps, loaders.rules]
+  const queue = [loaders.character, loaders.messages, loaders.journal, loaders.npcs, loaders.dm, loaders.maps, loaders.rules]
   const idle = (cb: () => void) => {
     if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(cb, { timeout: 4000 })
     else globalThis.setTimeout(cb, 1500)
@@ -107,6 +109,7 @@ export default function App() {
             <Route path="campaigns/:campaignId/dm/loot" element={<LootPage />} />
             <Route path="campaigns/:campaignId/messages" element={<MessagesPage />} />
             <Route path="campaigns/:campaignId/journal" element={<JournalPage />} />
+            <Route path="campaigns/:campaignId/journal/npcs" element={<NpcPage />} />
             <Route path="campaigns/:campaignId/calendar" element={<CalendarPage />} />
             <Route path="campaigns/:campaignId/maps" element={<MapsPage />} />
             <Route path="campaigns/:campaignId/maps/:mapId" element={<MapViewPage />} />

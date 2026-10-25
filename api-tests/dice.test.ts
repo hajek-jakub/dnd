@@ -160,7 +160,7 @@ describe('kostky', () => {
     })
 
     it('hod za postavu smí jen její majitel nebo DM', async () => {
-      const own = await roll(bob, { expression: '1d20+2', label: 'Atletika', characterId: bobChar })
+      const own = await roll(bob, { expression: '1d20+2', label: 'Athletics', characterId: bobChar })
       expectStatus(own, 201)
       expect(own.body.roll).toMatchObject({ characterId: bobChar, characterName: 'Bob' })
       expectStatus(await roll(bob, { expression: '1d20', characterId: carolChar }), 403)

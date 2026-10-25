@@ -238,7 +238,7 @@ function CharacterOverview({
           </dd>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">
-          <dt className="text-xs text-muted-foreground">Pas. vnímání</dt>
+          <dt className="text-xs text-muted-foreground">Passive Perception</dt>
           <dd className="text-lg font-semibold">{sheet.passivePerception.value}</dd>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">

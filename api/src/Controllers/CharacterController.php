@@ -453,7 +453,11 @@ final class CharacterController
         if ($row['owner_id'] !== $user['id'] && $role !== 'dm') {
             throw HttpError::forbidden('Cizí postavu nemůžeš smazat.');
         }
-        Db::exec('DELETE FROM characters WHERE id = ?', [$params['id']]);
+        Db::transaction(static function () use ($params): void {
+            // Záznam v přehledu NPC deníku postavu přežije s jejím posledním jménem a rasou.
+            Db::exec('UPDATE journal_npcs n JOIN characters c ON c.id = n.character_id SET n.name = c.name, n.race = c.race WHERE n.character_id = ?', [$params['id']]);
+            Db::exec('DELETE FROM characters WHERE id = ?', [$params['id']]);
+        });
         Images::delete($row['photo_path'] === null ? null : (string) $row['photo_path']);
         return null;
     }

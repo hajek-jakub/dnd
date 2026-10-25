@@ -30,8 +30,8 @@ export function StatsCard() {
           className="w-full text-2xl"
         />
       </Stat>
-      <Stat label="Pasivní vnímání" wide>
-        <ComputedValue title="Pasivní vnímání" computed={sheet.passivePerception} overrideKey="passivePerception" className="w-full text-2xl" />
+      <Stat label="Passive Perception" wide>
+        <ComputedValue title="Passive Perception" computed={sheet.passivePerception} overrideKey="passivePerception" className="w-full text-2xl" />
       </Stat>
     </section>
   )

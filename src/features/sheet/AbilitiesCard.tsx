@@ -31,7 +31,7 @@ export function AbilitiesCard() {
                 overrideKey={`ability.${a}`}
                 className="min-h-11 text-sm text-muted-foreground"
               />
-              <RollButton label={`Zkouška: ${ABILITY_LABELS[a]}`} expression={d20(sheet.abilities[a].modifier - sheet.conditions.d20Penalty)} text="Hod" kind={{ check: a }} />
+              <RollButton label={`${ABILITY_LABELS[a]} check`} expression={d20(sheet.abilities[a].modifier - sheet.conditions.d20Penalty)} text="Hod" kind={{ check: a }} />
             </li>
           ))}
         </ul>
@@ -45,7 +45,7 @@ export function SavesCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Záchranné hody</CardTitle>
+        <CardTitle>Saving Throws</CardTitle>
       </CardHeader>
       <CardContent>
         <ul>
@@ -66,13 +66,13 @@ export function SavesCard() {
               </span>
               <span className="flex justify-center">
                 <ComputedValue
-                  title={`Záchranný hod: ${ABILITY_LABELS[a]}`}
+                  title={`${ABILITY_LABELS[a]} saving throw`}
                   computed={sheet.saves[a]}
                   overrideKey={`save.${a}`}
                   format={formatModifier}
                 />
               </span>
-              <RollButton label={`Záchranný hod: ${ABILITY_LABELS[a]}`} expression={d20(sheet.saves[a].value)} className="-my-1" kind={{ save: a }} />
+              <RollButton label={`${ABILITY_LABELS[a]} saving throw`} expression={d20(sheet.saves[a].value)} className="-my-1" kind={{ save: a }} />
             </li>
           ))}
         </ul>

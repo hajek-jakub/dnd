@@ -23,6 +23,8 @@ use Dnd\Response;
  *  - zpráva v jazyce (thread 'lang:<jazyk>'): píše hráč, který jazyk umí, a čtou ji ostatní hráči, kteří ho umí (v okamžiku odeslání), a DM.
  *    DM je mezi příjemci, takže ji vidí podle obecného pravidla níže; zprávy z doby, kdy se DM nepřidával, mu zůstanou skryté.
  * Připravené zprávy (koncepty, jen DM): text a příjemci se nachystají předem a odešlou se jako běžná zpráva (deliver); koncept vidí jen jeho autor.
+ * Na každou zprávu jde reagovat jedním emoji (libovolným, jako na Messengeru; jiné emoji předchozí reakci nahradí), odpovědět na ni (reply_to_id, jen ve stejném vlákně a jen na zprávu, kterou odesílatel vidí),
+ * autor ji smí upravit a smazat, DM smí smazat kteroukoli zprávu, kterou vidí (moderace). Smazaná zpráva ztratí text, ale zůstane v chatu.
  * Viditelnost drží jediné pravidlo (visibleSql): skupinové vidí každý člen, ostatní jen odesílatel a příjemci.
  * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal. Hráči si mezi sebou píšou jen přes jazyky, které sdílejí (a DM to čte).
  */
@@ -51,7 +53,8 @@ final class MessageController
     {
         Access::requireMember($user, $params['id']);
         $after = max(0, (int) ($req->query['after'] ?? 0));
-        $base = 'SELECT m.id, m.sender_id, m.thread, m.body, m.created_at, u.display_name AS sender_name
+        $from = max(0, (int) ($req->query['from'] ?? 0));
+        $base = 'SELECT m.id, m.sender_id, m.thread, m.body, m.created_at, m.reply_to_id, m.edited_at, m.deleted_at, u.display_name AS sender_name
                  FROM messages m JOIN users u ON u.id = m.sender_id
                  WHERE m.campaign_id = ? AND ' . self::visibleSql();
         $args = [$params['id'], ...self::visibleArgs($user['id'])];
@@ -61,20 +64,40 @@ final class MessageController
             $rows = array_reverse(Db::all($base . ' ORDER BY m.id DESC LIMIT ' . self::PAGE, $args));
         }
 
-        $recipients = [];
-        if ($rows !== []) {
-            $ids = array_map(static fn (array $r): int => (int) $r['id'], $rows);
-            $in = implode(',', array_fill(0, count($ids), '?'));
-            foreach (Db::all("SELECT r.message_id, u.id, u.display_name FROM message_recipients r JOIN users u ON u.id = r.user_id WHERE r.message_id IN ($in) ORDER BY u.display_name", $ids) as $r) {
-                $recipients[(int) $r['message_id']][] = ['id' => $r['id'], 'name' => $r['display_name']];
-            }
-        }
-
-        return [
-            'messages' => array_map(static fn (array $r): array => self::payload($r, $recipients[(int) $r['id']] ?? []), $rows),
+        $out = [
+            'messages' => self::payloads($rows, $params['id'], $user['id']),
             'unread' => self::unreadByThread($params['id'], $user['id']),
             'languages' => self::myLanguages($params['id'], $user['id']),
         ];
+        // Při průběžném dotazování klient pošle nejstarší načtenou zprávu (`from`) a dostane aktuální stav zpráv, které se mohly změnit
+        // (reakce, úprava, smazání), i když už je má. Zpráva, která tu chybí, nemá reakce a nebyla upravena ani smazána.
+        if ($from > 0) {
+            $out['marks'] = self::marks($params['id'], $user['id'], $from);
+        }
+        return $out;
+    }
+
+    /**
+     * Stav zpráv od `$from`, které mají reakce nebo byly upraveny či smazány (text jen u upravených, ať se klient dozví novou verzi).
+     * @return list<array<string, mixed>>
+     */
+    private static function marks(string $campaignId, string $userId, int $from): array
+    {
+        $rows = Db::all(
+            'SELECT m.id, m.body, m.edited_at, m.deleted_at FROM messages m
+             WHERE m.campaign_id = ? AND m.id >= ? AND ' . self::visibleSql() . '
+               AND (m.edited_at IS NOT NULL OR m.deleted_at IS NOT NULL OR EXISTS (SELECT 1 FROM message_reactions x WHERE x.message_id = m.id))
+             ORDER BY m.id LIMIT 500',
+            [$campaignId, $from, ...self::visibleArgs($userId)],
+        );
+        $reactions = self::reactionsOf(array_map(static fn (array $r): int => (int) $r['id'], $rows));
+        return array_map(static fn (array $r): array => [
+            'id' => (int) $r['id'],
+            'body' => $r['body'],
+            'editedAt' => $r['edited_at'] === null ? null : Ids::iso((string) $r['edited_at']),
+            'deletedAt' => $r['deleted_at'] === null ? null : Ids::iso((string) $r['deleted_at']),
+            'reactions' => $reactions[(int) $r['id']] ?? [],
+        ], $rows);
     }
 
     /** @param array{id:string} $user */
@@ -92,7 +115,143 @@ final class MessageController
             [$thread, $recipientIds] = self::resolveTarget($role, $user['id'], $params['id'], $to);
         }
 
-        return Response::json(['message' => self::deliver($params['id'], $user['id'], $thread, $body, $recipientIds)], 201);
+        $replyTo = self::replyTarget($data['replyToId'] ?? null, $params['id'], $thread, $user['id']);
+
+        return Response::json(['message' => self::deliver($params['id'], $user['id'], $thread, $body, $recipientIds, $replyTo)], 201);
+    }
+
+    /**
+     * Zpráva, na kterou se odpovídá: musí být z téže kampaně a téhož vlákna, odesílatel ji musí vidět a nesmí být smazaná.
+     * (Vlákno se shoduje, takže odpověď nikdy neposílá text zprávy do jiného vlákna, kde by ho nikdo neměl vidět.)
+     */
+    private static function replyTarget(mixed $id, string $campaignId, string $thread, string $userId): ?int
+    {
+        if ($id === null) {
+            return null;
+        }
+        if (!is_int($id) || $id < 1) {
+            throw HttpError::validation('Neplatná zpráva, na kterou odpovídáš.', 'replyToId');
+        }
+        $row = Db::one(
+            'SELECT m.id, m.thread, m.deleted_at FROM messages m WHERE m.id = ? AND m.campaign_id = ? AND ' . self::visibleSql(),
+            [$id, $campaignId, ...self::visibleArgs($userId)],
+        );
+        if ($row === null || $row['thread'] !== $thread) {
+            throw HttpError::validation('Zpráva, na kterou odpovídáš, ve vlákně není.', 'replyToId');
+        }
+        if ($row['deleted_at'] !== null) {
+            throw HttpError::validation('Na smazanou zprávu odpovědět nejde.', 'replyToId');
+        }
+        return $id;
+    }
+
+    // ------------------------------------------------------------------ reakce, úprava a smazání zprávy
+
+    /**
+     * Reakce smí být libovolné jedno emoji (jako na Messengeru), ne text: jeden grafém složený jen ze znaků emoji
+     * (včetně barvy pleti, vlajek, sekvencí se ZWJ a klávesových čísel). Do databáze se tak nedostane nic jiného.
+     */
+    public static function isEmoji(mixed $value): bool
+    {
+        if (!is_string($value) || $value === '' || strlen($value) > 64 || mb_strlen($value) > 16) {
+            return false;
+        }
+        if (preg_match('/^\X$/u', $value) !== 1) {
+            return false;
+        }
+        $part = '\x{00A9}\x{00AE}\x{203C}\x{2049}\x{2122}\x{2139}\x{2194}-\x{21AA}\x{231A}-\x{23FF}\x{24C2}\x{25AA}-\x{25FE}\x{2600}-\x{27BF}\x{2934}\x{2935}'
+            . '\x{2B00}-\x{2BFF}\x{3030}\x{303D}\x{3297}\x{3299}\x{1F000}-\x{1FAFF}';
+        $extra = '\x{200D}\x{FE0F}\x{20E3}\x{1F3FB}-\x{1F3FF}\x{E0020}-\x{E007F}#*0-9';
+        return preg_match('/^[' . $part . $extra . ']+$/u', $value) === 1 && preg_match('/[' . $part . '\x{20E3}]/u', $value) === 1;
+    }
+
+    /**
+     * Zpráva, kterou uživatel smí vidět (jinak 404, ani cizí kampaň nepozná, že zpráva existuje).
+     * @param array{id:string} $user
+     * @return array{0: array<string, mixed>, 1: string}
+     */
+    private static function loadMessage(string $id, array $user): array
+    {
+        $row = ctype_digit($id) && strlen($id) < 19 ? Db::one('SELECT m.* FROM messages m WHERE m.id = ?', [(int) $id]) : null;
+        $role = $row === null ? null : Access::role($user['id'], (string) $row['campaign_id']);
+        if ($row === null || $role === null || Db::value('SELECT 1 FROM messages m WHERE m.id = ? AND ' . self::visibleSql(), [(int) $row['id'], ...self::visibleArgs($user['id'])]) === null) {
+            throw HttpError::notFound('Zpráva nenalezena.');
+        }
+        return [$row, $role];
+    }
+
+    /** @return array<string, mixed> */
+    private static function oneMessage(int $id, string $campaignId, string $userId): array
+    {
+        $row = Db::one(
+            'SELECT m.id, m.sender_id, m.thread, m.body, m.created_at, m.reply_to_id, m.edited_at, m.deleted_at, u.display_name AS sender_name
+             FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?',
+            [$id],
+        ) ?? [];
+        return self::payloads([$row], $campaignId, $userId)[0];
+    }
+
+    /**
+     * Reakce na zprávu jako na Messengeru: každý má u zprávy nejvýš jednu. Jiné emoji tu předchozí nahradí, stejné ji zruší.
+     * Vrací aktuální reakce zprávy. @param array{id:string} $user
+     */
+    public static function react(Request $req, array $params, array $user): array
+    {
+        [$msg] = self::loadMessage($params['id'], $user);
+        RateLimiter::hit('reaction:' . $user['id'], 120, 60);
+        $emoji = $req->json()['emoji'] ?? null;
+        if (!self::isEmoji($emoji)) {
+            throw HttpError::validation('Reagovat jde jen jedním emoji.', 'emoji');
+        }
+        if ($msg['deleted_at'] !== null) {
+            throw HttpError::validation('Na smazanou zprávu reagovat nejde.', 'emoji');
+        }
+        Db::transaction(static function () use ($msg, $user, $emoji): void {
+            // Porovnání po bajtech: v řazení utf8mb4_unicode_ci jsou si různá emoji rovna (👍🏽 = 🇨🇿).
+            $had = Db::value('SELECT 1 FROM message_reactions WHERE message_id = ? AND user_id = ? AND BINARY emoji = BINARY ?', [$msg['id'], $user['id'], $emoji]) !== null;
+            Db::exec('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?', [$msg['id'], $user['id']]);
+            if (!$had) {
+                Db::exec('INSERT INTO message_reactions (message_id, user_id, emoji, created_at) VALUES (?, ?, ?, UTC_TIMESTAMP())', [$msg['id'], $user['id'], $emoji]);
+            }
+        });
+        return ['id' => (int) $msg['id'], 'reactions' => self::reactionsOf([(int) $msg['id']])[(int) $msg['id']] ?? []];
+    }
+
+    /** Autor upraví text své zprávy (zpráva pak nese „upraveno“). @param array{id:string} $user */
+    public static function edit(Request $req, array $params, array $user): array
+    {
+        [$msg] = self::loadMessage($params['id'], $user);
+        if ($msg['sender_id'] !== $user['id']) {
+            throw HttpError::forbidden('Cizí zprávu nemůžeš upravit.');
+        }
+        if ($msg['deleted_at'] !== null) {
+            throw HttpError::validation('Smazanou zprávu upravit nejde.', 'body');
+        }
+        RateLimiter::hit('message:' . $user['id'], 40, 60);
+        $body = Input::string($req->json(), 'body', 1, self::MAX_BODY, 'Zpráva');
+        if ($body !== $msg['body']) {
+            Db::exec('UPDATE messages SET body = ?, edited_at = UTC_TIMESTAMP() WHERE id = ?', [$body, $msg['id']]);
+        }
+        return ['message' => self::oneMessage((int) $msg['id'], (string) $msg['campaign_id'], $user['id'])];
+    }
+
+    /**
+     * Smaže zprávu: vymaže text a reakce, zpráva zůstane v chatu jako smazaná. Smí autor, DM kteroukoli zprávu, kterou vidí (moderace).
+     * @param array{id:string} $user
+     */
+    public static function remove(Request $req, array $params, array $user): array
+    {
+        [$msg, $role] = self::loadMessage($params['id'], $user);
+        if ($msg['sender_id'] !== $user['id'] && $role !== 'dm') {
+            throw HttpError::forbidden('Cizí zprávu nemůžeš smazat.');
+        }
+        if ($msg['deleted_at'] === null) {
+            Db::transaction(static function () use ($msg): void {
+                Db::exec("UPDATE messages SET body = '', deleted_at = UTC_TIMESTAMP() WHERE id = ?", [$msg['id']]);
+                Db::exec('DELETE FROM message_reactions WHERE message_id = ?', [$msg['id']]);
+            });
+        }
+        return ['message' => self::oneMessage((int) $msg['id'], (string) $msg['campaign_id'], $user['id'])];
     }
 
     /**
@@ -139,12 +298,12 @@ final class MessageController
      * @param list<string> $recipientIds
      * @return array<string, mixed>
      */
-    private static function deliver(string $campaignId, string $senderId, string $thread, string $body, array $recipientIds): array
+    private static function deliver(string $campaignId, string $senderId, string $thread, string $body, array $recipientIds, ?int $replyTo = null): array
     {
-        $id = Db::transaction(static function () use ($campaignId, $senderId, $thread, $body, $recipientIds): int {
+        $id = Db::transaction(static function () use ($campaignId, $senderId, $thread, $body, $recipientIds, $replyTo): int {
             Db::exec(
-                'INSERT INTO messages (campaign_id, sender_id, thread, body, created_at) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())',
-                [$campaignId, $senderId, $thread, $body],
+                'INSERT INTO messages (campaign_id, sender_id, thread, body, reply_to_id, created_at) VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())',
+                [$campaignId, $senderId, $thread, $body, $replyTo],
             );
             $id = (int) Db::pdo()->lastInsertId();
             foreach ($recipientIds as $rid) {
@@ -154,12 +313,11 @@ final class MessageController
         });
 
         $row = Db::one(
-            'SELECT m.id, m.sender_id, m.thread, m.body, m.created_at, u.display_name AS sender_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?',
+            'SELECT m.id, m.sender_id, m.thread, m.body, m.created_at, m.reply_to_id, m.edited_at, m.deleted_at, u.display_name AS sender_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?',
             [$id],
         ) ?? [];
-        $names = Db::all('SELECT u.id, u.display_name FROM message_recipients r JOIN users u ON u.id = r.user_id WHERE r.message_id = ? ORDER BY u.display_name', [$id]);
         self::pushNew($campaignId, $senderId, $thread, $body, (string) ($row['sender_name'] ?? ''), $recipientIds);
-        return self::payload($row, array_map(static fn (array $r): array => ['id' => $r['id'], 'name' => $r['display_name']], $names));
+        return self::payloads([$row], $campaignId, $senderId)[0];
     }
 
     /**
@@ -380,7 +538,7 @@ final class MessageController
              JOIN campaign_members cm ON cm.campaign_id = m.campaign_id AND cm.user_id = ?
              JOIN campaigns c ON c.id = m.campaign_id
              LEFT JOIN message_reads rd ON rd.campaign_id = m.campaign_id AND rd.user_id = ? AND rd.thread = m.thread
-             WHERE m.sender_id <> ? AND m.id > COALESCE(rd.last_read_id, 0) AND ' . self::visibleSql() . '
+             WHERE m.sender_id <> ? AND m.deleted_at IS NULL AND m.id > COALESCE(rd.last_read_id, 0) AND ' . self::visibleSql() . '
              GROUP BY m.campaign_id, c.name ORDER BY c.name',
             [$user['id'], $user['id'], $user['id'], ...self::visibleArgs($user['id'])],
         );
@@ -459,7 +617,7 @@ final class MessageController
             'SELECT m.thread, COUNT(*) AS n
              FROM messages m
              LEFT JOIN message_reads rd ON rd.campaign_id = m.campaign_id AND rd.user_id = ? AND rd.thread = m.thread
-             WHERE m.campaign_id = ? AND m.sender_id <> ? AND m.id > COALESCE(rd.last_read_id, 0) AND ' . self::visibleSql() . '
+             WHERE m.campaign_id = ? AND m.sender_id <> ? AND m.deleted_at IS NULL AND m.id > COALESCE(rd.last_read_id, 0) AND ' . self::visibleSql() . '
              GROUP BY m.thread',
             [$userId, $campaignId, $userId, ...self::visibleArgs($userId)],
         );
@@ -471,20 +629,91 @@ final class MessageController
     }
 
     /**
-     * @param array<string, mixed> $r
-     * @param list<array{id:string,name:string}> $recipients
-     * @return array<string, mixed>
+     * Zprávy ve tvaru API: příjemci, reakce a odkaz na zprávu, na kterou navazují. Odkaz ukáže text původní zprávy jen tomu,
+     * kdo ji sám vidí (v tajném vlákně nebo v jazyce se příjemci mezi zprávami liší, text se tím nesmí prozradit).
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
      */
-    private static function payload(array $r, array $recipients): array
+    private static function payloads(array $rows, string $campaignId, string $userId): array
     {
-        return [
-            'id' => (int) $r['id'],
-            'senderId' => $r['sender_id'],
-            'senderName' => $r['sender_name'],
-            'thread' => $r['thread'],
-            'recipients' => $recipients,
-            'body' => $r['body'],
-            'createdAt' => Ids::iso((string) $r['created_at']),
-        ];
+        if ($rows === []) {
+            return [];
+        }
+        $ids = array_map(static fn (array $r): int => (int) $r['id'], $rows);
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $recipients = [];
+        foreach (Db::all("SELECT r.message_id, u.id, u.display_name FROM message_recipients r JOIN users u ON u.id = r.user_id WHERE r.message_id IN ($in) ORDER BY u.display_name", $ids) as $r) {
+            $recipients[(int) $r['message_id']][] = ['id' => $r['id'], 'name' => $r['display_name']];
+        }
+        $reactions = self::reactionsOf($ids);
+
+        $replyIds = array_values(array_unique(array_map(static fn (array $r): int => (int) $r['reply_to_id'], array_filter($rows, static fn (array $r): bool => $r['reply_to_id'] !== null))));
+        $originals = [];
+        if ($replyIds !== []) {
+            $rin = implode(',', array_fill(0, count($replyIds), '?'));
+            foreach (Db::all(
+                "SELECT m.id, m.body, m.deleted_at, u.display_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id IN ($rin) AND m.campaign_id = ? AND " . self::visibleSql(),
+                [...$replyIds, $campaignId, ...self::visibleArgs($userId)],
+            ) as $o) {
+                $originals[(int) $o['id']] = $o;
+            }
+        }
+
+        return array_map(static function (array $r) use ($recipients, $reactions, $originals): array {
+            $id = (int) $r['id'];
+            $replyTo = null;
+            if ($r['reply_to_id'] !== null) {
+                $o = $originals[(int) $r['reply_to_id']] ?? null;
+                $replyTo = $o === null
+                    ? ['id' => (int) $r['reply_to_id'], 'senderName' => '', 'snippet' => '', 'deleted' => false, 'hidden' => true]
+                    : [
+                        'id' => (int) $o['id'],
+                        'senderName' => $o['display_name'],
+                        'snippet' => $o['deleted_at'] === null ? mb_substr(trim((string) preg_replace('/\s+/u', ' ', (string) $o['body'])), 0, 140) : '',
+                        'deleted' => $o['deleted_at'] !== null,
+                        'hidden' => false,
+                    ];
+            }
+            return [
+                'id' => $id,
+                'senderId' => $r['sender_id'],
+                'senderName' => $r['sender_name'],
+                'thread' => $r['thread'],
+                'recipients' => $recipients[$id] ?? [],
+                'body' => $r['body'],
+                'createdAt' => Ids::iso((string) $r['created_at']),
+                'editedAt' => $r['edited_at'] === null ? null : Ids::iso((string) $r['edited_at']),
+                'deletedAt' => $r['deleted_at'] === null ? null : Ids::iso((string) $r['deleted_at']),
+                'replyTo' => $replyTo,
+                'reactions' => $reactions[$id] ?? [],
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Reakce zpráv: u každého emoji kdo reagoval (v pořadí, jak se emoji objevila).
+     * @param list<int> $ids
+     * @return array<int, list<array{emoji: string, users: list<array{id: string, name: string}>}>>
+     */
+    private static function reactionsOf(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $by = [];
+        foreach (Db::all(
+            "SELECT x.message_id, x.emoji, u.id, u.display_name FROM message_reactions x JOIN users u ON u.id = x.user_id WHERE x.message_id IN ($in) ORDER BY x.created_at, u.display_name",
+            $ids,
+        ) as $r) {
+            $by[(int) $r['message_id']][(string) $r['emoji']][] = ['id' => $r['id'], 'name' => $r['display_name']];
+        }
+        $out = [];
+        foreach ($by as $mid => $emojis) {
+            foreach ($emojis as $emoji => $users) {
+                $out[$mid][] = ['emoji' => (string) $emoji, 'users' => $users];
+            }
+        }
+        return $out;
     }
 }

@@ -135,7 +135,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     10 + skills.perception.value + passivePenaltyBack + sumEffects('passive.perception'),
     [
       { label: 'Základ', value: 10 },
-      { label: 'Vnímání', value: signed(skills.perception.value + passivePenaltyBack) },
+      { label: 'Perception', value: signed(skills.perception.value + passivePenaltyBack) },
       ...effectSources('passive.perception'),
     ],
     ov,
