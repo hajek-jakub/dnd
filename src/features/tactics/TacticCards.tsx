@@ -4,7 +4,8 @@ import { combineMode } from '@/engine'
 import { Button } from '@/components/ui/button'
 import { RollButton } from '@/features/dice/RollButton'
 import { useSheet } from '@/features/sheet/sheet-context'
-import type { DamageRider } from '@/features/sheet/riders'
+import { riderFor, type DamageRider } from '@/features/sheet/riders'
+import { CONCENTRATION_RIDER, useClassToggle } from '@/features/sheet/class-toggles'
 import type { AdjustOp } from '@/features/sheet/types'
 import { cn } from '@/lib/utils'
 import { useBatchRoll, type BatchResult } from '@/features/dice/api'
@@ -70,7 +71,8 @@ export interface RunContext {
   rider: DamageRider | null
   /** Rage a Sneak Attack, které se přičtou k zranění položek s příznakem `rage` a `sneak`. */
   classBonus: ClassBonus
-  onResults: (outcome: BatchOutcome) => void
+  /** Otevře okno s točícími se kostkami hned po kliknutí; `results` doplní odpověď serveru, při chybě se okno zavře. */
+  onRoll: (outcome: Omit<BatchOutcome, 'token' | 'results'>) => { results: (r: BatchResult[]) => void; fail: () => void }
 }
 
 /**
@@ -81,6 +83,7 @@ function RunButton({ tactic, ctx, withoutCast = false }: { tactic: Tactic; ctx: 
   const { sheet, character, canEdit, adjust } = useSheet()
   const settings = useRollSettings()
   const batch = useBatchRoll(character.campaignId)
+  const [riderOn, toggleRider] = useClassToggle(character.id, CONCENTRATION_RIDER, true)
   if (!canEdit) return null
   const plan = planRun(tactic, ctx.all, character.items, ctx.rider, ctx.classBonus, { withoutCast })
   if (withoutCast && plan.castable === null) return null
@@ -101,16 +104,22 @@ function RunButton({ tactic, ctx, withoutCast = false }: { tactic: Tactic; ctx: 
     const ops: AdjustOp[] = [...spend.ops, ...plan.ammo.map((a) => ({ op: 'item' as const, itemId: a.itemId, delta: -a.shots }))]
     if (plan.concentration !== null) ops.push({ op: 'concentration', set: plan.concentration })
     if (ops.length > 0) adjust(ops)
+    if (plan.concentration !== null && riderFor(plan.concentration) && !riderOn) toggleRider()
     for (const w of plan.warnings) toast.warning(w)
     if (!rolling) {
       toast.success(`${title}: odečteno ${paid}`)
       return
     }
+    const mode = combineMode(settings.mode, sheet.conditions.attack.mode)
+    const view = ctx.onRoll({ title, attacks: plan.attacks, mode, hidden: settings.hidden, paid })
     batch.mutate(
-      { attacks: plan.attacks, mode: combineMode(settings.mode, sheet.conditions.attack.mode), hidden: settings.hidden, characterId: character.id },
+      { attacks: plan.attacks, mode, hidden: settings.hidden, characterId: character.id },
       {
-        onSuccess: (results: BatchResult[]) => ctx.onResults({ title, results, hidden: settings.hidden, paid }),
-        onError: (e) => toast.error(e instanceof Error ? e.message : 'Hody se nepodařily.'),
+        onSuccess: (results: BatchResult[]) => view.results(results),
+        onError: (e) => {
+          view.fail()
+          toast.error(e instanceof Error ? e.message : 'Hody se nepodařily.')
+        },
       },
     )
   }

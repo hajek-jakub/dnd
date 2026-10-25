@@ -192,23 +192,23 @@ function Result({ roll }: { roll: DiceRoll }) {
 const CRIT_LABELS = { max: 'plná kostka', double: 'kostky znovu', extra: 'kostky navíc' } as const
 
 /** Co přidal kritický zásah, zvlášť pod běžným hodem: zlaté kostky s popisem a součtem. */
-function CritDice({ attempt }: { attempt: RollAttempt }) {
+export function CritDice({ attempt, mini = false }: { attempt: RollAttempt; mini?: boolean }) {
   const terms = attempt.terms.filter((t) => t.crit)
   if (terms.length === 0) return null
   const sum = terms.reduce((n, t) => n + t.sign * (t.rolls ?? []).reduce((a, b) => a + b, 0), 0)
   const kinds = [...new Set(terms.map((t) => CRIT_LABELS[t.crit!]))].join(' a ')
   return (
-    <div data-testid="crit-dice" className="mt-3 space-y-2 rounded-2xl border-2 border-dashed border-amber-500/70 bg-amber-500/10 p-3">
+    <div data-testid="crit-dice" className={cn('space-y-2 rounded-2xl border-2 border-dashed border-amber-500/70 bg-amber-500/10', mini ? 'mt-2 p-2' : 'mt-3 p-3')}>
       <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
         Krit: {kinds} +{sum}
       </p>
-      <AttemptDice attempt={{ terms, total: sum }} tone="gold" />
+      <AttemptDice attempt={{ terms, total: sum }} tone="gold" mini={mini} />
     </div>
   )
 }
 
 /** Kostky jednoho hodu včetně konstant; krit členy ukazuje `CritDice` zvlášť (kromě `tone="gold"`, kde jde jen o ně). */
-function AttemptDice({ attempt, tone }: { attempt: RollAttempt; tone: 'normal' | 'crit' | 'fail' | 'dim' | 'gold' }) {
+export function AttemptDice({ attempt, tone, mini = false }: { attempt: RollAttempt; tone: 'normal' | 'crit' | 'fail' | 'dim' | 'gold'; mini?: boolean }) {
   const terms = tone === 'gold' ? attempt.terms : attempt.terms.filter((t) => !t.crit)
   const compact = terms.reduce((n, t) => n + (t.rolls?.length ?? 0), 0) > 3
   let shown = 0
@@ -219,19 +219,19 @@ function AttemptDice({ attempt, tone }: { attempt: RollAttempt; tone: 'normal' |
       for (const [ri, value] of t.rolls.entries()) {
         if (shown < MAX_VISIBLE_DICE) {
           shown++
-          parts.push(<DieFace key={`${ti}-${ri}`} sides={t.sides} value={value} sign={t.sign} delay={(shown - 1) * 70} tone={tone} compact={compact} />)
+          parts.push(<DieFace key={`${ti}-${ri}`} sides={t.sides} value={value} sign={t.sign} delay={(shown - 1) * 70} tone={tone} compact={compact} mini={mini} />)
         } else hidden++
       }
     } else if (t.constant !== undefined) {
       parts.push(
-        <span key={`${ti}-c`} className="rounded-full bg-muted px-3 py-1 text-lg font-semibold tabular-nums">
+        <span key={`${ti}-c`} className={cn('rounded-full bg-muted font-semibold tabular-nums', mini ? 'px-2 py-0.5 text-sm' : 'px-3 py-1 text-lg')}>
           {t.sign < 0 ? '−' : '+'} {t.constant}
         </span>,
       )
     }
   })
   return (
-    <div className="flex flex-wrap items-center justify-center gap-3">
+    <div className={cn('flex flex-wrap items-center', mini ? 'gap-2' : 'justify-center gap-3')}>
       {parts}
       {hidden > 0 && <span className="text-sm text-muted-foreground">+ {hidden} dalších kostek</span>}
     </div>

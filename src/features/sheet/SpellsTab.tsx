@@ -16,6 +16,8 @@ import { groupClasses } from '@/engine'
 import { useAddSpell, useDeleteSpell, useUpdateSpell } from './api'
 import { toEngineInput } from './model'
 import { RECHARGE_LABELS } from './labels'
+import { riderFor } from './riders'
+import { CONCENTRATION_RIDER, useClassToggle } from './class-toggles'
 import { useSheet } from './sheet-context'
 import type { CharacterSpell } from './types'
 
@@ -245,6 +247,7 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
   const [tracking, setTracking] = useState(false)
   const [uses, setUses] = useState('1')
   const [recharge, setRecharge] = useState<'long' | 'short' | 'dawn'>('long')
+  const [riderOn, toggleRider] = useClassToggle(character.id, CONCENTRATION_RIDER, true)
 
   if (!spell)
     return (
@@ -254,28 +257,35 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
     )
 
   // Možnosti: běžné sloty od úrovně kouzla výš, pact slot (pokud jeho úroveň stačí) a rituál bez slotu.
-  const options: { id: string; label: string }[] = []
+  const options: { id: string; label: string; hint: string }[] = []
   if (spell.level > 0) {
     for (const s of slots) {
       if (s.level >= spell.level && s.max - s.used > 0)
         options.push({
           id: `slot:${s.level}`,
           label: `Slot ${s.level}. úrovně (zbývá ${s.max - s.used})${s.level > spell.level ? ' – vyšší úroveň' : ''}`,
+          hint: 'Odečte 1 spell slot, obnoví se po long restu.',
         })
     }
     if (pact && pact.level >= spell.level && pact.count - pact.used > 0)
       options.push({
         id: 'pact',
         label: `Pact slot ${pact.level}. úrovně (zbývá ${pact.count - pact.used})${pact.level > spell.level ? ' – vyšší úroveň' : ''}`,
+        hint: 'Odečte warlockův pact slot, obnoví se po short restu. Běžná volba pro Hex.',
       })
-    if (spell.ritual) options.push({ id: 'ritual', label: 'Jako rituál (+10 minut, bez slotu)' })
+    if (spell.ritual) options.push({ id: 'ritual', label: 'Jako rituál (+10 minut, bez slotu)', hint: 'Nic neodečte, sesílání trvá o 10 minut déle.' })
   }
   // Kouzla z rasy (Drow Magic), předmětů a featů se sesílají bez slotu; s hlídaným počtem použití se jedno odečte.
   const free = spell.level > 0 ? sheet.resources.find((r) => r.key === freeCastKey(spell.id)) : undefined
   if (spell.level > 0) {
     if (free) {
-      if (free.current > 0) options.unshift({ id: 'free', label: `Bez slotu (zbývá ${free.current} z ${free.max.value}, obnova: ${RECHARGE_LABELS[free.recharge]})` })
-    } else options.push({ id: 'free', label: 'Bez slotu (kouzlo z rasy, předmětu nebo schopnosti)' })
+      if (free.current > 0) options.unshift({ id: 'free', label: `Bez slotu (zbývá ${free.current} z ${free.max.value}, obnova: ${RECHARGE_LABELS[free.recharge]})`, hint: 'Odečte jedno použití bez slotu.' })
+    } else
+      options.push({
+        id: 'free',
+        label: 'Bez slotu (kouzlo z rasy, předmětu nebo schopnosti)',
+        hint: 'Nic neodečte. Jen pro kouzla, která máš zadarmo, např. Drow Magic nebo kouzlo z předmětu. Běžné kouzlo třídy sesílej slotem.',
+      })
   }
   const selected = spell.level === 0 ? 'free' : options.some((o) => o.id === choice) ? choice : (options[0]?.id ?? '')
   const upcastLevel = selected.startsWith('slot:') ? Number(selected.slice(5)) : selected === 'pact' ? (pact?.level ?? spell.level) : spell.level
@@ -295,6 +305,8 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
     }
     if (spell.concentration) ops.push({ op: 'concentration', set: spell.name })
     if (ops.length > 0) adjust(ops)
+    // nově seslaný Hex míří na cíl, takže se jeho kostka rovnou přičítá k útokům
+    if (spell.concentration && riderFor(spell.name) && !riderOn) toggleRider()
     toast.success(
       `${spell.name}${upcastLevel > spell.level ? ` (${upcastLevel}. úroveň)` : ''} seslán${spell.concentration ? '. Soustředíš se.' : '.'}`,
     )
@@ -332,13 +344,16 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
                   checked={selected === o.id}
                   onChange={() => setChoice(o.id)}
                 />
-                <span>{o.label}</span>
+                <span className="min-w-0">
+                  <span className="block">{o.label}</span>
+                  <span className="block text-xs text-muted-foreground">{o.hint}</span>
+                </span>
               </label>
             ))}
           </fieldset>
         )}
 
-        {spell.level > 0 && canEdit && !free && (
+        {spell.level > 0 && canEdit && !free && selected === 'free' && (
           <div className="space-y-2 rounded-lg border p-3 text-sm">
             {!tracking ? (
               <Button variant="outline" className="w-full" onClick={() => setTracking(true)}>
@@ -382,9 +397,28 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
           </section>
         )}
 
+        {spell.concentration && currentFocus === spell.name && (
+          <p role="status" className="text-sm text-amber-700 dark:text-amber-400">
+            Na {spell.name} se už soustředíš. Nové seslání spotřebuje další slot.{riderFor(spell.name) ? ` Když cíl padne, přesuneš ${spell.name} bonus akcí na nový cíl bez slotu (v Taktikách nech zapnutý přepínač cíle).` : ''}
+          </p>
+        )}
+
         {spell.concentration && currentFocus && currentFocus !== spell.name && (
           <p role="alert" className="text-sm text-amber-700 dark:text-amber-400">
             Koncentrace na {currentFocus} skončí, protože {spell.name} vyžaduje koncentraci.
+          </p>
+        )}
+
+        {(spell.level === 0 || options.length > 0) && (
+          <p data-testid="cast-summary" className="text-sm">
+            <span className="text-muted-foreground">Po seslání: </span>
+            {[
+              selected === 'pact' ? '−1 pact slot' : selected.startsWith('slot:') ? `−1 slot ${selected.slice(5)}. úrovně` : selected === 'free' && free ? '−1 použití bez slotu' : 'nic se neodečte',
+              spell.concentration ? `soustředíš se na ${spell.name}` : null,
+              riderFor(spell.name) ? `útoky +${riderFor(spell.name)!.dice} ${riderFor(spell.name)!.type.toLowerCase()} (i v hodech z Taktik)` : null,
+            ]
+              .filter(Boolean)
+              .join(', ')}
           </p>
         )}
 

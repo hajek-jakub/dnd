@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { PencilIcon, PlusIcon, SkullIcon } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { PencilIcon, PlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatModifier } from '@/engine'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { CONCENTRATION_RIDER, useClassToggle } from '@/features/sheet/class-togg
 import { useSheet } from '@/features/sheet/sheet-context'
 import { useDeleteTactic, useReorderTactics, useTactics } from './api'
 import { kiState } from './cost'
+import { ConcentrationCard } from './ConcentrationCard'
 import { BatchResultDialog, type BatchOutcome } from './BatchResultDialog'
 import { AttackCard, ComboCard, KiCard, PassiveCard, RuleCard, SpellCard, type EditControls, type RunContext } from './TacticCards'
 import { TacticForm } from './TacticForm'
@@ -35,8 +36,9 @@ export function TacticsTab() {
   const remove = useDeleteTactic(character.id)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<{ kind: TacticKind; tactic?: Tactic } | null>(null)
-  const [riderOn, toggleRider] = useClassToggle(character.id, CONCENTRATION_RIDER, true)
+  const [riderOn] = useClassToggle(character.id, CONCENTRATION_RIDER, true)
   const [outcome, setOutcome] = useState<BatchOutcome | null>(null)
+  const rollCounter = useRef(0)
   const rider = riderFor(character.state.concentration)
   // Rage platí, když je zapnutá; Sneak Attack, když ho hráč zapnul (stejný přepínač jako na kartě Útoky).
   const [sneakOn] = useClassToggle(character.id, 'sneak-attack')
@@ -68,7 +70,15 @@ export function TacticsTab() {
   })
 
   const classBonus = { rage: sheet.rage?.active ? sheet.rage.damageBonus : 0, sneak: sneak && sneakOn ? sneak.dice : null }
-  const ctx: RunContext = { all: data ?? [], rider: rider && riderOn ? rider : null, classBonus, onResults: setOutcome }
+  const onRoll: RunContext['onRoll'] = (base) => {
+    const token = ++rollCounter.current
+    setOutcome({ ...base, token, results: null })
+    return {
+      results: (results) => setOutcome((o) => (o && o.token === token ? { ...o, results } : o)),
+      fail: () => setOutcome((o) => (o && o.token === token ? null : o)),
+    }
+  }
+  const ctx: RunContext = { all: data ?? [], rider: rider && riderOn ? rider : null, classBonus, onRoll }
   const render = (t: Tactic, list: Tactic[], i: number) => {
     const controls = controlsFor(t, list, i)
     switch (t.kind) {
@@ -101,15 +111,7 @@ export function TacticsTab() {
         </div>
       )}
 
-      {rider && canEdit && (
-        <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={toggleRider} className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
-          <SkullIcon aria-hidden />
-          <span>
-            Cíl je pod kouzlem {rider.name}: ke zranění útoků se přidá {rider.dice} {rider.type.toLowerCase()}
-            <span className="block text-xs font-normal opacity-80">Vypni, když útočíš na jiného protivníka (bonus platí jen proti jednomu cíli).</span>
-          </span>
-        </Button>
-      )}
+      <ConcentrationCard tactics={data ?? []} />
 
       {canEdit && sneak && <ClassRiderToggle rider={sneak} />}
       {sheet.rage?.active && <p className="text-sm font-medium">Rage trvá: útoky s příznakem Rage mají +{sheet.rage.damageBonus} ke zranění.</p>}

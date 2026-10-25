@@ -12,10 +12,12 @@ interface Props {
   tone?: 'normal' | 'crit' | 'fail' | 'dim' | 'gold'
   /** Menší kostka, když jich je v hodu hodně. */
   compact?: boolean
+  /** Nejmenší kostka (řádky v sérii hodů taktik). */
+  mini?: boolean
 }
 
 /** Jedna kostka jako SVG: točí se, dokud nepřijde výsledek ze serveru, pak dosedne na hozené číslo. */
-export function DieFace({ sides, value, delay = 0, sign = 1, tone = 'normal', compact = false }: Props) {
+export function DieFace({ sides, value, delay = 0, sign = 1, tone = 'normal', compact = false, mini = false }: Props) {
   const gradient = useId()
   const rolling = value === undefined
   const [flicker, setFlicker] = useState(() => randomFace(sides))
@@ -35,7 +37,7 @@ export function DieFace({ sides, value, delay = 0, sign = 1, tone = 'normal', co
     <span
       data-die={sides}
       data-state={rolling ? 'rolling' : 'landed'}
-      className={cn('relative inline-flex items-center justify-center', compact ? 'size-12 sm:size-14' : 'size-16 sm:size-20', tone === 'dim' && 'opacity-40')}
+      className={cn('relative inline-flex items-center justify-center', mini ? 'size-10 sm:size-11' : compact ? 'size-12 sm:size-14' : 'size-16 sm:size-20', tone === 'dim' && 'opacity-40')}
       style={{ animationDelay: `${delay}ms` }}
     >
       <svg
@@ -71,7 +73,7 @@ export function DieFace({ sides, value, delay = 0, sign = 1, tone = 'normal', co
           {shown}
         </text>
       </svg>
-      {sign < 0 && !rolling && <span aria-hidden className="absolute -left-3 top-1/2 -translate-y-1/2 text-xl font-bold text-muted-foreground">−</span>}
+      {sign < 0 && !rolling && <span aria-hidden className={cn('absolute -left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground', mini ? 'text-base' : 'text-xl')}>−</span>}
     </span>
   )
 }

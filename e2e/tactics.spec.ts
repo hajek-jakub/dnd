@@ -241,6 +241,50 @@ test('hody z taktik ukážou kostky, s Hexem přibude 1d6', async ({ page }) => 
   await expect(spear).not.toContainText('Hex)')
 })
 
+test('soustředění v taktikách: seslat Hex zaplatí slot, „už trvá“ nic, přepínač cíle a ukončení', async ({ page }) => {
+  const id = await openTactics(page, 'tactconc')
+  const conc = page.getByTestId('concentration-card')
+  await expect(conc).toContainText('Nesoustředíš se na žádné kouzlo')
+
+  await conc.getByRole('button', { name: /^Seslat Hex/ }).click()
+  await expect(conc).toContainText('Soustředíš se na Hex')
+  await expect(stat(page, 'Pact sloty 1. ú.')).toHaveText('0/1')
+  const toggle = conc.getByRole('button', { name: /Cíl je pod kouzlem Hex/ })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(card(page, 'Démonické kopí (hlavní)')).toContainText('+ 1d6 necrotic (Hex)')
+  await toggle.click()
+  await expect(card(page, 'Démonické kopí (hlavní)')).not.toContainText('(Hex)')
+  await toggle.click()
+
+  await conc.getByRole('button', { name: 'Ukončit koncentraci' }).click()
+  await expect(conc).toContainText('Nesoustředíš se na žádné kouzlo')
+  await expect(conc.getByRole('button', { name: /^Seslat Hex/ })).toBeDisabled() // pact slot došel
+
+  // Hex seslaný dřív (nebo přesun na nový cíl): zapne se bez placení
+  await conc.getByRole('button', { name: 'Hex už trvá' }).click()
+  await expect(conc).toContainText('Soustředíš se na Hex')
+  await expect(stat(page, 'Pact sloty 1. ú.')).toHaveText('0/1')
+  await expect.poll(async () => (await (await page.request.get(`/api/characters/${id}`)).json()).character.state.concentration).toBe('Hex')
+  expect(await problems(page)).toEqual([])
+})
+
+test('okno série hodů: kostky, zásah nebo minutí mění součet zranění', async ({ page }) => {
+  await openTactics(page, 'tactbatch')
+  await card(page, 'Flurry of Blows').getByRole('button', { name: /^Použít Flurry of Blows/ }).click()
+  const results = page.getByRole('dialog', { name: 'Hody: Flurry of Blows' })
+  await expect(results.getByTestId('batch-row')).toHaveCount(2)
+  await expect(results.locator('[data-die="20"]').first()).toBeVisible()
+  const total = results.getByTestId('batch-total')
+  const before = Number(await total.getAttribute('data-total'))
+  const first = results.getByTestId('batch-row').first()
+  const firstDamage = Number((await first.getByTestId('batch-damage').locator('strong').textContent()) ?? '0')
+  const wasMissed = (await first.getAttribute('data-missed')) === 'true'
+  await first.getByRole('button', { name: /^Flurry of Blows #1: (zasáhl|minul)/ }).click()
+  await expect(total).toHaveAttribute('data-total', String(wasMissed ? before + firstDamage : before - firstDamage))
+  await page.keyboard.press('Escape')
+  await expect(results).toHaveCount(0)
+})
+
 test('úpravy: přidat, upravit, přeřadit a smazat položky (data zůstanou v DB)', async ({ page }) => {
   const id = await openTactics(page, 'tactedit')
   page.on('dialog', (d) => void d.accept())
