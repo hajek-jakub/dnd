@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useSummary } from '@/features/summary/api'
 
 export type RollMode = 'normal' | 'advantage' | 'disadvantage'
 
@@ -48,13 +50,15 @@ export interface RollRequest {
   initiative?: boolean
 }
 
-/** Log hodů kampaně. Průběžně se ptá jen na novější hody a skládá je k těm, co už jsou v paměti. */
+/**
+ * Log hodů kampaně. Neptá se sám pořád dokola: znovu se načte, když souhrn (`/summary`, `rolls`) ohlásí nový hod (`useRollsWatch`).
+ * Pak se ptá jen na novější hody a skládá je k těm, co už jsou v paměti.
+ */
 export function useRolls(campaignId: string, enabled = true) {
   const queryClient = useQueryClient()
   return useQuery({
     queryKey: ['rolls', campaignId],
     enabled: enabled && Boolean(campaignId),
-    refetchInterval: 5000,
     queryFn: async (): Promise<DiceRoll[]> => {
       const prev = queryClient.getQueryData<DiceRoll[]>(['rolls', campaignId])
       const last = prev?.at(-1)?.id ?? 0
@@ -64,6 +68,16 @@ export function useRolls(campaignId: string, enabled = true) {
       return [...prev, ...res.rolls.filter((r) => !known.has(r.id))].slice(-100)
     },
   })
+}
+
+/** Načte nové hody, když je souhrn ohlásí (id posledního viditelného hodu je vyšší než poslední známý). */
+export function useRollsWatch(campaignId: string, known: number | undefined) {
+  const queryClient = useQueryClient()
+  const latest = useSummary((s) => s.rolls?.[campaignId] ?? 0)
+  useEffect(() => {
+    if (known === undefined || !latest.data || latest.data <= known) return
+    void queryClient.invalidateQueries({ queryKey: ['rolls', campaignId] })
+  }, [latest.data, known, campaignId, queryClient])
 }
 
 export function useRollMutation(campaignId: string) {

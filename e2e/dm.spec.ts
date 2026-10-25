@@ -41,7 +41,7 @@ test('DM rozdá item, bonus a stav; hráč na telefonu dostane oznámení a vid�
     await dm.getByRole('link', { name: 'Panel DM' }).click()
     await expect(dm.getByRole('heading', { name: 'Panel DM' })).toBeVisible()
     const elfka = dm.getByRole('listitem').filter({ hasText: 'Elfka' }).first()
-    await expect(elfka).toContainText('AC')
+    await expect(elfka).toContainText('AC', { timeout: 20_000 }) // seznam postav se obnovuje po 10 s
     await expect(dm.getByRole('button', { name: 'Item', exact: true })).toBeDisabled() // bez výběru nejde nic dát
 
     await dm.getByLabel('Vybrat Elfka').check()

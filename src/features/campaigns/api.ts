@@ -3,7 +3,7 @@ import { api } from '@/lib/api'
 import type { Campaign, CampaignSummary, Invite, InvitePreview, Member } from '@/lib/types'
 
 /** Jak často se obnovují data, která mohou změnit ostatní (náhrada realtime; později se zrychlí tam, kde to má smysl). */
-const POLL_MS = 10_000
+const POLL_MS = 30_000
 
 export function useMyCampaigns() {
   return useQuery({

@@ -52,7 +52,7 @@ export interface LanguageInfo {
   speakers: { id: string; name: string }[]
 }
 
-const POLL_MS = 4000
+const POLL_MS = 5000
 
 /**
  * Zprávy kampaně. Průběžně se ptá jen na novější než poslední známé (`after`) a skládá je k těm, co už jsou v paměti,

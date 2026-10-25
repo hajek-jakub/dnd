@@ -27,7 +27,7 @@ export function useCharacters(campaignId: string | undefined, options: { pollMs?
   return useQuery({
     queryKey: ['characters', campaignId],
     enabled: Boolean(campaignId),
-    refetchInterval: options.pollMs ?? 15_000,
+    refetchInterval: options.pollMs ?? 30_000,
     queryFn: async () => (await api.get<{ characters: CharacterListItem[] }>(`/campaigns/${campaignId}/characters`)).characters,
   })
 }
@@ -37,7 +37,7 @@ export function useCharacter(id: string | undefined) {
     queryKey: ['character', id],
     enabled: Boolean(id),
     retry: false,
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
     queryFn: async () => (await api.get<{ character: CharacterFull }>(`/characters/${id}`)).character,
   })
 }

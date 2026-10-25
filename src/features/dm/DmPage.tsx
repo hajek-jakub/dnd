@@ -51,7 +51,7 @@ export function DmPage() {
   const { data: campaign, isPending } = useCampaign(campaignId)
   usePageTitle('Panel DM', campaign?.name)
   const { data: bundle } = useEngineBundle()
-  const { data: list } = useCharacters(campaignId, { pollMs: 5000 })
+  const { data: list } = useCharacters(campaignId, { pollMs: 10_000 })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [action, setAction] = useState<DmAction | null>(null)
   const [enemyForm, setEnemyForm] = useState<{ enemy?: Enemy } | null>(null)

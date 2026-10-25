@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { useAuth } from '@/features/auth/auth-context'
 import { cn } from '@/lib/utils'
-import { useRolls, type DiceRoll } from './api'
+import { useRolls, useRollsWatch, type DiceRoll } from './api'
 import { breakdown, modeLabel, naturalNote } from './format'
 import { useDiceSlot } from './dice-slot-context'
 import { RollModeSwitch } from './RollModeSwitch'
@@ -23,6 +23,7 @@ export function DiceDock({ campaignId, characterId }: { campaignId: string; char
   const [open, setOpen] = useState(false)
   const { user } = useAuth()
   const { data: rolls } = useRolls(campaignId)
+  useRollsWatch(campaignId, rolls ? (rolls.at(-1)?.id ?? 0) : undefined)
   const { roll, pending } = useRoller(campaignId, characterId)
   const [expression, setExpression] = useState('')
   // Tlačítko kostek je v horní liště (kontejner vykresluje AppLayout), ne plovoucí nad obsahem.
