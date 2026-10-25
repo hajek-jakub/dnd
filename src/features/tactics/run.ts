@@ -20,6 +20,8 @@ export interface RunPlan {
   blocked: string | null
   /** kouzlo, na které se seslání soustředí (Hex): po použití se nastaví a jeho bonus se přidá ke zranění */
   concentration: string | null
+  /** kouzlo se soustředěním, které kombo sesílá (i když ho `withoutCast` vynechá); podle něj se nabízí „Použít bez Hexu“ */
+  castable: string | null
 }
 
 const isRollable = (t: Tactic): t is Rollable => t.kind === 'attack' || t.kind === 'spell' || t.kind === 'ki'
@@ -29,8 +31,15 @@ function countOf(t: Rollable): number {
 }
 
 /** Co jedno použití položky provede: útoky s hody, ceny a spotřebu munice. Komba provedou všechny své položky. */
-export function planRun(tactic: Tactic, all: Tactic[], items: CharacterItem[], rider: DamageRider | null, bonus: ClassBonus = NO_CLASS_BONUS): RunPlan {
-  const sources: { t: Rollable; count: number }[] = []
+export function planRun(
+  tactic: Tactic,
+  all: Tactic[],
+  items: CharacterItem[],
+  rider: DamageRider | null,
+  bonus: ClassBonus = NO_CLASS_BONUS,
+  { withoutCast = false }: { withoutCast?: boolean } = {},
+): RunPlan {
+  let sources: { t: Rollable; count: number }[] = []
   let costs: Cost[] = []
   if (tactic.kind === 'combo') {
     for (const u of tactic.data.uses ?? []) {
@@ -44,9 +53,16 @@ export function planRun(tactic: Tactic, all: Tactic[], items: CharacterItem[], r
   } else if (tactic.kind === 'passive') {
     costs = [parseCost(tactic.data.cost)]
   }
+  const castsConcentration = (t: Rollable) => t.kind === 'spell' && t.data.concentration
+  const castable = tactic.kind === 'combo' ? (sources.find((s) => castsConcentration(s.t))?.t.title ?? null) : null
+  // Kombo bez Hexu (např. bez volného slotu): kouzlo se nesešle, nezaplatí a jeho bonus se nepřidá; Hex, který už trvá, platí dál.
+  if (withoutCast && castable !== null) {
+    sources = sources.filter((s) => !castsConcentration(s.t))
+    costs = sources.length > 0 ? sources.map((s) => parseCost(s.t.data.cost)) : []
+  }
   costs = costs.filter((c) => c.type !== 'free')
   // Seslání kouzla se soustředěním (Hex) nastaví soustředění a jeho bonus platí už pro útoky téhož použití.
-  const casting = sources.find((s) => s.t.kind === 'spell' && s.t.data.concentration)?.t.title ?? null
+  const casting = sources.find((s) => castsConcentration(s.t))?.t.title ?? null
   const activeRider = casting !== null ? (riderFor(casting) ?? rider) : rider
 
   const attacks: BatchAttack[] = []
@@ -86,6 +102,6 @@ export function planRun(tactic: Tactic, all: Tactic[], items: CharacterItem[], r
   }
 
   const ammo = [...used].filter(([, n]) => n > 0).map(([itemId, shots]) => ({ itemId, name: items.find((i) => i.id === itemId)?.name ?? '', shots }))
-  return { attacks, costs, ammo, warnings, blocked, concentration: casting }
+  return { attacks, costs, ammo, warnings, blocked, concentration: casting, castable }
 }
 

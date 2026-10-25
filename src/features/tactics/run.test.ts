@@ -61,6 +61,18 @@ describe('planRun', () => {
     expect(plan.attacks.map((a) => a.damage)).toEqual(['1d8+5+1d4+1d6', '1d8+5+1d4+1d6'])
   })
 
+  it('kombo bez Hexu: kouzlo se nesešle ani nezaplatí a bonus se nepřidá, už trvající Hex platí dál', () => {
+    const burst = combo([{ id: 'hex', count: 1 }, { id: 'spear', count: 2 }, { id: 'flurry', count: 2 }])
+    const plan = planRun(burst, all, [], null, undefined, { withoutCast: true })
+    expect(plan.castable).toBe('Hex')
+    expect(plan.concentration).toBeNull()
+    expect(plan.costs).toEqual([{ type: 'ki', n: 1 }])
+    expect(plan.attacks.map((a) => a.damage)).toEqual(['1d8+5+1d4', '1d8+5+1d4', '1d6+4', '1d6+4'])
+    const active = planRun(burst, all, [], { name: 'Hex', dice: '1d6', type: 'Necrotic' }, undefined, { withoutCast: true })
+    expect(active.attacks[0]?.damage).toBe('1d8+5+1d4+1d6')
+    expect(planRun(combo([{ id: 'spear', count: 2 }]), all, [], null).castable).toBeNull()
+  })
+
   it('munice se odečítá za každý útok a když nestačí, útoků je méně', () => {
     expect(planRun(crossbow, all, [bolts(10)], null).ammo).toEqual([{ itemId: 'bolts', name: 'Crossbow bolt', shots: 2 }])
     const short = planRun(crossbow, all, [bolts(1)], null)

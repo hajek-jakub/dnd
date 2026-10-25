@@ -77,12 +77,14 @@ export interface RunContext {
  * „Použít“ zaplatí cenu (ki, spell slot, munice) a rovnou hodí všechny útoky položky: každý má hod na zásah a zranění,
  * např. 2× kopí + Flurry = 4 zásahy a 4 zranění najednou. Bez hodů (Patient Defense, Command) jen odečte cenu.
  */
-function RunButton({ tactic, ctx }: { tactic: Tactic; ctx: RunContext }) {
+function RunButton({ tactic, ctx, withoutCast = false }: { tactic: Tactic; ctx: RunContext; withoutCast?: boolean }) {
   const { sheet, character, canEdit, adjust } = useSheet()
   const settings = useRollSettings()
   const batch = useBatchRoll(character.campaignId)
   if (!canEdit) return null
-  const plan = planRun(tactic, ctx.all, character.items, ctx.rider, ctx.classBonus)
+  const plan = planRun(tactic, ctx.all, character.items, ctx.rider, ctx.classBonus, { withoutCast })
+  if (withoutCast && plan.castable === null) return null
+  const title = withoutCast ? `${tactic.title} bez kouzla ${plan.castable}` : tactic.title
   if (plan.attacks.length === 0 && plan.costs.length === 0 && plan.blocked === null) return null
   const spend = planSpend(plan.costs, sheet)
   const rolling = plan.attacks.length > 0
@@ -101,13 +103,13 @@ function RunButton({ tactic, ctx }: { tactic: Tactic; ctx: RunContext }) {
     if (ops.length > 0) adjust(ops)
     for (const w of plan.warnings) toast.warning(w)
     if (!rolling) {
-      toast.success(`${tactic.title}: odečteno ${paid}`)
+      toast.success(`${title}: odečteno ${paid}`)
       return
     }
     batch.mutate(
       { attacks: plan.attacks, mode: combineMode(settings.mode, sheet.conditions.attack.mode), hidden: settings.hidden, characterId: character.id },
       {
-        onSuccess: (results: BatchResult[]) => ctx.onResults({ title: tactic.title, results, hidden: settings.hidden, paid }),
+        onSuccess: (results: BatchResult[]) => ctx.onResults({ title, results, hidden: settings.hidden, paid }),
         onError: (e) => toast.error(e instanceof Error ? e.message : 'Hody se nepodařily.'),
       },
     )
@@ -115,13 +117,13 @@ function RunButton({ tactic, ctx }: { tactic: Tactic; ctx: RunContext }) {
 
   return (
     <Button
-      variant={rolling ? 'default' : 'outline'}
+      variant={rolling && !withoutCast ? 'default' : 'outline'}
       disabled={!ok || batch.isPending}
       title={reason || undefined}
-      aria-label={`Použít ${tactic.title}${rolling ? `: ${plan.attacks.length}× hod` : ''}${paid ? `, platí se ${paid}` : ''}${reason ? ` (${reason})` : ''}`}
+      aria-label={`Použít ${title}${rolling ? `: ${plan.attacks.length}× hod` : ''}${paid ? `, platí se ${paid}` : ''}${reason ? ` (${reason})` : ''}`}
       onClick={run}
     >
-      <ZapIcon aria-hidden /> {rolling ? `Použít a hodit${plan.attacks.length > 1 ? ` (${plan.attacks.length}×)` : ''}` : 'Použít'}
+      <ZapIcon aria-hidden /> {withoutCast ? `Bez kouzla ${plan.castable}${rolling ? ` (${plan.attacks.length}×)` : ''}` : rolling ? `Použít a hodit${plan.attacks.length > 1 ? ` (${plan.attacks.length}×)` : ''}` : 'Použít'}
     </Button>
   )
 }
@@ -277,7 +279,12 @@ export function ComboCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, {
           <CostBadge cost={d.cost} />
         </>
       }
-      actions={<RunButton tactic={tactic} ctx={ctx} />}
+      actions={
+        <>
+          <RunButton tactic={tactic} ctx={ctx} />
+          <RunButton tactic={tactic} ctx={ctx} withoutCast />
+        </>
+      }
     >
       {(d.uses ?? []).length > 0 && (
         <p className="text-sm">
@@ -285,6 +292,11 @@ export function ComboCard({ tactic, ctx, controls }: { tactic: Extract<Tactic, {
           {d.uses
             .map((u) => `${u.count > 1 ? `${u.count}× ` : ''}${ctx.all.find((x) => x.id === u.id)?.title ?? '(smazáno)'}`)
             .join(', ')}
+        </p>
+      )}
+      {ctx.rider && (d.uses ?? []).some((u) => { const t = ctx.all.find((x) => x.id === u.id); return (t?.kind === 'attack' || t?.kind === 'ki') && t.data.hex }) && (
+        <p className="text-sm" data-testid="combo-rider">
+          Počítá s {ctx.rider.name}: +{ctx.rider.dice} {ctx.rider.type.toLowerCase()} ke zranění (vypneš přepínačem nahoře).
         </p>
       )}
       {d.steps.length > 0 && (

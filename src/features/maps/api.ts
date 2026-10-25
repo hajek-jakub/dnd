@@ -47,7 +47,7 @@ export const mapImageUrl = (m: Pick<MapInfo, 'id' | 'imageVersion'>) => `${base(
 export function useMaps(campaignId: string) {
   return useQuery({
     queryKey: ['maps', campaignId],
-    refetchInterval: 60_000,
+    refetchInterval: 180_000,
     queryFn: async () => (await api.get<{ maps: MapInfo[] }>(`/campaigns/${campaignId}/maps`)).maps,
   })
 }
@@ -90,7 +90,7 @@ export function useDeleteMap(campaignId: string) {
 export function useMapPins(mapId: string) {
   return useQuery({
     queryKey: ['map-pins', mapId],
-    refetchInterval: 20_000,
+    refetchInterval: 60_000,
     queryFn: async () => (await api.get<{ pins: MapPin[] }>(`/maps/${mapId}/pins`)).pins,
   })
 }

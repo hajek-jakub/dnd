@@ -22,7 +22,7 @@ export const SUMMARY_KEY = ['summary']
 export function useSummary<T>(select: (s: Summary) => T) {
   return useQuery({
     queryKey: SUMMARY_KEY,
-    refetchInterval: 8000,
+    refetchInterval: 6000,
     refetchIntervalInBackground: false,
     queryFn: () => api.get<Summary>('/summary'),
     select,

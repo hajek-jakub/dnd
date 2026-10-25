@@ -52,7 +52,8 @@ export interface LanguageInfo {
   speakers: { id: string; name: string }[]
 }
 
-const POLL_MS = 5000
+// Otevřený chat se ptá často (zprávy mají přijít hned); dotaz s `after` je malý a běží jen při viditelném okně.
+const POLL_MS = 2000
 
 /**
  * Zprávy kampaně. Průběžně se ptá jen na novější než poslední známé (`after`) a skládá je k těm, co už jsou v paměti,

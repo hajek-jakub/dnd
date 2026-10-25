@@ -24,7 +24,7 @@ export function useInitiative(campaignId: string, enabled: boolean) {
   return useQuery({
     queryKey: key(campaignId),
     enabled,
-    refetchInterval: 6000,
+    refetchInterval: 10_000,
     queryFn: () => api.get<InitiativeState>(`/campaigns/${campaignId}/initiative`),
   })
 }

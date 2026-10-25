@@ -138,6 +138,7 @@ test('kombo hodí všemi kostkami: Maximální burst = 4 zásahy a 4 zranění, 
 
   const burst = card(page, 'Maximální burst')
   await expect(burst).toContainText('Provede: 2× Démonické kopí (hlavní), 2× Flurry of Blows')
+  await expect(burst.getByTestId('combo-rider')).toContainText('Počítá s Hex: +1d6 necrotic')
   await burst.getByRole('button', { name: /^Použít Maximální burst/ }).click()
   const results = page.getByRole('dialog', { name: 'Hody: Maximální burst' })
   await expect(results.getByTestId('batch-row')).toHaveCount(4)
@@ -151,6 +152,29 @@ test('kombo hodí všemi kostkami: Maximální burst = 4 zásahy a 4 zranění, 
   const rolls = (await (await page.request.get(`/api/campaigns/${(await (await page.request.get(`/api/characters/${id}`)).json()).character.campaignId}/rolls`)).json()).rolls as { label: string; expression: string }[]
   expect(rolls.filter((r) => r.label.includes('Démonické kopí') || r.label.includes('Flurry')).length).toBe(8)
   expect(rolls.some((r) => /1d8\+5\+1d4\+1d6/.test(r.expression))).toBe(true)
+})
+
+test('kombo s Hexem jde použít i bez Hexu: bez slotu se kouzlo nesešle a zranění je bez bonusu', async ({ page }) => {
+  const id = await openTactics(page, 'tactnohex')
+  await page.request.post(`/api/characters/${id}/adjust`, { data: { ops: [{ op: 'pact', delta: 1, max: 1 }] } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Taktiky', exact: true }).click()
+  await expect(stat(page, 'Pact sloty 1. ú.')).toHaveText('0/1')
+
+  const opener = card(page, 'Otevření s Hexem')
+  await expect(opener.getByRole('button', { name: /^Použít Otevření s Hexem:/ })).toBeDisabled()
+  await opener.getByRole('button', { name: /^Použít Otevření s Hexem bez kouzla Hex/ }).click()
+  const results = page.getByRole('dialog', { name: 'Hody: Otevření s Hexem bez kouzla Hex' })
+  await expect(results.getByTestId('batch-row')).toHaveCount(2)
+  await page.keyboard.press('Escape')
+  const character = (await (await page.request.get(`/api/characters/${id}`)).json()).character
+  expect(character.state.concentration).toBeNull()
+  const rolls = (await (await page.request.get(`/api/campaigns/${character.campaignId}/rolls`)).json()).rolls as { label: string; expression: string }[]
+  const spear = rolls.filter((r) => r.label.includes('Démonické kopí') && /d8/.test(r.expression))
+  expect(spear.length).toBe(2)
+  expect(spear.every((r) => !r.expression.includes('1d6'))).toBe(true)
+  // kombo, které Hex nesesílá, druhé tlačítko nemá
+  await expect(card(page, 'Maximální burst').getByRole('button', { name: /bez kouzla/ })).toHaveCount(0)
 })
 
 test('střelba z kuše ubírá šípy, bez šípů je útok vypnutý; spotřebovatelné itemy mají Použít', async ({ page }) => {
