@@ -242,6 +242,7 @@ function DetailsForm() {
           </div>
           <Field id="pf-desc" label="Vzhled a popis">
             <Textarea id="pf-desc" rows={4} maxLength={20000} value={form.description} onChange={(e) => set('description', e.target.value)} />
+            <p className="text-xs text-muted-foreground">Popis uvidí celá družina v přehledu NPC v deníku.</p>
           </Field>
           <Button type="submit">Uložit</Button>
         </form>

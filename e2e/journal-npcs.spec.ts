@@ -91,20 +91,16 @@ test('hráč na telefonu vede přehled NPC a jejich příběh, DM ho vidí na po
     await expect(player.getByRole('button', { name: /Obchodník na rynku/ })).toBeVisible()
     await expect(player.getByRole('button', { name: /Zelda nás zachránila/ })).toHaveCount(0)
 
-    // --- DM na počítači: seznam je abecední, přidá NPC postavu z kampaně a skryté NPC
+    // --- DM na počítači: seznam je abecední, NPC postava z kampaně je v něm sama (s popisem z profilu), DM přidá skryté NPC
     await dm.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Alrik', race: 'Člověk' } })
     const tom = await dm.request.post(`/api/campaigns/${campaignId}/characters`, {
-      data: { kind: 'npc', name: 'Hostinský Tom', race: 'Halfling', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }] },
+      data: { kind: 'npc', name: 'Hostinský Tom', race: 'Halfling', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }], description: 'Hostinský' },
     })
     expect(tom.ok()).toBeTruthy()
+    const tomId = (await tom.json()).character.id as string
     await dm.goto(`/campaigns/${campaignId}/journal/npcs`)
     await expect(dm.getByRole('link', { name: /Zelda/ })).toBeVisible()
-    await expect(await letters(dm)).toEqual(['A', 'K', 'Z'])
-
-    await dm.getByRole('button', { name: 'Z kampaně' }).click()
-    const pick = dm.getByRole('dialog', { name: 'Přidat postavy a NPC z kampaně' })
-    await pick.getByLabel(/Hostinský Tom/).check()
-    await pick.getByRole('button', { name: 'Přidat vybrané (1)' }).click()
+    await expect(await letters(dm)).toEqual(['A', 'H', 'K', 'Z'])
     await expect(dm.getByRole('link', { name: /Hostinský Tom/ })).toContainText('Halfling')
     await dm.getByRole('link', { name: /Hostinský Tom/ }).click()
     const tomDetail = dm.getByRole('article', { name: 'NPC Hostinský Tom' })
@@ -113,9 +109,12 @@ test('hráč na telefonu vede přehled NPC a jejich příběh, DM ho vidí na po
     await tomDetail.getByRole('button', { name: 'Upravit' }).click()
     const edit = dm.getByRole('dialog', { name: 'Upravit NPC' })
     await expect(edit.getByLabel('Jméno')).toBeDisabled() // jméno a rasu přebírá postava
+    await expect(edit.getByLabel('Popis')).toHaveValue('Hostinský') // popis z profilu postavy
     await edit.getByLabel('Popis').fill('Hostinský u **Zlatého draka**')
     await edit.getByRole('button', { name: 'Uložit' }).click()
     await expect(tomDetail.locator('strong', { hasText: 'Zlatého draka' })).toBeVisible()
+    // uložilo se do profilu postavy
+    expect((await (await dm.request.get(`/api/characters/${tomId}`)).json()).character.description).toBe('Hostinský u **Zlatého draka**')
     // přiřazení existujícího zápisu k NPC
     await tomDetail.getByRole('button', { name: 'Přiřadit zápis' }).click()
     const assign = dm.getByRole('dialog', { name: 'Přiřadit zápis k Hostinský Tom' })
@@ -169,11 +168,11 @@ test('přehled NPC jde číst a psát na telefonu i na počítači bez posouván
   await expectNoHorizontalScroll(page)
 })
 
-test('postavy hráčů jsou v přehledu NPC samy: filtr Postavy hráčů je ukáže a smazat je nejde', async ({ page }) => {
+test('postavy hráčů jsou v přehledu NPC samy s popisem z profilu: filtr Postavy hráčů je ukáže a smazat je nejde', async ({ page }) => {
   await registerDm(page, 'npcpcs')
   const { campaignId } = await newCampaign(page, 'Postavy v přehledu')
   const created = await page.request.post(`/api/campaigns/${campaignId}/characters`, {
-    data: { name: 'Obalatomi', race: 'Tiefling', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'monk', hpRoll: null }] },
+    data: { name: 'Obalatomi', race: 'Tiefling', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'monk', hpRoll: null }], description: 'Mnich ze sirotčince' },
   })
   expect(created.ok()).toBeTruthy()
   await page.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Alrik' } })
@@ -185,4 +184,5 @@ test('postavy hráčů jsou v přehledu NPC samy: filtr Postavy hráčů je uká
   const detail = page.getByRole('article', { name: 'NPC Obalatomi' })
   await expect(detail.getByRole('button', { name: 'Upravit' })).toBeVisible()
   await expect(detail.getByRole('button', { name: /Smazat NPC/ })).toHaveCount(0)
+  await expect(detail.getByText('Mnich ze sirotčince')).toBeVisible()
 })

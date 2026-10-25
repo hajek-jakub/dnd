@@ -118,34 +118,61 @@ describe('přehled NPC v deníku', () => {
   })
 
   describe('postavy a NPC z kampaně', () => {
-    it('postavu a NPC postavu jde přidat do přehledu, jméno a rasa jdou podle postavy', async () => {
-      const pc = await character(bob, { name: 'Hajoš', race: 'Human' })
-      const npcChar = (await dm.client.post(`/campaigns/${campaignId}/characters`, { kind: 'npc', name: 'Hostinský Tom', race: 'Halfling', abilityScores: scores, levels: [{ classIndex: 'fighter' }] })).body.character.id
-      const res = await addNpc(carol, { characterIds: [pc, npcChar] })
-      expectStatus(res, 201)
-      expect(res.body.npcs).toHaveLength(2)
-      const byName = Object.fromEntries(res.body.npcs.map((n: any) => [n.name, n]))
-      expect(byName['Hajoš']).toMatchObject({ race: 'Human', characterId: pc, characterKind: 'pc' })
-      expect(byName['Hostinský Tom']).toMatchObject({ race: 'Halfling', characterId: npcChar, characterKind: 'npc' })
+    it('postavy hráčů i NPC postavy jsou v přehledu samy; jméno, rasa a popis jdou z profilu postavy', async () => {
+      const pc = await character(bob, { name: 'Hajoš', race: 'Human', description: 'Mnich ze sirotčince' })
+      const npcChar = await character(dm, { kind: 'npc', name: 'Batan', race: 'Halfling', description: 'Průvodce družiny' })
+      // bez ručního přidání: přehled je doplní, popis z profilu vidí celá družina
+      const list = await npcs(carol)
+      const hajos = list.find((n) => n.characterId === pc)
+      const batan = list.find((n) => n.characterId === npcChar)
+      expect(hajos).toMatchObject({ name: 'Hajoš', race: 'Human', description: 'Mnich ze sirotčince', characterKind: 'pc', canEdit: false, canEditDescription: false })
+      expect(batan).toMatchObject({ name: 'Batan', race: 'Halfling', description: 'Průvodce družiny', characterKind: 'npc', visibility: 'all', canEditDescription: false })
+      expect((await npcs(bob)).find((n) => n.id === hajos.id)).toMatchObject({ canEdit: true, canEditDescription: true })
+      expect((await npcs(dm)).find((n) => n.id === batan.id)).toMatchObject({ canEdit: true, canEditDescription: true })
+      // už tam jsou, ručně znovu ne; smazat nejdou
+      expectStatus(await addNpc(dm, { characterIds: [npcChar] }), 422)
+      expectStatus(await dm.client.delete(`/journal-npcs/${batan.id}`), 422)
+      expectStatus(await dm.client.delete(`/journal-npcs/${hajos.id}`), 422)
 
-      // jméno a rasu přebírá postava
-      expectStatus(await bob.client.patch(`/characters/${pc}`, { name: 'Hajoš Mnich', race: 'Dwarf' }), 200)
-      expect((await npcs(carol)).find((n) => n.characterId === pc)).toMatchObject({ name: 'Hajoš Mnich', race: 'Dwarf' })
-      const id = byName['Hajoš'].id
-      expectStatus(await carol.client.patch(`/journal-npcs/${id}`, { name: 'Jinak' }), 422)
-      expectStatus(await carol.client.patch(`/journal-npcs/${id}`, { race: 'Elf' }), 422)
-      const desc = await carol.client.patch(`/journal-npcs/${id}`, { description: 'Mnich z Mirabilis' })
+      // změna profilu se v přehledu ukáže, jméno a rasu v přehledu změnit nejde
+      expectStatus(await bob.client.patch(`/characters/${pc}`, { name: 'Hajoš Mnich', race: 'Dwarf', description: 'Mnich z Kupiky' }), 200)
+      expect((await npcs(carol)).find((n) => n.id === hajos.id)).toMatchObject({ name: 'Hajoš Mnich', race: 'Dwarf', description: 'Mnich z Kupiky' })
+      expectStatus(await bob.client.patch(`/journal-npcs/${hajos.id}`, { name: 'Jinak' }), 422)
+      expectStatus(await bob.client.patch(`/journal-npcs/${hajos.id}`, { race: 'Elf' }), 422)
+
+      // popis z přehledu se zapíše do profilu: smí majitel a DM, jiný hráč ne (ani u NPC postavy)
+      expectStatus(await carol.client.patch(`/journal-npcs/${hajos.id}`, { description: 'Hacknuto' }), 403)
+      const desc = await bob.client.patch(`/journal-npcs/${hajos.id}`, { description: 'Mnich, **Obalatomi**' })
       expectStatus(desc, 200)
-      expect(desc.body.npc).toMatchObject({ name: 'Hajoš Mnich', description: 'Mnich z Mirabilis' })
+      expect(desc.body.npc).toMatchObject({ description: 'Mnich, **Obalatomi**' })
+      expect((await bob.client.get(`/characters/${pc}`)).body.character.description).toBe('Mnich, **Obalatomi**')
+      expectStatus(await bob.client.patch(`/journal-npcs/${batan.id}`, { description: 'x' }), 403)
+      expectStatus(await dm.client.patch(`/journal-npcs/${batan.id}`, { description: 'Halfling s lutnou' }), 200)
+      expect((await dm.client.get(`/characters/${npcChar}`)).body.character.description).toBe('Halfling s lutnou')
+      // cizí soukromá pole postavy přes přehled neprojdou
+      expect(Object.keys(hajos)).not.toContain('notes')
 
-      // jednou stačí
-      expectStatus(await addNpc(bob, { characterIds: [pc] }), 422)
+      // DM NPC postavu skryje, hráči ji nevidí
+      expectStatus(await dm.client.patch(`/journal-npcs/${batan.id}`, { visibility: 'dm' }), 200)
+      expect((await npcs(bob)).map((n) => n.id)).not.toContain(batan.id)
 
-      // smazaná postava: záznam zůstane s posledním jménem a jde pak upravit
+      // smazaná postava: záznam zůstane s posledním jménem i popisem a jde pak upravit i smazat
       expectStatus(await bob.client.delete(`/characters/${pc}`), 204)
-      const left = (await npcs(dm)).find((n) => n.id === id)
-      expect(left).toMatchObject({ name: 'Hajoš Mnich', characterId: null, characterKind: null })
-      expectStatus(await carol.client.patch(`/journal-npcs/${id}`, { name: 'Hajoš (bývalý)' }), 200)
+      const left = (await npcs(dm)).find((n) => n.id === hajos.id)
+      expect(left).toMatchObject({ name: 'Hajoš Mnich', description: 'Mnich, **Obalatomi**', characterId: null, characterKind: null })
+      expectStatus(await bob.client.patch(`/journal-npcs/${hajos.id}`, { name: 'Hajoš (bývalý)' }), 200)
+      expectStatus(await bob.client.delete(`/journal-npcs/${hajos.id}`), 204)
+    })
+
+    it('kdo NPC postavu do přehledu přidal ručně, popis jejího profilu přesto nezmění (jen majitel a DM)', async () => {
+      const tom = await character(dm, { kind: 'npc', name: 'Hostinský Tom', description: 'Tajný informátor' })
+      const added = await addNpc(carol, { characterIds: [tom] }) // bez načtení přehledu, takže autor je Carol
+      expectStatus(added, 201)
+      const entry = added.body.npcs[0]
+      expect(entry).toMatchObject({ canEdit: true, canEditDescription: false, description: 'Tajný informátor' })
+      expectStatus(await carol.client.patch(`/journal-npcs/${entry.id}`, { description: 'Přepsáno' }), 403)
+      expect((await dm.client.get(`/characters/${tom}`)).body.character.description).toBe('Tajný informátor')
+      expectStatus(await carol.client.patch(`/journal-npcs/${entry.id}`, { pinIds: [] }), 200) // ostatní jako autor smí
     })
 
     it('postava z jiné kampaně, neplatné a prázdné seznamy se odmítnou', async () => {
@@ -159,12 +186,10 @@ describe('přehled NPC v deníku', () => {
     })
 
     it('hromadné přidání je všechno nebo nic', async () => {
+      // bez načtení přehledu, jinak by NPC postavu doplnil sám
       const a = await character(dm, { name: 'Hromadná A', kind: 'npc' })
-      const before = (await npcs(dm)).length
       expectStatus(await addNpc(dm, { characterIds: [a, '00000000-0000-4000-8000-000000000000'] }), 422)
-      expect((await npcs(dm)).length).toBe(before)
-      expectStatus(await addNpc(dm, { characterIds: [a] }), 201)
-      expect((await npcs(dm)).length).toBe(before + 1)
+      expectStatus(await addNpc(dm, { characterIds: [a] }), 201) // první pokus nic nezapsal, jinak by tu bylo „už v přehledu je“
     })
   })
 

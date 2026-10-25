@@ -16,12 +16,15 @@ use Dnd\Response;
  * Přehled NPC v deníku: jméno, rasa a popis, abecedně, propojené se zápisy (příběh NPC).
  *  - přidat NPC smí každý člen kampaně (deník je společný pro celou družinu), upravit a smazat autor a DM,
  *  - DM může NPC držet skryté (`visibility = dm`), dokud ho družina nepotká; hráč o skrytém NPC neví (404),
- *  - do přehledu jde přidat i postavu nebo NPC postavu z kampaně (`characterIds`): jméno a rasu pak určuje postava,
+ *  - do přehledu jde přidat i postavu nebo NPC postavu z kampaně (`characterIds`): jméno, rasu a popis pak určuje postava
+ *    (popis = „Vzhled a popis“ z profilu postavy; úprava popisu v deníku ho změní v profilu, smí jen majitel postavy a DM),
  *  - propojení se zápisem (`journal_entry_npcs`) nastavuje autor zápisu nebo DM přes `npcIds` u zápisu,
  *  - propojení s bodem mapy (`map_pin_npcs`, kde se NPC nachází) nastavuje autor bodu nebo DM přes `npcIds` u bodu,
  *    nebo ten, kdo smí upravit NPC, přes `pinIds` u NPC (jen body, které vidí; body, které nevidí, zůstanou);
  *    NPC pak v `places` ukazuje jen body, které uživatel na mapě vidí,
- *  - postavy hráčů jsou v přehledu vždy (doplní se samy při načtení, autor = hráč) a smazat je nejde, dokud postava existuje.
+ *  - postavy hráčů a NPC postavy jsou v přehledu vždy (doplní se samy při načtení, autor = hráč, u NPC postavy DM)
+ *    a smazat je nejde, dokud postava existuje (DM může NPC postavu v přehledu skrýt).
+ *  Popis postavy je jinak soukromé pole sheetu; v přehledu ho záměrně vidí celá družina (vzhled postavy, rozhodnutí skupiny).
  */
 final class JournalNpcController
 {
@@ -32,7 +35,7 @@ final class JournalNpcController
     public static function index(Request $req, array $params, array $user): array
     {
         $role = Access::requireMember($user, $params['id']);
-        self::ensurePlayerCharacters($params['id']);
+        self::ensureCharacters($params['id']);
         $rows = Db::all(
             self::select() . ' WHERE n.campaign_id = ? AND ' . self::visibleSql() . ' ORDER BY COALESCE(c.name, n.name), n.created_at',
             [$params['id'], $role],
@@ -103,16 +106,29 @@ final class JournalNpcController
                 $values[] = Input::string($data, 'race', 0, 100, 'Rasa');
             }
         }
+        $characterDescription = null;
         if (array_key_exists('description', $data)) {
-            $sets[] = 'description = ?';
-            $values[] = Input::string($data, 'description', 0, 5000, 'Popis');
+            if ($npc['character_id'] !== null && $npc['c_name'] !== null) {
+                // popis postavy patří profilu postavy: měnit ho smí jen ten, kdo smí měnit postavu
+                if ($role !== 'dm' && $npc['c_owner'] !== $user['id']) {
+                    throw HttpError::forbidden('Popis postavy může změnit jen její majitel a DM.');
+                }
+                $characterDescription = Input::string($data, 'description', 0, 20000, 'Popis');
+                $sets[] = "description = ''";
+            } else {
+                $sets[] = 'description = ?';
+                $values[] = Input::string($data, 'description', 0, 5000, 'Popis');
+            }
         }
         if (array_key_exists('visibility', $data)) {
             $sets[] = 'visibility = ?';
             $values[] = self::visibility($data, $role, (string) $npc['visibility']);
         }
         $pinIds = array_key_exists('pinIds', $data) ? self::checkPins($data['pinIds'], (string) $npc['campaign_id'], $user['id'], $role) : null;
-        Db::transaction(static function () use ($sets, $values, $npc, $pinIds, $user, $role): void {
+        Db::transaction(static function () use ($sets, $values, $npc, $pinIds, $user, $role, $characterDescription): void {
+            if ($characterDescription !== null) {
+                Db::exec('UPDATE characters SET description = ?, rev = rev + 1, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$characterDescription, $npc['character_id']]);
+            }
             if ($sets !== []) {
                 $sets[] = 'updated_at = UTC_TIMESTAMP()';
                 $values[] = $npc['id'];
@@ -136,8 +152,8 @@ final class JournalNpcController
     public static function delete(Request $req, array $params, array $user): ?array
     {
         [$npc] = self::load($params['id'], $user);
-        if ($npc['c_kind'] === 'pc') {
-            throw HttpError::validation('Postava hráče je v přehledu vždy, smazat ji nejde.', 'id');
+        if ($npc['c_kind'] !== null) {
+            throw HttpError::validation('Postava z kampaně je v přehledu vždy, smazat ji nejde (DM ji může skrýt).', 'id');
         }
         Db::exec('DELETE FROM journal_npcs WHERE id = ?', [$npc['id']]);
         return null;
@@ -285,16 +301,27 @@ final class JournalNpcController
 
     // ------------------------------------------------------------------ pomocné
 
-    /** Doplní do přehledu postavy hráčů, které v něm ještě nejsou (autor záznamu je hráč, takže popis smí upravit on i DM). */
-    private static function ensurePlayerCharacters(string $campaignId): void
+    /**
+     * Doplní do přehledu postavy hráčů a NPC postavy, které v něm ještě nejsou. Autor záznamu je hráč (u NPC postavy, která
+     * nikomu nepatří, DM kampaně), viditelnost `all` jako u veřejného náhledu postav na stránce kampaně.
+     */
+    private static function ensureCharacters(string $campaignId): void
     {
+        $dmId = null;
         $missing = Db::all(
             "SELECT c.id, c.name, c.race, c.owner_id FROM characters c
-             WHERE c.campaign_id = ? AND c.kind = 'pc' AND c.owner_id IS NOT NULL
+             WHERE c.campaign_id = ? AND ((c.kind = 'pc' AND c.owner_id IS NOT NULL) OR c.kind = 'npc')
                AND NOT EXISTS (SELECT 1 FROM journal_npcs n WHERE n.campaign_id = c.campaign_id AND n.character_id = c.id)",
             [$campaignId],
         );
         foreach ($missing as $c) {
+            if ($c['owner_id'] === null) {
+                $dmId ??= Db::value("SELECT user_id FROM campaign_members WHERE campaign_id = ? AND role = 'dm' ORDER BY joined_at LIMIT 1", [$campaignId]);
+                if ($dmId === null) {
+                    continue;
+                }
+                $c['owner_id'] = $dmId;
+            }
             // INSERT IGNORE: souběžné načtení téže stránky narazí na unikátní klíč (kampaň, postava) a nic nezdvojí
             Db::exec(
                 "INSERT IGNORE INTO journal_npcs (id, campaign_id, character_id, name, race, description, visibility, created_by, created_at, updated_at)
@@ -329,7 +356,7 @@ final class JournalNpcController
 
     private static function select(): string
     {
-        return 'SELECT n.*, c.name AS c_name, c.race AS c_race, c.kind AS c_kind, c.photo_path AS c_photo, u.display_name AS author_name
+        return 'SELECT n.*, c.name AS c_name, c.race AS c_race, c.kind AS c_kind, c.photo_path AS c_photo, c.owner_id AS c_owner, c.description AS c_description, u.display_name AS author_name
                 FROM journal_npcs n
                 LEFT JOIN characters c ON c.id = n.character_id
                 JOIN users u ON u.id = n.created_by';
@@ -419,7 +446,8 @@ final class JournalNpcController
                 'id' => $r['id'],
                 'name' => $linked ? $r['c_name'] : $r['name'],
                 'race' => $linked ? $r['c_race'] : $r['race'],
-                'description' => $r['description'],
+                // postava z kampaně: popis z profilu (starý vlastní popis z deníku jen, když profil žádný nemá)
+                'description' => $linked && (string) $r['c_description'] !== '' ? $r['c_description'] : $r['description'],
                 'visibility' => $r['visibility'],
                 // Postava nebo NPC postava z kampaně (null = NPC jen z deníku)
                 'characterId' => $linked ? $r['character_id'] : null,
@@ -429,6 +457,8 @@ final class JournalNpcController
                 'createdByName' => $r['author_name'],
                 'mine' => $mine,
                 'canEdit' => $mine || $role === 'dm',
+                // popis postavy z kampaně mění majitel postavy a DM (zapisuje se do profilu)
+                'canEditDescription' => $linked ? ($role === 'dm' || $r['c_owner'] === $userId) : ($mine || $role === 'dm'),
                 'places' => $places[(string) $r['id']] ?? [],
                 'createdAt' => Ids::iso((string) $r['created_at']),
                 'updatedAt' => Ids::iso((string) $r['updated_at']),

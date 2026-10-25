@@ -225,7 +225,7 @@ function NpcDetail({ campaignId, npc, entries, isDm, onEdit }: { campaignId: str
             <Button variant="outline" onClick={onEdit}>
               <PencilIcon aria-hidden /> Upravit
             </Button>
-            {npc.characterKind !== 'pc' && <Button
+            {npc.characterKind === null && <Button
               variant="ghost"
               aria-label={`Smazat NPC ${npc.name}`}
               onClick={() => {
@@ -400,6 +400,7 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
   const [visibility, setVisibility] = useState<JournalNpc['visibility']>(npc?.visibility ?? 'all')
   const [pinIds, setPinIds] = useState<string[]>(npc?.places.map((p) => p.pinId) ?? [])
   const fromCharacter = npc?.characterId != null
+  const canDescribe = npc ? npc.canEditDescription : true
   const valid = name.trim() !== ''
   const pending = create.isPending || update.isPending
 
@@ -407,7 +408,7 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
     e.preventDefault()
     if (!valid) return
     const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'NPC se nepodařilo uložit.')
-    const common = { description, pinIds, ...(isDm ? { visibility } : {}) }
+    const common = { ...(canDescribe && description !== (npc?.description ?? '') ? { description } : {}), pinIds, ...(isDm ? { visibility } : {}) }
     if (npc) update.mutate({ id: npc.id, ...common, ...(fromCharacter ? {} : { name: name.trim(), race: race.trim() }) }, { onSuccess: onDone, onError })
     else
       create.mutate(
@@ -435,8 +436,22 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
       </div>
       <div className="space-y-2">
         <Label htmlFor="npc-description">Popis</Label>
-        <Textarea id="npc-description" rows={6} maxLength={5000} autoFocus={fromCharacter} value={description} onChange={(e) => setDescription(e.target.value)} />
-        <p className="text-xs text-muted-foreground">Vzhled, povaha, čím se živí. Příběh NPC piš jako zápisy v deníku a přiřaď je k němu. Formátování: **tučně**, *kurzíva*.</p>
+        <Textarea
+          id="npc-description"
+          rows={6}
+          maxLength={fromCharacter ? 20000 : 5000}
+          autoFocus={fromCharacter && canDescribe}
+          disabled={!canDescribe}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          {fromCharacter
+            ? canDescribe
+              ? 'Popis je „Vzhled a popis“ z profilu postavy: změna se uloží i tam a uvidí ho celá družina.'
+              : 'Popis je „Vzhled a popis“ z profilu postavy, změnit ho může její majitel nebo DM.'
+            : 'Vzhled, povaha, čím se živí. Příběh NPC piš jako zápisy v deníku a přiřaď je k němu. Formátování: **tučně**, *kurzíva*.'}
+        </p>
       </div>
       <PlacePicker campaignId={campaignId} value={pinIds} onChange={setPinIds} />
       {isDm && (

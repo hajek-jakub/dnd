@@ -15,6 +15,8 @@ export interface JournalNpc {
   createdByName: string
   mine: boolean
   canEdit: boolean
+  /** U postavy z kampaně se popis zapisuje do jejího profilu: smí majitel postavy a DM. */
+  canEditDescription: boolean
   /** body na mapách, kde se nachází (jen ty, které uživatel na mapě vidí) */
   places: NpcPlace[]
   createdAt: string
@@ -55,6 +57,7 @@ export function useCreateNpc(campaignId: string) {
     onSuccess: (_npc, input) => {
       void queryClient.invalidateQueries({ queryKey: key(campaignId) })
       if (input.pinIds) void queryClient.invalidateQueries({ queryKey: ['map-pins'] })
+      if (input.description !== undefined) void queryClient.invalidateQueries({ queryKey: ['character'] })
     },
   })
 }
