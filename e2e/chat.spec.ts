@@ -1,5 +1,6 @@
 import { devices, type Page } from '@playwright/test'
 import { expect, test } from './fixtures'
+import { makePng } from '../test-utils/png'
 import { newContext, registerDm, registerViaUi, uniqueName } from './helpers'
 
 // Chat: emoji reakce, odpovědi, úprava a smazání zpráv. DM na počítači, hráč na telefonu.
@@ -142,4 +143,47 @@ test('na počítači Enter odešle zprávu a Shift+Enter dá nový řádek; chat
   await expect(row(page, 'druhý řádek')).toBeVisible()
   await expect(box).toHaveValue('')
   await expect(log(page).getByText('Dnes', { exact: true })).toBeVisible()
+})
+
+test('u zpráv je kolečko s fotkou postavy odesílatele (jako Messenger), DM bez fotky má „DM“', async ({ page: dm, browser, baseURL, isMobile }) => {
+  test.skip(isMobile, 'Dva kontexty si ten test staví sám (DM počítač + hráč telefon).')
+  test.setTimeout(120_000)
+  await registerDm(dm, 'chatava')
+  const { campaignId, code } = await newCampaign(dm, 'Chat avatary')
+  const phone = await newContext(browser, { ...devices['Pixel 7'], baseURL, locale: 'cs-CZ' })
+  const bob = await phone.newPage()
+  try {
+    await registerViaUi(bob, { username: uniqueName('bob'), startPath: `/join/${code}` })
+    const created = await bob.request.post(`/api/campaigns/${campaignId}/characters`, {
+      data: { name: 'Elfka', abilityScores: { str: 12, dex: 12, con: 12, int: 12, wis: 12, cha: 12 }, levels: [{ classIndex: 'druid', hpRoll: null }] },
+    })
+    const elfka = (await created.json()).character.id as string
+    const upload = await bob.request.post(`/api/characters/${elfka}/photo`, {
+      multipart: { photo: { name: 'f.png', mimeType: 'image/png', buffer: Buffer.from(makePng(64, 64, [40, 160, 60])) } },
+    })
+    expect(upload.ok()).toBe(true)
+
+    await bob.goto(`/campaigns/${campaignId}/messages`)
+    await bob.getByRole('button', { name: /Skupina/ }).click()
+    await write(bob, 'Ahoj z lesa')
+    await write(bob, 'Druhá zpráva')
+    await dm.goto(`/campaigns/${campaignId}/messages`)
+    await dm.getByRole('button', { name: /Skupina/ }).click()
+    await expect(row(dm, 'Druhá zpráva')).toBeVisible({ timeout: 15_000 })
+
+    // u řady zpráv jednoho hráče jen jedno kolečko (u poslední), s fotkou jeho postavy
+    await expect(row(dm, 'Ahoj z lesa').getByTestId('sender-avatar')).toHaveCount(0)
+    const avatar = row(dm, 'Druhá zpráva').getByTestId('sender-avatar')
+    await expect(avatar).toHaveAttribute('src', new RegExp(`/api/characters/${elfka}/photo`))
+    await expect(avatar).toHaveAttribute('title', /^Elfka \(/)
+    await expect.poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    await expect(row(dm, 'Druhá zpráva')).toContainText('Elfka') // jméno pro čtečky
+
+    await write(dm, 'Vítejte, dobrodruzi')
+    await expect(row(dm, 'Vítejte, dobrodruzi').getByTestId('sender-avatar')).toHaveCount(0) // vlastní zprávy bez kolečka
+    await expect(row(bob, 'Vítejte, dobrodruzi').getByTestId('sender-avatar')).toHaveText('DM', { timeout: 15_000 })
+    await expectNoHorizontalScroll(bob)
+  } finally {
+    await phone.close()
+  }
 })

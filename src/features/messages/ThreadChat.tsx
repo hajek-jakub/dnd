@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Composer, type ThreadInfo } from './Composer'
 import { MessageList } from './MessageList'
 import type { ChatMessage } from './api'
+import type { Sender } from './senders'
 
 /** Jedno vlákno: seznam zpráv a psaní. Drží, na co se právě odpovídá nebo co se upravuje (při změně vlákna se zahodí, `key` v rodiči). */
 export function ThreadChat({
@@ -10,6 +11,7 @@ export function ThreadChat({
   messages,
   me,
   isDm,
+  senders,
   recipientsForDm,
   dmId,
 }: {
@@ -18,6 +20,7 @@ export function ThreadChat({
   messages: ChatMessage[]
   me: { id: string; name: string }
   isDm: boolean
+  senders: Map<string, Sender>
   recipientsForDm: { userId: string; displayName: string }[]
   dmId: string | undefined
 }) {
@@ -30,6 +33,7 @@ export function ThreadChat({
         messages={messages}
         me={me}
         isDm={isDm}
+        senders={senders}
         onReply={(m) => {
           setEditing(null)
           setReplyTo(m)

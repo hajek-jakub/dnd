@@ -8,7 +8,9 @@ import { useAuth } from '@/features/auth/auth-context'
 import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
 import { cn } from '@/lib/utils'
 import { LANGUAGE_CATALOG, languageLabel } from '@/features/sheet/languages'
+import { useCharacters } from '@/features/sheet/api'
 import { DraftsPanel } from './DraftsPanel'
+import { sendersOf } from './senders'
 import { useMarkThreadRead, useMessages } from './api'
 import type { ThreadInfo } from './Composer'
 import { ThreadChat } from './ThreadChat'
@@ -27,6 +29,9 @@ export function MessagesPage() {
   usePageTitle('Zprávy', campaign?.name)
   const { data: members } = useCampaignMembers(campaignId)
   const { data: state } = useMessages(campaignId)
+  // fotky postav se mění zřídka, seznam se jen občas obnoví (sdílí cache se stránkou kampaně)
+  const { data: characters } = useCharacters(campaignId, { pollMs: 5 * 60_000 })
+  const senders = useMemo(() => sendersOf(members ?? [], characters ?? []), [members, characters])
   const markRead = useMarkThreadRead(campaignId)
   const [params, setParams] = useSearchParams()
 
@@ -169,6 +174,7 @@ export function MessagesPage() {
                       messages={threadMessages}
                       me={{ id: me, name: user?.displayName ?? '' }}
                       isDm={isDm}
+                      senders={senders}
                       recipientsForDm={members?.filter((m) => m.role === 'player') ?? []}
                       dmId={dmMember?.userId}
                     />

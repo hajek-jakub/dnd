@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils'
 import { useDeleteMessage, useReact, type ChatMessage } from './api'
 import { QUICK_REACTIONS, dayKey, dayLabel, formatTime, myReaction, reactionSummary, rememberEmoji } from './chat-utils'
 import { EmojiPickerDialog, ReactionsDialog } from './ReactionDialogs'
+import { SenderAvatar } from './SenderAvatar'
+import type { Sender } from './senders'
 
 /** Text citace odpovědi: podle zprávy, kterou klient zná (je aktuální po úpravě i smazání), jinak podle náhledu ze serveru. */
 function quoteText(reply: NonNullable<ChatMessage['replyTo']>, original: ChatMessage | undefined): string {
@@ -23,6 +25,7 @@ export function MessageList({
   messages,
   me,
   isDm,
+  senders,
   onReply,
   onEdit,
 }: {
@@ -30,6 +33,7 @@ export function MessageList({
   messages: ChatMessage[]
   me: { id: string; name: string }
   isDm: boolean
+  senders: Map<string, Sender>
   onReply: (m: ChatMessage) => void
   onEdit: (m: ChatMessage) => void
 }) {
@@ -118,6 +122,10 @@ export function MessageList({
           const summary = reactionSummary(m.reactions)
           const separator = index === 0 || dayKey(m.createdAt) !== dayKey(messages[index - 1]!.createdAt)
           const original = m.replyTo ? byId.get(m.replyTo.id) : undefined
+          const next = messages[index + 1]
+          // jako na Messengeru: kolečko s postavou jen u poslední zprávy z řady zpráv téhož odesílatele
+          const lastInRun = !next || next.senderId !== m.senderId || dayKey(next.createdAt) !== dayKey(m.createdAt)
+          const sender = senders.get(m.senderId)
           return (
             <div key={m.id}>
               {separator && (
@@ -128,12 +136,14 @@ export function MessageList({
                 </p>
               )}
               <div id={`msg-${m.id}`} className={cn('flex flex-col rounded-xl transition-shadow', mine ? 'items-end' : 'items-start', flashId === m.id && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background')}>
-                <p className="text-xs text-muted-foreground">
-                  {mine ? 'Ty' : m.senderName} · {formatTime(m.createdAt)}
+                <p className={cn('text-xs text-muted-foreground', !mine && 'ml-10')}>
+                  {mine ? 'Ty · ' : <span className="sr-only">{sender?.name ?? m.senderName}: </span>}
+                  {formatTime(m.createdAt)}
                   {m.editedAt && !deleted && ' · upraveno'}
                   {(m.thread === 'secret' || m.thread.startsWith('lang:')) && m.recipients.length > 0 && ` · pro: ${m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}`}
                 </p>
                 <div className={cn('flex max-w-full items-end gap-1', mine && 'flex-row-reverse')}>
+                  {!mine && <span className="mr-1 flex w-8 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
                   <div
                     onClick={() => !deleted && setOpenId(open ? null : m.id)}
                     className={cn(
@@ -177,7 +187,7 @@ export function MessageList({
                     aria-label={`Reakce ${summary.total}: ${m.reactions.map((r) => `${r.emoji} ${r.users.length}`).join(', ')}`}
                     title={m.reactions.map((r) => `${r.emoji} ${r.users.map((u) => (u.id === me.id ? 'ty' : u.name)).join(', ')}`).join('\n')}
                     onClick={() => setDetailFor(m.id)}
-                    className={cn('-mt-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-12' : 'ml-1')}
+                    className={cn('-mt-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-12' : 'ml-10')}
                   >
                     <span className={cn('inline-flex h-7 items-center gap-0.5 rounded-full border bg-card px-1.5 text-sm shadow-sm', myEmoji && 'border-primary')}>
                       <span aria-hidden className="tracking-tighter">
