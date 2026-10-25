@@ -41,10 +41,13 @@ export function groupClasses(input: Pick<CharacterInput, 'levels' | 'subclasses'
   return order.map((classIndex) => ({ classIndex, level: counts[classIndex] ?? 0, subclassIndex: input.subclasses[classIndex] ?? null }))
 }
 
-/** Efekty, které se opravdu uplatní: DM efekty a efekty equipnutých (a případně attunovaných) itemů. */
+/**
+ * Efekty, které se opravdu uplatní: DM efekty a efekty itemů. Zbraň, zbroj a štít musí postava nosit; ostatní itemy (prsten, plášť,
+ * boty…) působí, jakmile je postava má (inventář nerozlišuje „u sebe“), u attunement itemů až po attunementu.
+ */
 export function activeEffects(input: Pick<CharacterInput, 'effects' | 'items'>): Effect[] {
   const fromItems = input.items
-    .filter((i) => i.equipped && (!i.requiresAttunement || i.attuned))
+    .filter((i) => (i.kind === 'item' || i.equipped) && (!i.requiresAttunement || i.attuned))
     .flatMap((i) => i.effects.map((e) => ({ ...e, source: e.source || i.name })))
   return [...input.effects, ...fromItems]
 }

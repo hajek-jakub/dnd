@@ -53,7 +53,7 @@ test('Hajoš ze seedu: propočítané hodnoty, "nedoplněno", "ke ověření" a 
 
   // v inventáři jsou šípy do kuše (20 ks, spotřebují se) a component pouch
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  const bolts = page.getByRole('listitem').filter({ hasText: 'Crossbow bolt' }).filter({ has: page.getByText('Podrobnosti') }).first()
+  const bolts = page.getByRole('listitem').filter({ hasText: 'Crossbow bolt' }).filter({ has: page.getByRole('button', { name: /^Podrobnosti:/ }) }).first()
   await expect(bolts).toContainText('×20')
   await expect(page.getByRole('listitem').filter({ hasText: 'Component pouch' }).first()).toBeVisible()
   await expectNoHorizontalScroll(page)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftRightIcon, CoinsIcon, EyeIcon, EyeOffIcon, HandCoinsIcon, PlusIcon, SkullIcon, Trash2Icon } from 'lucide-react'
+import { ArrowLeftRightIcon, ChevronRightIcon, CoinsIcon, EyeIcon, EyeOffIcon, HandCoinsIcon, MinusIcon, PencilIcon, PlusIcon, SearchIcon, SkullIcon, SparklesIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { RichText } from '@/components/RichText'
 import { ApiError } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { DescriptionText } from '@/features/rules/DescriptionText'
 import { hasCharges } from './charges'
 import { effectLabel } from './effects'
@@ -24,11 +25,40 @@ import type { CharacterItem } from './types'
 
 const num = (n: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 }).format(n)
 
+type GroupKey = 'gear' | 'magic' | 'consumable' | 'other'
+
+const GROUPS: { key: GroupKey; title: string }[] = [
+  { key: 'gear', title: 'Zbraně a zbroj' },
+  { key: 'magic', title: 'Magické předměty' },
+  { key: 'consumable', title: 'Spotřební' },
+  { key: 'other', title: 'Ostatní vybavení' },
+]
+
+/** Zbraň, zbroj a štít se nosí (útoky, AC); ostatní itemy má postava prostě u sebe a jejich bonusy platí samy. */
+const isGear = (i: CharacterItem) => i.kind === 'weapon' || i.kind === 'armor' || i.kind === 'shield'
+
+function groupOf(i: CharacterItem): GroupKey {
+  if (isGear(i)) return 'gear'
+  if (i.consumable) return 'consumable'
+  if (i.rarity || i.requiresAttunement || i.effects.length > 0 || hasCharges(i) || ['wondrous', 'staff', 'wand', 'rod'].includes(i.kind)) return 'magic'
+  return 'other'
+}
+
+const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+const byName = (a: CharacterItem, b: CharacterItem) => a.name.localeCompare(b.name, 'cs')
+
 export function InventoryTab() {
   const { sheet, character, canEdit } = useSheet()
   const [adding, setAdding] = useState(false)
-  const worn = character.items.filter((i) => i.equipped)
-  const carried = character.items.filter((i) => !i.equipped)
+  const [query, setQuery] = useState('')
+  const items = character.items
+  const q = fold(query.trim())
+  const shown = q ? items.filter((i) => fold(i.name).includes(q)) : items
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    // nošené zbraně a zbroj nahoře, jinak abecedně
+    items: shown.filter((i) => groupOf(i) === g.key).sort((a, b) => (g.key === 'gear' ? Number(b.equipped) - Number(a.equipped) : 0) || byName(a, b)),
+  })).filter((g) => g.items.length > 0)
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 tab:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] tab:items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
@@ -36,32 +66,42 @@ export function InventoryTab() {
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
             <CardTitle>Vybavení</CardTitle>
-            {canEdit && (
-              <Button onClick={() => setAdding(true)}>
-                <PlusIcon aria-hidden /> Přidat item
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                role="status"
+                aria-label={`Attunement: ${sheet.attunement.used} ze ${sheet.attunement.max}`}
+                title="Postava může být attunovaná nejvýš ke třem magickým itemům."
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm',
+                  sheet.attunement.used >= sheet.attunement.max && 'border-amber-500 text-amber-800 dark:text-amber-300',
+                )}
+              >
+                <SparklesIcon aria-hidden className="size-4" /> Attunement {sheet.attunement.used}/{sheet.attunement.max}
+              </span>
+              {canEdit && (
+                <Button onClick={() => setAdding(true)}>
+                  <PlusIcon aria-hidden /> Přidat item
+                </Button>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {character.items.length === 0 && <p className="text-muted-foreground">Postava zatím nic nemá. Přidej item z pravidel nebo vlastní.</p>}
-            {worn.length > 0 && <ItemGroup title="Nosím" items={worn} />}
-            {carried.length > 0 && <ItemGroup title={worn.length > 0 ? 'V batohu' : 'Itemy'} items={carried} />}
+          <CardContent className="space-y-5">
+            {items.length === 0 && <p className="text-muted-foreground">Postava zatím nic nemá. Přidej item z pravidel nebo vlastní.</p>}
+            {items.length >= 8 && (
+              <div className="relative">
+                <SearchIcon aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input type="search" aria-label="Hledat v inventáři" placeholder="Hledat v inventáři" className="pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
+              </div>
+            )}
+            {items.length > 0 && groups.length === 0 && <p className="text-muted-foreground">Nic takového postava nemá.</p>}
+            {groups.map((g) => (
+              <ItemGroup key={g.key} title={g.title} items={g.items} />
+            ))}
           </CardContent>
         </Card>
       </div>
       <div className="space-y-4 tab:sticky tab:top-28 tab:-mr-1 tab:max-h-[calc(100dvh-8rem)] tab:overflow-y-auto tab:overscroll-contain tab:pr-1">
         <CurrencyCard />
-        <Card>
-          <CardHeader>
-            <CardTitle>Attunement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold" role="status" aria-label={`Attunement: ${sheet.attunement.used} ze ${sheet.attunement.max}`}>
-              {sheet.attunement.used} / {sheet.attunement.max}
-            </p>
-            <p className="text-sm text-muted-foreground">Postava může být attunovaná nejvýš ke třem magickým itemům.</p>
-          </CardContent>
-        </Card>
       </div>
       <AddItemDialog open={adding} onClose={() => setAdding(false)} />
     </div>
@@ -71,7 +111,9 @@ export function InventoryTab() {
 function ItemGroup({ title, items }: { title: string; items: CharacterItem[] }) {
   return (
     <section aria-label={title} className="space-y-2">
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      <h3 className="flex items-baseline gap-2 text-sm font-semibold text-muted-foreground">
+        {title} <span className="font-normal">{items.length}</span>
+      </h3>
       <ul className="space-y-2">
         {items.map((i) => (
           <ItemRow key={i.id} item={i} />
@@ -85,58 +127,67 @@ function ItemRow({ item }: { item: CharacterItem }) {
   const { character, sheet, canEdit, isDm } = useSheet()
   const update = useUpdateItem(character.id)
   const remove = useDeleteItem(character.id)
+  const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [transferring, setTransferring] = useState(false)
   const patch = (p: ItemInput) =>
     update.mutate({ itemId: item.id, patch: p }, { onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Změna se nepodařila.') })
   const attuneBlocked = !item.attuned && sheet.attunement.used >= sheet.attunement.max
-  // Zbraň, zbroj, štít a itemy s efekty se musí nasadit, jinak se nepočítají do AC, útoků ani bonusů.
-  const wearable = item.kind === 'weapon' || item.kind === 'armor' || item.kind === 'shield' || item.effects.length > 0
-  const inactive = wearable && !item.equipped
+  const gear = isGear(item)
+  const notWorn = gear && !item.equipped
+  const needsAttunement = item.requiresAttunement && !item.attuned
+  const stacked = item.quantity !== 1 || item.consumable
+  const status = notWorn
+    ? item.kind === 'weapon'
+      ? 'není v ruce: chybí mezi útoky'
+      : 'nenosí se: nezapočítá se do AC'
+    : needsAttunement && (item.effects.length > 0 || item.armor?.magicBonus || item.weapon?.magicBonus)
+      ? 'bonusy platí až po attunementu'
+      : null
 
   return (
-    <li className="rounded-xl border bg-card">
-      <div className="flex flex-wrap items-center gap-2 p-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">
-            {item.name}
-            {(item.quantity > 1 || (item.consumable && item.quantity !== 1)) && <span className="ml-1 text-muted-foreground">×{item.quantity}</span>}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {[
-              item.kind === 'other' ? null : ITEM_KIND_SHORT[item.kind],
-              item.rarity,
-              item.requiresAttunement ? 'attunement' : null,
-              item.consumable ? 'spotřebuje se' : null,
-              item.curse ? (item.curse.revealed ? 'prokletý' : 'skrytá kletba (vidíš jen ty)') : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-            {inactive && item.kind !== 'other' && (
-              <span className="ml-1 font-medium text-amber-700 dark:text-amber-400" data-testid="not-worn">
-                · nenosí se: {item.kind === 'weapon' ? 'nezobrazí se mezi útoky' : item.kind === 'armor' || item.kind === 'shield' ? 'nezapočítá se do AC' : 'bonusy neplatí'}
-              </span>
-            )}
-          </p>
-        </div>
+    <li className={cn('rounded-xl border bg-card', item.consumable && item.quantity < 1 && 'opacity-70')}>
+      <div className="flex items-center gap-1 py-1 pl-1 pr-2">
+        <button
+          type="button"
+          className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring"
+          aria-expanded={open}
+          aria-label={`Podrobnosti: ${item.name}`}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <ChevronRightIcon aria-hidden className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+          <span className="min-w-0">
+            <span className="block truncate font-medium">
+              {item.name}
+              {stacked && <span className="ml-1 font-normal text-muted-foreground">×{item.quantity}</span>}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {[
+                item.kind === 'other' ? null : ITEM_KIND_SHORT[item.kind],
+                item.rarity,
+                item.requiresAttunement ? (item.attuned ? 'attunovaný' : 'vyžaduje attunement') : null,
+                item.curse ? (item.curse.revealed ? 'prokletý' : 'skrytá kletba (vidíš jen ty)') : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+              {status && (
+                <span className="ml-1 font-medium text-amber-700 dark:text-amber-400" data-testid="not-worn">
+                  · {status}
+                </span>
+              )}
+            </span>
+          </span>
+        </button>
         {canEdit && (
-          <div className="flex flex-wrap items-center gap-2">
-            {wearable && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {gear && (
               <Button
                 variant={item.equipped ? 'default' : 'outline'}
                 aria-pressed={item.equipped}
+                title={item.kind === 'weapon' ? 'Zbraň v ruce se ukáže mezi útoky' : 'Nošená zbroj a štít se počítají do AC'}
                 onClick={() => patch({ equipped: !item.equipped })}
               >
                 {item.equipped ? 'Nosím' : 'Nosit'}
-              </Button>
-            )}
-            {!wearable && (
-              <Button
-                variant={item.equipped ? 'default' : 'outline'}
-                aria-pressed={item.equipped}
-                onClick={() => patch({ equipped: !item.equipped })}
-              >
-                {item.equipped ? 'U sebe' : 'Mít u sebe'}
               </Button>
             )}
             {item.requiresAttunement && (
@@ -150,6 +201,11 @@ function ItemRow({ item }: { item: CharacterItem }) {
                 {item.attuned ? 'Attuned' : 'Attune'}
               </Button>
             )}
+            {item.consumable && (
+              <Button disabled={item.quantity < 1 || update.isPending} onClick={() => patch({ quantity: item.quantity - 1 })} aria-label={`Použít ${item.name} (−1 ks)`}>
+                {item.quantity < 1 ? 'Došlo' : 'Použít'}
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -158,24 +214,8 @@ function ItemRow({ item }: { item: CharacterItem }) {
           <ItemChargesControl item={item} />
         </div>
       )}
-      <details className="border-t">
-        <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-muted-foreground">Podrobnosti</summary>
-        <div className="space-y-3 px-3 pb-3 text-sm">
-          {item.effects.length > 0 && (
-            <ul aria-label="Efekty" className="space-y-1">
-              {item.effects.map((e, i) => (
-                <li key={i}>
-                  <strong>{e.value > 0 ? `+${e.value}` : e.value}</strong> {effectLabel(e.target)}
-                  {!item.equipped || (item.requiresAttunement && !item.attuned) ? (
-                    <span className="text-muted-foreground">
-                      {' '}
-                      (neaktivní: {item.requiresAttunement && !item.attuned ? 'chybí attunement' : 'není nošený'})
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+      {open && (
+        <div className="space-y-3 border-t px-3 py-3 text-sm">
           {item.armor && (
             <p>
               AC {item.armor.base}
@@ -190,6 +230,16 @@ function ItemRow({ item }: { item: CharacterItem }) {
               {item.weapon.magicBonus ? `, magický bonus +${item.weapon.magicBonus}` : ''}
               {item.weapon.extraDamage?.length ? `, + ${item.weapon.extraDamage.map((x) => `${x.dice} ${x.type.toLowerCase()}`).join(', + ')}` : ''}
             </p>
+          )}
+          {item.effects.length > 0 && (
+            <ul aria-label="Efekty" className="space-y-1">
+              {item.effects.map((e, i) => (
+                <li key={i}>
+                  <strong>{e.value > 0 ? `+${e.value}` : e.value}</strong> {effectLabel(e.target)}
+                  {notWorn || needsAttunement ? <span className="text-muted-foreground"> (neaktivní: {needsAttunement ? 'chybí attunement' : 'není nošený'})</span> : null}
+                </li>
+              ))}
+            </ul>
           )}
           {item.curse && (
             <div className="space-y-2 rounded-lg border border-red-500/50 bg-red-500/5 p-3" data-testid="curse">
@@ -215,47 +265,43 @@ function ItemRow({ item }: { item: CharacterItem }) {
           )}
           {item.description && <DescriptionText text={item.description} />}
           {item.notes && <NotesText text={item.notes} className="space-y-1 text-muted-foreground" />}
+          {!item.description && !item.notes && !item.armor && !item.weapon && item.effects.length === 0 && !item.curse && (
+            <p className="text-muted-foreground">Bez popisu.</p>
+          )}
           {canEdit && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {item.consumable && (
-                <Button variant="default" disabled={item.quantity < 1 || update.isPending} onClick={() => patch({ quantity: item.quantity - 1 })} aria-label={`Použít ${item.name} (−1 ks)`}>
-                  {item.quantity < 1 ? 'Došlo' : 'Použít'}
+            <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+              <div role="group" aria-label={`Množství: ${item.name}`} className="flex items-center gap-1">
+                <Button variant="outline" size="icon" aria-label="−1 ks" disabled={item.quantity < 1 || update.isPending} onClick={() => patch({ quantity: item.quantity - 1 })}>
+                  <MinusIcon aria-hidden />
                 </Button>
-              )}
-              {item.quantity > 1 && (
-                <>
-                  <Button variant="outline" onClick={() => patch({ quantity: item.quantity - 1 })}>
-                    −1 ks
-                  </Button>
-                  <Button variant="outline" onClick={() => patch({ quantity: item.quantity + 1 })}>
-                    +1 ks
-                  </Button>
-                </>
-              )}
-              {item.quantity <= 1 && (
-                <Button variant="outline" onClick={() => patch({ quantity: item.quantity + 1 })}>
-                  +1 ks
+                <span className="min-w-10 text-center font-semibold tabular-nums" aria-live="polite">
+                  {item.quantity} ks
+                </span>
+                <Button variant="outline" size="icon" aria-label="+1 ks" disabled={update.isPending} onClick={() => patch({ quantity: item.quantity + 1 })}>
+                  <PlusIcon aria-hidden />
                 </Button>
-              )}
-              <Button variant="secondary" onClick={() => setEditing(true)}>
-                Upravit
-              </Button>
-              <Button variant="secondary" onClick={() => setTransferring(true)}>
-                <ArrowLeftRightIcon aria-hidden /> Předat
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={remove.isPending}
-                onClick={() => {
-                  if (window.confirm(`Smazat „${item.name}“?`)) remove.mutate(item.id, { onError: () => toast.error('Item se nepodařilo smazat') })
-                }}
-              >
-                <Trash2Icon aria-hidden /> Smazat
-              </Button>
+              </div>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                  <PencilIcon aria-hidden /> Upravit
+                </Button>
+                <Button variant="secondary" onClick={() => setTransferring(true)}>
+                  <ArrowLeftRightIcon aria-hidden /> Předat
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={remove.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Smazat „${item.name}“?`)) remove.mutate(item.id, { onError: () => toast.error('Item se nepodařilo smazat') })
+                  }}
+                >
+                  <Trash2Icon aria-hidden /> Smazat
+                </Button>
+              </div>
             </div>
           )}
         </div>
-      </details>
+      )}
       <Modal open={editing} onClose={() => setEditing(false)} title={`Upravit: ${item.name}`}>
         {editing && (
           <ItemForm

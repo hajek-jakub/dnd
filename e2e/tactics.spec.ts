@@ -203,7 +203,7 @@ test('střelba z kuše ubírá šípy, bez šípů je útok vypnutý; spotřebov
   // v inventáři má spotřebovatelný item tlačítko Použít
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   const torch = page.getByRole('listitem').filter({ hasText: /^Torch/ }).first()
-  await torch.getByText('Podrobnosti').click()
+  await torch.getByRole('button', { name: /^Podrobnosti:/ }).click()
   await torch.getByRole('button', { name: /^Použít Torch/ }).click()
   await expect(torch).toContainText('×7')
 })

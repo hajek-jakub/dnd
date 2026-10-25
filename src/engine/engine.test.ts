@@ -367,13 +367,18 @@ describe('efekty a attunement', () => {
     ],
   })
 
-  it('item vyžadující attunement působí jen attunovaný a equipnutý', () => {
+  it('item vyžadující attunement působí jen attunovaný; ostatní itemy (ne zbraň, zbroj, štít) nošení nepotřebují', () => {
     expect(computeSheet(makeInput({ items: [ring] }), bundle).ac.value).toBe(10)
     const attuned = computeSheet(makeInput({ items: [{ ...ring, attuned: true }] }), bundle)
     expect(attuned.ac.value).toBe(11)
     expect(attuned.saves.wis.value).toBe(1)
     expect(attuned.ac.sources).toContainEqual({ label: 'Ring of Protection', value: '+1' })
-    expect(computeSheet(makeInput({ items: [{ ...ring, attuned: true, equipped: false }] }), bundle).ac.value).toBe(10)
+    expect(computeSheet(makeInput({ items: [{ ...ring, attuned: true, equipped: false }] }), bundle).ac.value).toBe(11)
+    const boots = item({ id: 'b', name: 'Boots', kind: 'item', equipped: false, effects: [{ target: 'speed', value: 10, source: '' }] })
+    expect(computeSheet(makeInput({ items: [boots] }), bundle).speed.value).toBe(40)
+    // zbraň s efektem působí jen v ruce
+    const sword = item({ id: 's', name: 'Sword', kind: 'weapon', equipped: false, effects: [{ target: 'speed', value: 10, source: '' }] })
+    expect(computeSheet(makeInput({ items: [sword] }), bundle).speed.value).toBe(30)
   })
 
   it('maximálně 3 attunované itemy', () => {

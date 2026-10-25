@@ -53,9 +53,12 @@ test('inventář: itemy z pravidel se promítnou do AC, equip, attunement a efek
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Armor Class: 18\./ })).toBeVisible() // 16 (bez DEX) + štít 2
 
-  // prsten: nejdřív jen nošený (bez attunementu neplatí), pak attunovaný
+  // prsten: postava ho má u sebe, ale bez attunementu neplatí; nosit se nemusí (jen zbraně a zbroj)
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  await row('Ring of Protection').getByRole('button', { name: 'Nosit' }).click()
+  await expect(row('Ring of Protection').getByRole('button', { name: 'Nosit' })).toHaveCount(0)
+  await expect(row('Ring of Protection').getByTestId('not-worn')).toHaveText(/bonusy platí až po attunementu/)
+  await expect(page.getByRole('region', { name: 'Zbraně a zbroj' }).getByRole('listitem')).toHaveCount(2)
+  await expect(page.getByRole('region', { name: 'Magické předměty' })).toContainText('Ring of Protection')
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Armor Class: 18\./ })).toBeVisible()
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
@@ -91,8 +94,9 @@ test('inventář: vlastní item s efektem, množství a smazání', async ({ pag
   await dialog.getByRole('button', { name: 'Přidat item' }).last().click()
   await expect(page.getByText('Item přidán')).toBeVisible()
 
+  // bonus platí rovnou, nic se nenasazuje
   const row = page.getByRole('listitem').filter({ hasText: 'Boty rychlosti' }).first()
-  await row.getByRole('button', { name: 'Nosit' }).click()
+  await expect(row.getByRole('button', { name: /Nosit|u sebe/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Rychlost: 40 ft/ })).toBeVisible()
 
@@ -110,7 +114,7 @@ test('inventář: vlastní item s efektem, množství a smazání', async ({ pag
   // smazání itemu
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   const stone = page.getByRole('listitem').filter({ hasText: 'Kámen' }).first()
-  await stone.getByText('Podrobnosti').click()
+  await stone.getByRole('button', { name: /^Podrobnosti:/ }).click()
   page.once('dialog', (d) => void d.accept())
   await stone.getByRole('button', { name: 'Smazat' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Kámen' })).toHaveCount(0)
@@ -376,7 +380,7 @@ test('náboje: Wand of Wonder má počítadlo v inventáři i v přehledu, dobit
 
   // úprava: jiné maximum a obnova všech, pak bez nábojů
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  await wand.getByText('Podrobnosti').click()
+  await wand.getByRole('button', { name: /^Podrobnosti:/ }).click()
   await wand.getByRole('button', { name: 'Upravit' }).click()
   const form = page.getByRole('dialog', { name: 'Upravit: Wand of Wonder' })
   await form.getByLabel('Počet nábojů').fill('3')
@@ -388,4 +392,49 @@ test('náboje: Wand of Wonder má počítadlo v inventáři i v přehledu, dobit
   await form.getByLabel('Počet nábojů').fill('')
   await form.getByRole('button', { name: 'Uložit' }).click()
   await expect(wand.getByTestId('item-charges')).toHaveCount(0)
+})
+
+test('inventář: skupiny podle druhu, hledání, množství a použití přímo v řádku', async ({ page }) => {
+  const { id } = await openCharacter(page, wizard3, 'invgroups')
+  const items = [
+    { name: 'Dýka', kind: 'weapon', weapon: { damageDice: '1d4', damageType: 'Piercing', category: 'simple', range: 'melee', properties: ['Finesse'] } },
+    { name: 'Lektvar léčení', kind: 'potion', quantity: 2, consumable: true },
+    { name: 'Plášť ochrany', kind: 'wondrous', requiresAttunement: true, effects: [{ target: 'ac', value: 1 }] },
+    { name: 'Lano', kind: 'other' },
+    { name: 'Pochodeň', kind: 'other', quantity: 5, consumable: true },
+    { name: 'Křesadlo', kind: 'other' },
+    { name: 'Deka', kind: 'other' },
+    { name: 'Čutora', kind: 'other' },
+  ]
+  for (const data of items) expect((await page.request.post(`/api/characters/${id}/items`, { data })).ok()).toBeTruthy()
+  await page.goto(`/characters/${id}?tab=inventory`)
+
+  const group = (name: string) => page.getByRole('region', { name })
+  await expect(group('Zbraně a zbroj')).toContainText('Dýka')
+  await expect(group('Magické předměty')).toContainText('Plášť ochrany')
+  await expect(group('Spotřební').getByRole('listitem')).toHaveCount(2)
+  await expect(group('Ostatní vybavení').getByRole('listitem')).toHaveCount(4)
+  await expect(page.getByRole('button', { name: /u sebe/i })).toHaveCount(0)
+
+  // lektvar: Použít přímo v řádku, po posledním „Došlo“
+  const potion = page.getByRole('listitem').filter({ hasText: 'Lektvar léčení' })
+  await potion.getByRole('button', { name: 'Použít Lektvar léčení (−1 ks)' }).click()
+  await expect(potion).toContainText('×1')
+  await potion.getByRole('button', { name: 'Použít Lektvar léčení (−1 ks)' }).click()
+  await expect(potion.getByRole('button', { name: 'Použít Lektvar léčení (−1 ks)' })).toHaveText('Došlo')
+
+  // množství v podrobnostech
+  const rope = page.getByRole('listitem').filter({ hasText: 'Lano' })
+  await rope.getByRole('button', { name: 'Podrobnosti: Lano' }).click()
+  await expect(rope.getByRole('button', { name: 'Podrobnosti: Lano' })).toHaveAttribute('aria-expanded', 'true')
+  await rope.getByRole('button', { name: '+1 ks' }).click()
+  await expect(rope).toContainText('×2')
+
+  // hledání bez diakritiky
+  await page.getByLabel('Hledat v inventáři').fill('cutora')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Čutora' })).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Dýka' })).toHaveCount(0)
+  await page.getByLabel('Hledat v inventáři').fill('nic takového')
+  await expect(page.getByText('Nic takového postava nemá.')).toBeVisible()
+  await expectNoHorizontalScroll(page)
 })

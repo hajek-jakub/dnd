@@ -33,7 +33,7 @@ test('item a peníze se předají mezi postavami, příjemce je uvidí a limity 
     await dm.goto(`/characters/${dmChar}`)
     await dm.getByRole('button', { name: 'Inventář', exact: true }).click()
     const row = dm.getByRole('listitem').filter({ hasText: 'Magická dýka' }).first()
-    await row.getByText('Podrobnosti').click()
+    await row.getByRole('button', { name: /^Podrobnosti:/ }).click()
     await row.getByRole('button', { name: 'Předat' }).click()
     const dialog = dm.getByRole('dialog', { name: 'Předat: Magická dýka' })
     await dialog.getByLabel('Komu').selectOption({ label: 'Příjemce' })
