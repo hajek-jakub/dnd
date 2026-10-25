@@ -11,6 +11,7 @@ import { RichText } from '@/components/RichText'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { DescriptionText } from '@/features/rules/DescriptionText'
+import { unusedArmor } from './armor-hints'
 import { hasCharges } from './charges'
 import { effectLabel } from './effects'
 import { ItemChargesControl } from './ItemChargesControl'
@@ -34,7 +35,7 @@ const GROUPS: { key: GroupKey; title: string }[] = [
   { key: 'other', title: 'Ostatní vybavení' },
 ]
 
-/** Zbraň, zbroj a štít se nosí (útoky, AC); ostatní itemy má postava prostě u sebe a jejich bonusy platí samy. */
+/** Zbraně, zbroj a štíty (útoky, AC). Nic se nenasazuje: postava má u sebe všechno a engine z toho vybere nejlepší AC. */
 const isGear = (i: CharacterItem) => i.kind === 'weapon' || i.kind === 'armor' || i.kind === 'shield'
 
 function groupOf(i: CharacterItem): GroupKey {
@@ -56,8 +57,7 @@ export function InventoryTab() {
   const shown = q ? items.filter((i) => fold(i.name).includes(q)) : items
   const groups = GROUPS.map((g) => ({
     ...g,
-    // nošené zbraně a zbroj nahoře, jinak abecedně
-    items: shown.filter((i) => groupOf(i) === g.key).sort((a, b) => (g.key === 'gear' ? Number(b.equipped) - Number(a.equipped) : 0) || byName(a, b)),
+    items: shown.filter((i) => groupOf(i) === g.key).sort(byName),
   })).filter((g) => g.items.length > 0)
 
   return (
@@ -133,14 +133,10 @@ function ItemRow({ item }: { item: CharacterItem }) {
   const patch = (p: ItemInput) =>
     update.mutate({ itemId: item.id, patch: p }, { onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Změna se nepodařila.') })
   const attuneBlocked = !item.attuned && sheet.attunement.used >= sheet.attunement.max
-  const gear = isGear(item)
-  const notWorn = gear && !item.equipped
   const needsAttunement = item.requiresAttunement && !item.attuned
   const stacked = item.quantity !== 1 || item.consumable
-  const status = notWorn
-    ? item.kind === 'weapon'
-      ? 'není v ruce: chybí mezi útoky'
-      : 'nenosí se: nezapočítá se do AC'
+  const status = unusedArmor([item], sheet).length > 0
+    ? 'nepočítá se do AC: bez toho máš AC stejné nebo lepší'
     : needsAttunement && (item.effects.length > 0 || item.armor?.magicBonus || item.weapon?.magicBonus)
       ? 'bonusy platí až po attunementu'
       : null
@@ -180,16 +176,6 @@ function ItemRow({ item }: { item: CharacterItem }) {
         </button>
         {canEdit && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            {gear && (
-              <Button
-                variant={item.equipped ? 'default' : 'outline'}
-                aria-pressed={item.equipped}
-                title={item.kind === 'weapon' ? 'Zbraň v ruce se ukáže mezi útoky' : 'Nošená zbroj a štít se počítají do AC'}
-                onClick={() => patch({ equipped: !item.equipped })}
-              >
-                {item.equipped ? 'Nosím' : 'Nosit'}
-              </Button>
-            )}
             {item.requiresAttunement && (
               <Button
                 variant={item.attuned ? 'default' : 'outline'}
@@ -236,7 +222,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
               {item.effects.map((e, i) => (
                 <li key={i}>
                   <strong>{e.value > 0 ? `+${e.value}` : e.value}</strong> {effectLabel(e.target)}
-                  {notWorn || needsAttunement ? <span className="text-muted-foreground"> (neaktivní: {needsAttunement ? 'chybí attunement' : 'není nošený'})</span> : null}
+                  {needsAttunement ? <span className="text-muted-foreground"> (neaktivní: chybí attunement)</span> : null}
                 </li>
               ))}
             </ul>

@@ -27,7 +27,7 @@ export function ComputedValue({
   className?: string
   /** Vlastní obsah tlačítka místo samotné hodnoty. */
   children?: ReactNode
-  /** Upozornění v detailu (např. zbroj v batohu, kterou postava nenosí). */
+  /** Upozornění v detailu (např. zbroj v batohu, která se do AC nepočítá). */
   hints?: string[]
 }) {
   const { canEdit, setOverride } = useSheet()

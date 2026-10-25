@@ -47,15 +47,14 @@ test('inventář: itemy z pravidel se promítnou do AC, equip, attunement a efek
   await addFromRules(page, 'Ring of Protection')
   await expect(page.getByRole('status', { name: 'Attunement: 0 ze 3' })).toBeVisible()
 
+  // nic se nenasazuje: zbroj a štít z inventáře se do AC počítají samy
   const row = (name: string) => page.getByRole('listitem').filter({ hasText: name }).first()
-  await row('Chain Mail').getByRole('button', { name: 'Nosit' }).click()
-  await row('Shield').getByRole('button', { name: 'Nosit' }).click()
+  await expect(page.getByRole('button', { name: /^(Nosit|Nosím)$/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Armor Class: 18\./ })).toBeVisible() // 16 (bez DEX) + štít 2
 
-  // prsten: postava ho má u sebe, ale bez attunementu neplatí; nosit se nemusí (jen zbraně a zbroj)
+  // prsten: postava ho má u sebe, ale bez attunementu neplatí
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  await expect(row('Ring of Protection').getByRole('button', { name: 'Nosit' })).toHaveCount(0)
   await expect(row('Ring of Protection').getByTestId('not-worn')).toHaveText(/bonusy platí až po attunementu/)
   await expect(page.getByRole('region', { name: 'Zbraně a zbroj' }).getByRole('listitem')).toHaveCount(2)
   await expect(page.getByRole('region', { name: 'Magické předměty' })).toContainText('Ring of Protection')
@@ -71,9 +70,12 @@ test('inventář: itemy z pravidel se promítnou do AC, equip, attunement a efek
   await expect(detail.getByText('Chain Mail')).toBeVisible()
   await detail.getByRole('button', { name: 'Zavřít' }).click()
 
-  // sundání zbroje vrátí AC
+  // bez zbroje (smazaná) se AC vrátí
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
-  await row('Chain Mail').getByRole('button', { name: 'Nosím' }).click()
+  await row('Chain Mail').getByRole('button', { name: 'Podrobnosti: Chain Mail' }).click()
+  page.once('dialog', (d) => void d.accept())
+  await row('Chain Mail').getByRole('button', { name: 'Smazat' }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Chain Mail' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Armor Class: 15\./ })).toBeVisible() // 10 + DEX 2 + štít 2 + prsten 1
   await expectNoHorizontalScroll(page)
@@ -96,7 +98,7 @@ test('inventář: vlastní item s efektem, množství a smazání', async ({ pag
 
   // bonus platí rovnou, nic se nenasazuje
   const row = page.getByRole('listitem').filter({ hasText: 'Boty rychlosti' }).first()
-  await expect(row.getByRole('button', { name: /Nosit|u sebe/ })).toHaveCount(0)
+  await expect(row.getByRole('button', { name: /Nosit|Nosím|u sebe/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Rychlost: 40 ft/ })).toBeVisible()
 

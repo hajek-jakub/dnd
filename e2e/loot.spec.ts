@@ -180,15 +180,14 @@ test('AC: magická zbroj z pravidel s předvybraným základem změní AC NPC (B
   await expect(page.getByText('Přidáno: Dwarven Plate')).toBeVisible()
   await dialog.getByRole('button', { name: 'Zavřít' }).click()
 
-  // zbroj se rovnou nosí: 18 + magický bonus 2
-  await expect(page.getByRole('listitem').filter({ hasText: 'Dwarven Plate' }).first().getByRole('button', { name: 'Nosím' })).toBeVisible()
+  // zbroj se počítá sama: 18 + magický bonus 2
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
   await page.getByRole('button', { name: /^Armor Class: 20\./ }).click()
   const detail = page.getByRole('dialog', { name: 'Armor Class' })
   await expect(detail.getByText('Dwarven Plate: magický bonus')).toBeVisible()
   await detail.getByRole('button', { name: 'Zavřít' }).click()
 
-  // obecná Armor, +1 si základ nechá vybrat; vznikne druhá zbroj, kterou postava nenosí → upozornění v detailu AC
+  // obecná Armor, +1 si základ nechá vybrat; druhá, horší zbroj se do AC nepočítá a řádek to řekne
   await page.getByRole('button', { name: 'Inventář', exact: true }).click()
   await page.getByRole('button', { name: 'Přidat item' }).click()
   await dialog.getByLabel('Hledat item').fill('Armor, +1')
@@ -198,6 +197,8 @@ test('AC: magická zbroj z pravidel s předvybraným základem změní AC NPC (B
   await step.getByRole('button', { name: 'Přidat' }).click()
   await expect(page.getByText('Přidáno: Armor, +1 (Chain Mail)')).toBeVisible()
   await dialog.getByRole('button', { name: 'Zavřít' }).click()
-  await expect(page.getByRole('listitem').filter({ hasText: 'Armor, +1 (Chain Mail)' }).first().getByRole('button', { name: 'Nosit' })).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Armor, +1 (Chain Mail)' }).first().getByTestId('not-worn')).toHaveText(/nepočítá se do AC/)
+  await page.getByRole('button', { name: 'Přehled', exact: true }).click()
+  await expect(page.getByRole('button', { name: /^Armor Class: 20\./ })).toBeVisible()
   await expectNoHorizontalScroll(page)
 })

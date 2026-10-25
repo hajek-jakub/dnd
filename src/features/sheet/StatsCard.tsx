@@ -1,6 +1,7 @@
-import { formatModifier } from '@/engine'
+import { formatModifier, type ComputedSheet } from '@/engine'
 import { RollButton } from '@/features/dice/RollButton'
 import { d20 } from '@/features/dice/format'
+import { unusedArmor } from './armor-hints'
 import { ComputedValue } from './ComputedValue'
 import { cn } from '@/lib/utils'
 import { useSheet } from './sheet-context'
@@ -12,7 +13,7 @@ export function StatsCard() {
   return (
     <section aria-label="Klíčové hodnoty" className="grid grid-cols-6 gap-2 sm:grid-cols-5">
       <Stat label="AC">
-        <ComputedValue title="Armor Class" computed={sheet.ac} overrideKey="ac" className="w-full text-2xl" hints={acHints(character.items)} />
+        <ComputedValue title="Armor Class" computed={sheet.ac} overrideKey="ac" className="w-full text-2xl" hints={acHints(character.items, sheet)} />
       </Stat>
       <Stat label="Iniciativa">
         <ComputedValue title="Iniciativa" computed={sheet.initiative} overrideKey="initiative" format={formatModifier} className="w-full text-2xl" />
@@ -37,20 +38,12 @@ export function StatsCard() {
   )
 }
 
-/** Zbroj nebo štít v batohu, když postava nic takového nenosí: do AC se nepočítá (častý důvod, proč se AC „nezměnilo“). */
-function acHints(items: CharacterItem[]): string[] {
-  const hints: string[] = []
-  for (const [kind, what] of [
-    ['armor', 'zbroj'],
-    ['shield', 'štít'],
-  ] as const) {
-    const worn = items.some((i) => i.kind === kind && i.equipped && i.armor)
-    const carried = items.filter((i) => i.kind === kind && !i.equipped && i.armor)
-    if (!worn && carried.length > 0) {
-      hints.push(`V batohu je ${what} ${carried.map((i) => i.name).join(', ')}, ale postava ji nenosí, takže se do AC nepočítá. Nasadit jde v Inventáři tlačítkem „Nosit“.`)
-    }
-  }
-  return hints
+/** Zbroj nebo štít v inventáři, který se do AC nepočítá (častý dotaz, proč se AC „nezměnilo“). */
+function acHints(items: CharacterItem[], sheet: ComputedSheet): string[] {
+  const unused = unusedArmor(items, sheet)
+  return unused.length > 0
+    ? [`Do AC se nepočítá ${unused.map((i) => i.name).join(', ')}: bez toho vychází AC stejně nebo lépe (třeba Unarmored Defense), takže to postava jen nese.`]
+    : []
 }
 
 /** Dlaždice hodnoty: popisek vždy nahoře, ať jsou popisky i čísla v řadě ve stejné výšce (iniciativa má navíc dole tlačítko Hod). */

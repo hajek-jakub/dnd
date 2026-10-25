@@ -42,12 +42,12 @@ export function groupClasses(input: Pick<CharacterInput, 'levels' | 'subclasses'
 }
 
 /**
- * Efekty, které se opravdu uplatní: DM efekty a efekty itemů. Zbraň, zbroj a štít musí postava nosit; ostatní itemy (prsten, plášť,
- * boty…) působí, jakmile je postava má (inventář nerozlišuje „u sebe“), u attunement itemů až po attunementu.
+ * Efekty, které se opravdu uplatní: DM efekty a efekty itemů. Inventář nerozlišuje, co postava nosí: efekt itemu platí, jakmile ho
+ * postava má, u attunement itemů až po attunementu.
  */
 export function activeEffects(input: Pick<CharacterInput, 'effects' | 'items'>): Effect[] {
   const fromItems = input.items
-    .filter((i) => (i.kind === 'item' || i.equipped) && (!i.requiresAttunement || i.attuned))
+    .filter((i) => !i.requiresAttunement || i.attuned)
     .flatMap((i) => i.effects.map((e) => ({ ...e, source: e.source || i.name })))
   return [...input.effects, ...fromItems]
 }
@@ -153,106 +153,119 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
   )
 
   // --- vybavení pro AC, rychlost a martial arts
-  // Zbroj a štít se počítají jen nošené a s hodnotami (stejně pro AC, Unarmored Defense, rychlost i martial arts); z víc nošených ten nejlepší.
+  // Inventář nerozlišuje, co postava nosí: ze zbrojí a štítů s hodnotami se vezme kombinace s nejvyšším AC (i „bez zbroje“ nebo „bez štítu“),
+  // při shodě ta s méně kusy, takže mnich zůstane bez zbroje (Unarmored Defense, Martial Arts, Unarmored Movement).
   // Magický bonus itemu s attunementem platí až po attunementu (Demon Armor, Sun Blade), základní AC zbroje platí vždy.
   const dex = mod('dex')
   const attunementOk = (i: InventoryItem) => !i.requiresAttunement || i.attuned
   const magicOf = (i: InventoryItem, bonus: number | undefined) => (attunementOk(i) ? (bonus ?? 0) : 0)
   const armorDex = (a: NonNullable<InventoryItem['armor']>) => (a.dexBonus ? (a.maxDexBonus == null ? dex : Math.min(dex, a.maxDexBonus)) : 0)
-  const armorAc = (i: InventoryItem) => (i.armor ? i.armor.base + armorDex(i.armor) + magicOf(i, i.armor.magicBonus) : 0)
-  const bestOf = (list: InventoryItem[]) => list.reduce<InventoryItem | undefined>((b, i) => (b === undefined || armorAc(i) > armorAc(b) ? i : b), undefined)
-  const equipped = input.items.filter((i) => i.equipped)
-  const armor = bestOf(equipped.filter((i) => i.kind === 'armor' && i.armor))
-  const shield = bestOf(equipped.filter((i) => i.kind === 'shield' && i.armor))
-  const heavyArmor = !!armor?.armor && !armor.armor.dexBonus
 
   // --- AC
-  const acSources: Source[] = []
-  let acBase: number
-  if (armor?.armor) {
-    const a = armor.armor
-    const dexPart = armorDex(a)
-    const magic = magicOf(armor, a.magicBonus)
-    acBase = a.base + dexPart + magic
-    acSources.push({ label: armor.name, value: a.base })
-    if (a.dexBonus) acSources.push({ label: `DEX${a.maxDexBonus != null ? ` (max ${a.maxDexBonus})` : ''}`, value: signed(dexPart) })
-    if (magic) acSources.push({ label: `${armor.name}: magický bonus`, value: signed(magic) })
-  } else {
-    // Bez zbroje: základ 10 + DEX; barbar, mnich a draconic sorcerer mají vlastní vzorec (bere se nejvýhodnější).
-    const options: { label: string; value: number; parts: Source[] }[] = [
-      {
-        label: 'Bez zbroje',
-        value: 10 + dex,
-        parts: [
-          { label: 'Základ', value: 10 },
-          { label: 'DEX', value: signed(dex) },
-        ],
-      },
-    ]
-    if (classes.some((c) => c.classIndex === 'barbarian')) {
-      options.push({
-        label: 'Unarmored Defense (barbar)',
-        value: 10 + dex + mod('con'),
-        parts: [
-          { label: 'Unarmored Defense: základ', value: 10 },
-          { label: 'DEX', value: signed(dex) },
-          { label: 'CON', value: signed(mod('con')) },
-        ],
-      })
-    }
-    if (classes.some((c) => c.classIndex === 'monk') && !shield) {
-      options.push({
-        label: 'Unarmored Defense (mnich)',
-        value: 10 + dex + mod('wis'),
-        parts: [
-          { label: 'Unarmored Defense: základ', value: 10 },
-          { label: 'DEX', value: signed(dex) },
-          { label: 'WIS', value: signed(mod('wis')) },
-        ],
-      })
-    }
-    // Draconic Resilience (sorcerer, Draconic Bloodline): 2014 13 + DEX, 2024 (od 3. levelu) 10 + DEX + CHA; štít smí.
-    const draconic = classes.find((c) => c.classIndex === 'sorcerer' && c.subclassIndex === 'draconic')
-    if (draconic && ruleset !== '2024') {
-      options.push({
-        label: 'Draconic Resilience',
-        value: 13 + dex,
-        parts: [
-          { label: 'Draconic Resilience: základ', value: 13 },
-          { label: 'DEX', value: signed(dex) },
-        ],
-      })
-    } else if (draconic && draconic.level >= 3) {
-      options.push({
-        label: 'Draconic Resilience',
-        value: 10 + dex + mod('cha'),
-        parts: [
-          { label: 'Draconic Resilience: základ', value: 10 },
-          { label: 'DEX', value: signed(dex) },
-          { label: 'CHA', value: signed(mod('cha')) },
-        ],
-      })
-    }
-    const best = options.reduce((a, b) => (b.value > a.value ? b : a))
-    acBase = best.value
-    acSources.push(...best.parts)
+  const acWith = (armor: InventoryItem | undefined, shield: InventoryItem | undefined): { value: number; sources: Source[] } => {
+    const acSources: Source[] = []
+    let acBase: number
+      if (armor?.armor) {
+        const a = armor.armor
+        const dexPart = armorDex(a)
+        const magic = magicOf(armor, a.magicBonus)
+        acBase = a.base + dexPart + magic
+        acSources.push({ label: armor.name, value: a.base })
+        if (a.dexBonus) acSources.push({ label: `DEX${a.maxDexBonus != null ? ` (max ${a.maxDexBonus})` : ''}`, value: signed(dexPart) })
+        if (magic) acSources.push({ label: `${armor.name}: magický bonus`, value: signed(magic) })
+      } else {
+        // Bez zbroje: základ 10 + DEX; barbar, mnich a draconic sorcerer mají vlastní vzorec (bere se nejvýhodnější).
+        const options: { label: string; value: number; parts: Source[] }[] = [
+          {
+            label: 'Bez zbroje',
+            value: 10 + dex,
+            parts: [
+              { label: 'Základ', value: 10 },
+              { label: 'DEX', value: signed(dex) },
+            ],
+          },
+        ]
+        if (classes.some((c) => c.classIndex === 'barbarian')) {
+          options.push({
+            label: 'Unarmored Defense (barbar)',
+            value: 10 + dex + mod('con'),
+            parts: [
+              { label: 'Unarmored Defense: základ', value: 10 },
+              { label: 'DEX', value: signed(dex) },
+              { label: 'CON', value: signed(mod('con')) },
+            ],
+          })
+        }
+        if (classes.some((c) => c.classIndex === 'monk') && !shield) {
+          options.push({
+            label: 'Unarmored Defense (mnich)',
+            value: 10 + dex + mod('wis'),
+            parts: [
+              { label: 'Unarmored Defense: základ', value: 10 },
+              { label: 'DEX', value: signed(dex) },
+              { label: 'WIS', value: signed(mod('wis')) },
+            ],
+          })
+        }
+        // Draconic Resilience (sorcerer, Draconic Bloodline): 2014 13 + DEX, 2024 (od 3. levelu) 10 + DEX + CHA; štít smí.
+        const draconic = classes.find((c) => c.classIndex === 'sorcerer' && c.subclassIndex === 'draconic')
+        if (draconic && ruleset !== '2024') {
+          options.push({
+            label: 'Draconic Resilience',
+            value: 13 + dex,
+            parts: [
+              { label: 'Draconic Resilience: základ', value: 13 },
+              { label: 'DEX', value: signed(dex) },
+            ],
+          })
+        } else if (draconic && draconic.level >= 3) {
+          options.push({
+            label: 'Draconic Resilience',
+            value: 10 + dex + mod('cha'),
+            parts: [
+              { label: 'Draconic Resilience: základ', value: 10 },
+              { label: 'DEX', value: signed(dex) },
+              { label: 'CHA', value: signed(mod('cha')) },
+            ],
+          })
+        }
+        const best = options.reduce((a, b) => (b.value > a.value ? b : a))
+        acBase = best.value
+        acSources.push(...best.parts)
+      }
+      if (shield?.armor) {
+        const bonus = shield.armor.base + magicOf(shield, shield.armor.magicBonus)
+        acBase += bonus
+        acSources.push({ label: shield.name, value: signed(bonus) })
+      }
+      // Ať je v rozpisu vidět, proč se něco nepočítá.
+      for (const i of [armor, shield]) {
+        if (i?.armor?.magicBonus && !attunementOk(i)) acSources.push({ label: `${i.name}: magický bonus až po attunementu`, value: 'neplatí' })
+      }
+      // Podmíněné bonusy: ac.armored jen ve zbroji (Fighting Style: Defense), ac.unarmored jen bez zbroje a štítu (Bracers of Defense).
+      const acTargets = ['ac', ...(armor ? ['ac.armored'] : []), ...(!armor && !shield ? ['ac.unarmored'] : [])]
+      acBase += sumEffects(...acTargets)
+      acSources.push(...effectSources(...acTargets))
+    return { value: acBase, sources: acSources }
   }
-  if (shield?.armor) {
-    const bonus = shield.armor.base + magicOf(shield, shield.armor.magicBonus)
-    acBase += bonus
-    acSources.push({ label: shield.name, value: signed(bonus) })
+  const armorChoices = [undefined, ...input.items.filter((i) => i.kind === 'armor' && i.armor)]
+  const shieldChoices = [undefined, ...input.items.filter((i) => i.kind === 'shield' && i.armor)]
+  let gear: { armor: InventoryItem | undefined; shield: InventoryItem | undefined; value: number; sources: Source[] } | undefined
+  for (const a of armorChoices) {
+    for (const sh of shieldChoices) {
+      const r = acWith(a, sh)
+      const pieces = Number(a !== undefined) + Number(sh !== undefined)
+      const gearPieces = gear ? Number(gear.armor !== undefined) + Number(gear.shield !== undefined) : 0
+      if (!gear || r.value > gear.value || (r.value === gear.value && pieces < gearPieces)) gear = { armor: a, shield: sh, ...r }
+    }
   }
-  // Ať je v rozpisu vidět, proč se něco nepočítá.
-  for (const i of [armor, shield]) {
-    if (i?.armor?.magicBonus && !attunementOk(i)) acSources.push({ label: `${i.name}: magický bonus až po attunementu`, value: 'neplatí' })
-  }
-  for (const i of equipped) {
+  const { armor, shield } = gear!
+  const heavyArmor = !!armor?.armor && !armor.armor.dexBonus
+  const acSources = gear!.sources
+  for (const i of input.items) {
     if ((i.kind === 'armor' || i.kind === 'shield') && !i.armor) acSources.push({ label: `${i.name}: chybí hodnoty zbroje`, value: 'nepočítá se' })
   }
-  // Podmíněné bonusy: ac.armored jen ve zbroji (Fighting Style: Defense), ac.unarmored jen bez zbroje a štítu (Bracers of Defense).
-  const acTargets = ['ac', ...(armor ? ['ac.armored'] : []), ...(!armor && !shield ? ['ac.unarmored'] : [])]
-  acBase += sumEffects(...acTargets)
-  acSources.push(...effectSources(...acTargets))
+  const acBase = gear!.value
   const ac = makeComputed('ac', acBase, acSources, ov)
 
   // --- rychlost
@@ -431,7 +444,7 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
     })
   }
   addAttack('unarmed', 'Unarmed Strike', null)
-  for (const w of equipped.filter((i) => i.kind === 'weapon' && i.weapon)) addAttack(w.id, w.name, w)
+  for (const w of input.items.filter((i) => i.kind === 'weapon' && i.weapon)) addAttack(w.id, w.name, w)
 
   // --- sesílání
   const spellClasses: SpellcastingClassInfo[] = []

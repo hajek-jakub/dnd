@@ -49,6 +49,7 @@ test('vytvoření postavy, klikání HP, přepis hodnoty, odpočinek a featury',
   await expect(page.getByRole('status', { name: 'Životy: 33 z 33' })).toBeVisible()
   await page.getByRole('button', { name: 'Poškození 5' }).click()
   await expect(page.getByRole('status', { name: 'Životy: 28 z 33' })).toBeVisible()
+  await expect(page.getByTestId('hp-percent')).toHaveText('85 %')
   await page.getByRole('button', { name: 'Léčení 1' }).click()
   await expect(page.getByRole('status', { name: 'Životy: 29 z 33' })).toBeVisible()
   await page.reload()

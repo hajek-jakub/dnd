@@ -16,7 +16,7 @@ export function HpCard() {
   const temp = character.state.hpTemp
   const [amount, setAmount] = useState('')
   const amountNumber = Number.parseInt(amount, 10)
-  const percent = Math.max(0, Math.min(100, Math.round((hpCurrent / max) * 100)))
+  const percent = max > 0 ? Math.max(0, Math.min(100, Math.round((hpCurrent / max) * 100))) : 0
   const hp = (delta: number) => adjust([{ op: 'hp', delta, max }])
   const down = hpCurrent === 0
 
@@ -35,17 +35,28 @@ export function HpCard() {
           <p
             className="text-5xl font-bold tabular-nums"
             role="status"
-            aria-label={`Životy: ${hpCurrent} z ${max}${temp ? `, dočasných ${temp}` : ''}`}
+            aria-label={`Životy: ${hpCurrent} z ${max} (${percent} %)${temp ? `, dočasných ${temp}` : ''}`}
           >
             {hpCurrent}
             <span className="text-2xl font-normal text-muted-foreground"> / {max}</span>
           </p>
           {temp > 0 && <p className="text-sm text-sky-600 dark:text-sky-400">+ {temp} dočasných</p>}
-          <div className="mx-auto mt-2 h-2 max-w-xs overflow-hidden rounded-full bg-muted" aria-hidden>
-            <div
-              className={cn('h-full transition-all', percent > 50 ? 'bg-green-500' : percent > 25 ? 'bg-amber-500' : 'bg-red-500')}
-              style={{ width: `${percent}%` }}
-            />
+          <div className="mx-auto mt-2 flex max-w-xs items-center gap-2">
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+              <div
+                className={cn('h-full transition-all', percent > 50 ? 'bg-green-500' : percent > 25 ? 'bg-amber-500' : 'bg-red-500')}
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <span
+              data-testid="hp-percent"
+              className={cn(
+                'min-w-12 text-right text-sm font-semibold tabular-nums',
+                percent > 50 ? 'text-green-700 dark:text-green-400' : percent > 25 ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400',
+              )}
+            >
+              {percent} %
+            </span>
           </div>
         </div>
 

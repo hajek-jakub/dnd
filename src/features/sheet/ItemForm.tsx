@@ -359,7 +359,7 @@ export function ItemForm({
       )}
 
       <fieldset className="space-y-2 rounded-lg border p-3">
-        <legend className="px-1 text-sm font-medium">Efekty (bonusy při nošení)</legend>
+        <legend className="px-1 text-sm font-medium">Efekty (bonusy itemu)</legend>
         {s.effects.map((e, i) => (
           <div key={i} className="flex items-center gap-2">
             <NativeSelect
@@ -410,7 +410,7 @@ export function ItemForm({
         <Button type="button" variant="outline" onClick={() => set('effects', [...s.effects, { target: 'ac', value: 1, source: '' }])}>
           <PlusIcon aria-hidden /> Přidat efekt
         </Button>
-        <p className="text-xs text-muted-foreground">Efekty se započítají jen, když je item nošený (a u itemů s attunementem i attunovaný).</p>
+        <p className="text-xs text-muted-foreground">Efekty platí, jakmile postava item má (u itemů s attunementem až po attunementu).</p>
       </fieldset>
 
       <div className="space-y-2">

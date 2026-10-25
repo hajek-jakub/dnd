@@ -221,13 +221,13 @@ describe('AC', () => {
     expect(computeSheet(withShield, bundle).ac.value).toBe(17)
   })
 
-  it('mnich se štítem ztratí Unarmored Defense', () => {
-    const input = makeInput({
-      levels: levelsOf(['monk', 3]),
-      scores: { dex: 16, wis: 16 },
-      items: [item({ id: 's', name: 'Shield', kind: 'shield', armor: { base: 2, dexBonus: false, maxDexBonus: null } })],
-    })
-    expect(computeSheet(input, bundle).ac.value).toBe(10 + 3 + 2) // 10 + DEX + štít
+  it('mnich se štítem by ztratil Unarmored Defense: počítá se lepší z obou', () => {
+    const shield = [item({ id: 's', name: 'Shield', kind: 'shield', armor: { base: 2, dexBonus: false, maxDexBonus: null } })]
+    const wise = computeSheet(makeInput({ levels: levelsOf(['monk', 3]), scores: { dex: 16, wis: 16 }, items: shield }), bundle).ac
+    expect(wise.value).toBe(10 + 3 + 3) // Unarmored Defense, štít zůstane v batohu
+    expect(wise.sources.map((x) => x.label)).not.toContain('Shield')
+    const plain = computeSheet(makeInput({ levels: levelsOf(['monk', 3]), scores: { dex: 16, wis: 10 }, items: shield }), bundle).ac
+    expect(plain.value).toBe(10 + 3 + 2) // 10 + DEX + štít je víc než 10 + DEX + WIS 0
   })
 
   it('zbroj respektuje limit DEX a těžká zbroj DEX ignoruje', () => {
@@ -240,9 +240,9 @@ describe('AC', () => {
     expect(computeSheet(makeInput({ scores, items: [leather] }), bundle).ac.value).toBe(15)
   })
 
-  it('neequipnutá zbroj se nepočítá', () => {
+  it('zbroj z inventáře se počítá bez nošení (příznak equipped nehraje roli)', () => {
     const plate = item({ id: 'a', name: 'Plate', kind: 'armor', equipped: false, armor: { base: 18, dexBonus: false, maxDexBonus: null } })
-    expect(computeSheet(makeInput({ items: [plate] }), bundle).ac.value).toBe(10)
+    expect(computeSheet(makeInput({ items: [plate] }), bundle).ac.value).toBe(18)
   })
 
   it('magická zbroj +1 a bonus od DM se propíšou s původem', () => {
@@ -291,13 +291,18 @@ describe('AC', () => {
     expect(sheet.speed.value).toBe(40) // Unarmored Movement zůstává
   })
 
-  it('mnich ve zbroji přijde o Unarmored Defense, Unarmored Movement i Martial Arts', () => {
+  it('mnich: horší zbroj v batohu nic nemění, lepší zbroj obleče a přijde o Unarmored Defense, Unarmored Movement i Martial Arts', () => {
     const leather = item({ id: 'l', name: 'Leather', kind: 'armor', armor: { base: 11, dexBonus: true, maxDexBonus: null } })
+    const plate = item({ id: 'p', name: 'Plate', kind: 'armor', armor: { base: 18, dexBonus: false, maxDexBonus: null } })
     const base = makeInput({ levels: levelsOf(['monk', 5]), scores: { str: 10, dex: 16, wis: 16 } })
     const free = computeSheet(base, bundle)
     expect(free.attacks.find((a) => a.name === 'Unarmed Strike')?.damageDice).toBe('1d6')
-    const armored = computeSheet({ ...base, items: [leather] }, bundle)
-    expect(armored.ac.value).toBe(11 + 3)
+    const carrying = computeSheet({ ...base, items: [leather] }, bundle)
+    expect(carrying.ac.value).toBe(10 + 3 + 3)
+    expect(carrying.speed.value).toBe(40)
+    expect(carrying.attacks.find((a) => a.name === 'Unarmed Strike')?.damageDice).toBe('1d6')
+    const armored = computeSheet({ ...base, items: [leather, plate] }, bundle)
+    expect(armored.ac.value).toBe(18)
     expect(armored.speed.value).toBe(30)
     const unarmed = armored.attacks.find((a) => a.name === 'Unarmed Strike')
     expect(unarmed?.damageDice).not.toBe('1d6')
@@ -367,7 +372,7 @@ describe('efekty a attunement', () => {
     ],
   })
 
-  it('item vyžadující attunement působí jen attunovaný; ostatní itemy (ne zbraň, zbroj, štít) nošení nepotřebují', () => {
+  it('item vyžadující attunement působí jen attunovaný; nošení se nerozlišuje', () => {
     expect(computeSheet(makeInput({ items: [ring] }), bundle).ac.value).toBe(10)
     const attuned = computeSheet(makeInput({ items: [{ ...ring, attuned: true }] }), bundle)
     expect(attuned.ac.value).toBe(11)
@@ -376,9 +381,8 @@ describe('efekty a attunement', () => {
     expect(computeSheet(makeInput({ items: [{ ...ring, attuned: true, equipped: false }] }), bundle).ac.value).toBe(11)
     const boots = item({ id: 'b', name: 'Boots', kind: 'item', equipped: false, effects: [{ target: 'speed', value: 10, source: '' }] })
     expect(computeSheet(makeInput({ items: [boots] }), bundle).speed.value).toBe(40)
-    // zbraň s efektem působí jen v ruce
     const sword = item({ id: 's', name: 'Sword', kind: 'weapon', equipped: false, effects: [{ target: 'speed', value: 10, source: '' }] })
-    expect(computeSheet(makeInput({ items: [sword] }), bundle).speed.value).toBe(30)
+    expect(computeSheet(makeInput({ items: [sword] }), bundle).speed.value).toBe(40)
   })
 
   it('maximálně 3 attunované itemy', () => {
