@@ -85,6 +85,12 @@ export function LeafletMap({ imageUrl, width, height, pins, selectedId, addMode,
     }
   }, [pins, selectedId, moveMode, width, height])
 
+  // Kurzor křížku přes třídu Leafletu: className prvku mapy nesmí měnit React, přepsal by třídy, které tam dal Leaflet
+  // (bez `leaflet-container` zmizí obrázek a klepnutí do mapy nefunguje).
+  useEffect(() => {
+    map.current?.getContainer().classList.toggle('leaflet-crosshair', addMode)
+  }, [addMode, imageUrl, width, height])
+
   // Výběr ze seznamu bodů přiblíží mapu na bod.
   useEffect(() => {
     if (!focus || !map.current) return
@@ -94,5 +100,5 @@ export function LeafletMap({ imageUrl, width, height, pins, selectedId, addMode,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus])
 
-  return <div ref={el} data-testid="map-canvas" data-add-mode={addMode} className={`isolate z-0 h-[60dvh] min-h-80 w-full rounded-xl border bg-muted ${addMode ? 'cursor-crosshair' : ''}`} />
+  return <div ref={el} data-testid="map-canvas" data-add-mode={addMode} className="isolate z-0 h-[60dvh] min-h-80 w-full rounded-xl border bg-muted" />
 }

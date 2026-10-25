@@ -33,6 +33,10 @@ async function addPin(page: Page, addLabel: string, title: string, options: { sh
   await page.getByRole('button', { name: addLabel }).click()
   const canvas = page.getByTestId('map-canvas')
   await expect(canvas).toHaveAttribute('data-add-mode', 'true')
+  // režim přidávání nesmí mapě vzít třídy Leafletu (jinak zmizí obrázek a klepnutí nefunguje)
+  await expect(canvas).toHaveClass(/leaflet-container/)
+  await expect(canvas).toHaveClass(/leaflet-crosshair/)
+  await expect(page.locator('.leaflet-image-layer')).toBeVisible()
   const box = (await canvas.boundingBox())!
   await canvas.click({ position: { x: box.width / 2 + (options.shift ?? 0), y: box.height / 2 + (options.shift ?? 0) } })
   const dialog = page.getByRole('dialog')
