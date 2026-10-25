@@ -17,9 +17,10 @@ use Dnd\Response;
 /**
  * Mapy kampaně a body (piny) na nich.
  *  - mapu nahrává, přejmenovává, zveřejňuje a maže jen DM; hráči vidí a stahují jen zveřejněné mapy (skrytá mapa je pro ně 404),
- *  - pin má viditelnost: all (všichni, kdo mapu vidí), selected (vybraní hráči a DM), dm (jen DM), owner (soukromá poznámka hráče),
- *  - DM přidává piny all / selected / dm, hráč jen soukromé poznámky (owner), které nevidí nikdo jiný, ani DM,
- *  - upravit nebo smazat pin smí jeho autor, DM pouze piny, které vidí (cizí soukromé poznámky ne).
+ *  - pin má viditelnost: all (všichni, kdo mapu vidí), selected (vybraní hráči a DM), dm (jen DM), owner (stará soukromá poznámka hráče),
+ *  - DM přidává piny all / selected / dm, hráč body pro všechny (all); soukromé poznámky (owner) už nově nevznikají,
+ *    starou smí autor nechat soukromou nebo zveřejnit (owner → all), zpět ne,
+ *  - upravit nebo smazat pin smí jeho autor a DM (piny, které vidí; cizí soukromé poznámky ne).
  */
 final class MapController
 {
@@ -141,8 +142,8 @@ final class MapController
         }
         $data = $req->json();
         $fields = self::pinFields($data, $map, true);
-        $visibility = $data['visibility'] ?? ($role === 'dm' ? 'all' : 'owner');
-        $viewers = self::checkVisibility($visibility, $data, $role, (string) $map['campaign_id']);
+        $visibility = $data['visibility'] ?? 'all';
+        $viewers = self::checkVisibility($visibility, $data, $role, (string) $map['campaign_id'], null);
 
         $id = Ids::uuid();
         Db::transaction(static function () use ($id, $map, $user, $fields, $visibility, $viewers): void {
@@ -176,10 +177,7 @@ final class MapController
         $viewers = null;
         if (array_key_exists('visibility', $data) || array_key_exists('viewerIds', $data)) {
             $visibility = $data['visibility'] ?? $pin['visibility'];
-            if ($pin['visibility'] === 'owner' && $visibility !== 'owner') {
-                throw HttpError::forbidden('Soukromou poznámku nejde zveřejnit.');
-            }
-            $viewers = self::checkVisibility($visibility, $data + ['viewerIds' => self::viewerIds((string) $pin['id'])], $role, (string) $map['campaign_id']);
+            $viewers = self::checkVisibility($visibility, $data + ['viewerIds' => self::viewerIds((string) $pin['id'])], $role, (string) $map['campaign_id'], (string) $pin['visibility']);
             $sets[] = 'visibility = ?';
             $values[] = $visibility;
         }
@@ -304,24 +302,24 @@ final class MapController
     }
 
     /**
-     * Ověří viditelnost pinu pro roli a vrátí seznam vybraných hráčů (jen u 'selected').
+     * Ověří viditelnost pinu pro roli a vrátí seznam vybraných hráčů (jen u 'selected'). `$current` je viditelnost upravovaného pinu (null = nový).
      * @param array<string, mixed> $data
      * @return list<string>
      */
-    private static function checkVisibility(mixed $visibility, array $data, string $role, string $campaignId): array
+    private static function checkVisibility(mixed $visibility, array $data, string $role, string $campaignId, ?string $current): array
     {
         if (!is_string($visibility) || !in_array($visibility, ['all', 'selected', 'dm', 'owner'], true)) {
             throw HttpError::validation('Neplatná viditelnost.', 'visibility');
         }
         if ($role !== 'dm') {
-            // Hráč smí zapsat jen svou soukromou poznámku.
-            if ($visibility !== 'owner') {
-                throw HttpError::forbidden('Hráč může přidat jen soukromou poznámku, kterou uvidí jen on.');
+            // Body hráčů vidí všichni; stará soukromá poznámka smí zůstat soukromá (nebo se zveřejnit), novou soukromou hráč nezaloží.
+            if ($visibility !== 'all' && !($visibility === 'owner' && $current === 'owner')) {
+                throw HttpError::forbidden('Body hráčů vidí všichni, kdo vidí mapu. Omezit viditelnost může jen DM.');
             }
             return [];
         }
-        if ($visibility === 'owner') {
-            throw HttpError::validation("Soukromé poznámky (owner) jsou jen pro hráče. DM použije 'dm'.", 'visibility');
+        if ($visibility === 'owner' && $current !== 'owner') {
+            throw HttpError::validation("Soukromé poznámky (owner) už nevznikají. DM použije 'dm'.", 'visibility');
         }
         if ($visibility !== 'selected') {
             return [];

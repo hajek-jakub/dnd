@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Client, createCampaign, expectStatus, joinAsPlayer, jpegSize, makePng, registerUser, type TestUser } from './client'
+import { Client, createCampaign, expectStatus, joinAsPlayer, jpegSize, makePng, registerUser, testDbExec, type TestUser } from './client'
 
 describe('mapy a body na mapě', () => {
   let dm: TestUser
@@ -125,30 +125,44 @@ describe('mapy a body na mapě', () => {
       expectStatus(await carol.client.delete(`/pins/${picked.body.pin.id}`), 404)
     })
 
-    it('soukromá poznámka hráče: vidí ji jen on, ani DM ne', async () => {
-      const note = await pin(bob, { title: 'Bobova poznámka', description: 'tajná úvaha' })
+    it('poznámku hráče vidí všichni členové; upraví ji autor a DM, ostatní hráči ne', async () => {
+      const note = await pin(bob, { title: 'Bobova poznámka', description: 'tady je krystal' })
       expectStatus(note, 201)
-      expect(note.body.pin).toMatchObject({ visibility: 'owner', mine: true, canEdit: true })
-      expect(await titles(bob)).toContain('Bobova poznámka')
-      expect(await titles(dm)).not.toContain('Bobova poznámka')
-      expect(await titles(carol)).not.toContain('Bobova poznámka')
-      expectStatus(await dm.client.patch(`/pins/${note.body.pin.id}`, { title: 'DM mění' }), 404)
-      expectStatus(await dm.client.delete(`/pins/${note.body.pin.id}`), 404)
-      expectStatus(await carol.client.delete(`/pins/${note.body.pin.id}`), 404)
-      // autor ji upraví a smaže
+      expect(note.body.pin).toMatchObject({ visibility: 'all', mine: true, canEdit: true })
+      for (const u of [bob, dm, carol]) expect(await titles(u)).toContain('Bobova poznámka')
+      expect((await pins(carol)).find((p) => p.title === 'Bobova poznámka')).toMatchObject({ mine: false, canEdit: false })
+      expectStatus(await eve.client.get(`/maps/${mapId}/pins`), 404)
+      expectStatus(await carol.client.patch(`/pins/${note.body.pin.id}`, { title: 'Carol mění' }), 403)
+      expectStatus(await carol.client.delete(`/pins/${note.body.pin.id}`), 403)
+      // autor ji upraví, DM ji smí upravit i smazat
       const edit = await bob.client.patch(`/pins/${note.body.pin.id}`, { title: 'Upraveno', x: 50, y: 60 })
       expectStatus(edit, 200)
-      expect(edit.body.pin).toMatchObject({ title: 'Upraveno', x: 50, y: 60 })
-      expectStatus(await bob.client.delete(`/pins/${note.body.pin.id}`), 204)
-      expect(await titles(bob)).not.toContain('Upraveno')
+      expect(edit.body.pin).toMatchObject({ title: 'Upraveno', x: 50, y: 60, visibility: 'all' })
+      expectStatus(await dm.client.patch(`/pins/${note.body.pin.id}`, { title: 'Upravil DM' }), 200)
+      expectStatus(await dm.client.delete(`/pins/${note.body.pin.id}`), 204)
+      expect(await titles(bob)).not.toContain('Upravil DM')
     })
 
-    it('hráč nezveřejní poznámku ani nevytvoří bod pro všechny či vybrané', async () => {
-      for (const visibility of ['all', 'selected', 'dm']) expectStatus(await pin(bob, { title: 'Pokus', visibility, viewerIds: [carol.id] }), 403)
+    it('hráč neomezí viditelnost svého bodu (soukromý, jen DM ani vybraní)', async () => {
+      for (const visibility of ['owner', 'selected', 'dm']) expectStatus(await pin(bob, { title: 'Pokus', visibility, viewerIds: [carol.id] }), 403)
       const note = await pin(bob, { title: 'Moje' })
-      expectStatus(await bob.client.patch(`/pins/${note.body.pin.id}`, { visibility: 'all' }), 403)
+      for (const visibility of ['owner', 'dm']) expectStatus(await bob.client.patch(`/pins/${note.body.pin.id}`, { visibility }), 403)
       expect(await titles(carol)).not.toContain('Pokus')
-      expect(await titles(carol)).not.toContain('Moje')
+      expect(await titles(carol)).toContain('Moje')
+    })
+
+    it('stará soukromá poznámka: vidí ji jen autor, smí ji zveřejnit, zpět už ne', async () => {
+      const note = (await pin(bob, { title: 'Stará soukromá' })).body.pin
+      testDbExec("UPDATE map_pins SET visibility = 'owner' WHERE id = ?", [note.id])
+      expect(await titles(bob)).toContain('Stará soukromá')
+      expect(await titles(dm)).not.toContain('Stará soukromá')
+      expect(await titles(carol)).not.toContain('Stará soukromá')
+      expectStatus(await dm.client.patch(`/pins/${note.id}`, { title: 'DM mění' }), 404)
+      expectStatus(await bob.client.patch(`/pins/${note.id}`, { title: 'Pořád soukromá' }), 200)
+      expect(await titles(carol)).not.toContain('Pořád soukromá')
+      expectStatus(await bob.client.patch(`/pins/${note.id}`, { visibility: 'all' }), 200)
+      expect(await titles(carol)).toContain('Pořád soukromá')
+      expectStatus(await bob.client.patch(`/pins/${note.id}`, { visibility: 'owner' }), 403)
     })
 
     it('hráč nemůže měnit ani mazat bod DM, který vidí (403)', async () => {

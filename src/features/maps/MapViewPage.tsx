@@ -174,17 +174,18 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
   const [title, setTitle] = useState(editing?.title ?? '')
   const [description, setDescription] = useState(editing?.description ?? '')
   const [icon, setIcon] = useState(editing?.icon ?? 'pin')
-  const [visibility, setVisibility] = useState<MapPin['visibility']>(editing?.visibility ?? (isDm ? 'all' : 'owner'))
+  const [visibility, setVisibility] = useState<MapPin['visibility']>(editing?.visibility ?? 'all')
   const [viewers, setViewers] = useState<Set<string>>(new Set(editing?.viewerIds ?? []))
   const players = members?.filter((m) => m.role === 'player') ?? []
-  const privateNote = !isDm || editing?.visibility === 'owner'
+  // Viditelnost volí jen DM; body hráčů vidí všichni (stará soukromá poznámka zůstane, jak je).
+  const choosesVisibility = isDm && editing?.visibility !== 'owner'
   const pending = create.isPending || update.isPending
   const valid = title.trim() !== '' && (visibility !== 'selected' || viewers.size > 0)
 
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
-    const common = { title: title.trim(), description, icon, ...(privateNote ? {} : { visibility, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) }) }
+    const common = { title: title.trim(), description, icon, ...(choosesVisibility ? { visibility, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) } : {}) }
     const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'Uložení se nepodařilo.')
     if (editing) update.mutate({ id: editing.id, ...common }, { onSuccess: (p) => onDone(p.id), onError })
     else if (draft.kind === 'new') create.mutate({ x: draft.x, y: draft.y, ...common }, { onSuccess: (p) => onDone(p.id), onError })
@@ -215,8 +216,10 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
           </button>
         ))}
       </div>
-      {privateNote ? (
-        <p className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-sm">Soukromá poznámka: uvidíš ji jen ty, ani DM ne.</p>
+      {!choosesVisibility ? (
+        <p className="rounded-lg border bg-muted/50 p-3 text-sm">
+          {editing?.visibility === 'owner' ? 'Soukromá poznámka: uvidíš ji jen ty.' : 'Bod uvidí všichni, kdo vidí mapu.'}
+        </p>
       ) : (
         <div className="space-y-2">
           <Label htmlFor="pin-visibility">Kdo bod uvidí</Label>

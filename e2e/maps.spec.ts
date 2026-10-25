@@ -1,9 +1,9 @@
-import { devices, type Page } from '@playwright/test'
+import { devices, type Locator, type Page } from '@playwright/test'
 import { makePng } from '../test-utils/png'
 import { expect, test } from './fixtures'
 import { newContext, registerDm, registerViaUi, uniqueName } from './helpers'
 
-// Mapy: DM nahraje a zveřejní mapu a přidává body na počítači, hráč je vidí na telefonu a píše si soukromé poznámky.
+// Mapy: DM nahraje a zveřejní mapu a přidává body na počítači, hráč je vidí na telefonu a přidává poznámky, které vidí všichni.
 
 async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -29,7 +29,7 @@ async function uploadMap(page: Page, campaignId: string, name: string) {
 }
 
 /** Přidá bod kliknutím doprostřed mapy (dolů a doprava podle `shift`), vyplní formulář a vrátí se do výběru bodu. */
-async function addPin(page: Page, addLabel: string, title: string, options: { shift?: number; icon?: string; visibility?: string; viewers?: string[] } = {}) {
+async function addPin(page: Page, addLabel: string, title: string, options: { shift?: number; icon?: string; visibility?: string; viewers?: string[]; beforeSave?: (dialog: Locator) => Promise<void> } = {}) {
   await page.getByRole('button', { name: addLabel }).click()
   const canvas = page.getByTestId('map-canvas')
   await expect(canvas).toHaveAttribute('data-add-mode', 'true')
@@ -44,11 +44,12 @@ async function addPin(page: Page, addLabel: string, title: string, options: { sh
   if (options.icon) await dialog.getByRole('button', { name: options.icon }).click()
   if (options.visibility) await dialog.getByLabel('Kdo bod uvidí').selectOption(options.visibility)
   for (const v of options.viewers ?? []) await dialog.getByRole('checkbox', { name: v }).check()
+  await options.beforeSave?.(dialog)
   await dialog.getByRole('button', { name: /Přidat na mapu|Uložit/ }).click()
   await expect(page.getByRole('heading', { name: title, level: 2 })).toBeVisible()
 }
 
-test('DM nahraje a zveřejní mapu, přidá body; hráč na telefonu vidí jen to, co smí, a píše si soukromé poznámky', async ({ page: dm, browser, baseURL, isMobile }) => {
+test('DM nahraje a zveřejní mapu, přidá body; hráč na telefonu vidí jen to, co smí, a přidá poznámku pro všechny', async ({ page: dm, browser, baseURL, isMobile }) => {
   test.skip(isMobile, 'Dva kontexty si ten test staví sám (DM počítač + hráč telefon).')
 
   await registerDm(dm, 'mapdm')
@@ -99,13 +100,13 @@ test('DM nahraje a zveřejní mapu, přidá body; hráč na telefonu vidí jen t
     await expect(player.getByRole('button', { name: 'Upravit' })).toHaveCount(0)
     await expect(player.getByRole('button', { name: /Smazat bod/ })).toHaveCount(0)
 
-    // --- soukromá poznámka hráče: vidí ji jen on
-    await addPin(player, 'Přidat poznámku', 'Možná tu je zrádce', { shift: -100 })
-    await expect(player.getByText('Soukromá poznámka (vidíš jen ty) · ty')).toBeVisible()
+    // --- poznámka hráče: vidí ji všichni (i DM)
+    await addPin(player, 'Přidat poznámku', 'Možná tu je zrádce', { shift: -100, beforeSave: async (dialog) => void (await expect(dialog.getByText('Bod uvidí všichni, kdo vidí mapu.')).toBeVisible()) })
+    await expect(player.getByText('Vidí všichni · ty')).toBeVisible()
     await expect(player.locator('.leaflet-marker-icon')).toHaveCount(2)
     await dm.reload()
-    await expect(dm.getByRole('region', { name: 'Seznam bodů' }).getByText('Možná tu je zrádce')).toHaveCount(0)
-    await expect(dm.locator('.leaflet-marker-icon')).toHaveCount(2)
+    await expect(dm.getByRole('region', { name: 'Seznam bodů' }).getByText('Možná tu je zrádce')).toBeVisible()
+    await expect(dm.locator('.leaflet-marker-icon')).toHaveCount(3)
 
     // poznámku hráč upraví a smaže
     await player.getByRole('button', { name: 'Upravit' }).click()
