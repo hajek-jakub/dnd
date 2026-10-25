@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { SUMMARY_KEY, useSummary } from '@/features/summary/api'
+import type { NpcPlace } from './npc-api'
 
 export interface JournalEntry {
   id: string
@@ -11,6 +12,8 @@ export interface JournalEntry {
   pinned: boolean
   /** NPC a postavy, o kterých zápis je (jen ty, které uživatel smí vidět) */
   npcIds: string[]
+  /** body na mapách, kde se zápis odehrál (jen ty, které uživatel vidí) */
+  places: NpcPlace[]
   createdBy: string
   createdByName: string
   mine: boolean
@@ -30,6 +33,7 @@ export interface JournalInput {
   viewerIds?: string[]
   pinned?: boolean
   npcIds?: string[]
+  pinIds?: string[]
 }
 
 export function useJournal(campaignId: string) {
@@ -44,7 +48,10 @@ export function useCreateEntry(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: JournalInput) => (await api.post<{ entry: JournalEntry }>(`/campaigns/${campaignId}/journal`, input)).entry,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', campaignId] }),
+    onSuccess: (_e, input) => {
+      if (input.pinIds?.length) void queryClient.invalidateQueries({ queryKey: ['map-pins'] })
+      return queryClient.invalidateQueries({ queryKey: ['journal', campaignId] })
+    },
   })
 }
 
@@ -55,7 +62,10 @@ export function useUpdateEntry(campaignId: string) {
       const { id, ...patch } = input
       return (await api.patch<{ entry: JournalEntry }>(`/journal/${id}`, patch)).entry
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', campaignId] }),
+    onSuccess: (_e, input) => {
+      if (input.pinIds || input.title) void queryClient.invalidateQueries({ queryKey: ['map-pins'] })
+      return queryClient.invalidateQueries({ queryKey: ['journal', campaignId] })
+    },
   })
 }
 
@@ -63,7 +73,10 @@ export function useDeleteEntry(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/journal/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', campaignId] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['map-pins'] })
+      return queryClient.invalidateQueries({ queryKey: ['journal', campaignId] })
+    },
   })
 }
 

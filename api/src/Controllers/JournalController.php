@@ -51,9 +51,10 @@ final class JournalController
         $viewers = self::checkVisibility($visibility, $data, $role, $params['id'], null);
         $pinned = self::pinned($data, $role);
         $npcIds = array_key_exists('npcIds', $data) ? JournalNpcController::checkLinks($data['npcIds'], $params['id'], $role) : [];
+        $pinIds = array_key_exists('pinIds', $data) ? JournalNpcController::checkPins($data['pinIds'], $params['id'], $user['id'], $role) : [];
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $params, $user, $fields, $visibility, $viewers, $pinned, $npcIds, $role): void {
+        Db::transaction(static function () use ($id, $params, $user, $fields, $visibility, $viewers, $pinned, $npcIds, $pinIds, $role): void {
             Db::exec(
                 'INSERT INTO journal_entries (id, campaign_id, topic, title, body, visibility, pinned, created_by, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
@@ -65,6 +66,7 @@ final class JournalController
             if ($npcIds !== []) {
                 JournalNpcController::replaceLinks($id, $npcIds, $role);
             }
+            MapController::replaceEntryPins($id, (string) $params['id'], $pinIds, $user['id'], $role);
         });
         // Nový zápis dostanou i jako push ostatní, kdo ho vidí (zápisy jen pro DM ne). Zápis hráče jde celé družině včetně DM.
         if ($visibility === 'all' || $visibility === 'selected') {
@@ -110,8 +112,10 @@ final class JournalController
             $values[] = $visibility;
         }
         $npcIds = array_key_exists('npcIds', $data) ? JournalNpcController::checkLinks($data['npcIds'], (string) $entry['campaign_id'], $role) : null;
-        Db::transaction(static function () use ($entry, $sets, $values, $viewers, $npcIds, $role): void {
+        $pinIds = array_key_exists('pinIds', $data) ? JournalNpcController::checkPins($data['pinIds'], (string) $entry['campaign_id'], $user['id'], $role) : null;
+        Db::transaction(static function () use ($entry, $sets, $values, $viewers, $npcIds, $pinIds, $user, $role): void {
             $linksChanged = $npcIds !== null && JournalNpcController::replaceLinks((string) $entry['id'], $npcIds, $role);
+            $linksChanged = ($pinIds !== null && MapController::replaceEntryPins((string) $entry['id'], (string) $entry['campaign_id'], $pinIds, $user['id'], $role)) || $linksChanged;
             if ($sets !== [] || $linksChanged) {
                 $sets[] = 'updated_at = UTC_TIMESTAMP()';
                 $values[] = $entry['id'];
@@ -167,6 +171,18 @@ final class JournalController
     }
 
     // ------------------------------------------------------------------ pomocné
+
+    /** Viditelnost zápisu (alias `e`) pro jiné třídy, parametry `entryVisibleArgs`. */
+    public static function entryVisibleSql(): string
+    {
+        return self::visibleSql();
+    }
+
+    /** @return list<string> */
+    public static function entryVisibleArgs(string $userId, string $role): array
+    {
+        return self::visibleArgs($userId, $role);
+    }
 
     private static function visibleSql(): string
     {
@@ -307,8 +323,10 @@ final class JournalController
                 $viewers[$v['entry_id']][] = $v['user_id'];
             }
         }
-        $npcs = JournalNpcController::linkMap(array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows)), $role);
-        return array_map(static function (array $r) use ($userId, $role, $since, $viewers, $npcs): array {
+        $entryIds = array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows));
+        $npcs = JournalNpcController::linkMap($entryIds, $role);
+        $places = $rows === [] ? [] : MapController::entryPlaces((string) $rows[0]['campaign_id'], $entryIds, $userId, $role);
+        return array_map(static function (array $r) use ($userId, $role, $since, $viewers, $npcs, $places): array {
             $mine = $r['created_by'] === $userId;
             $changed = max((string) $r['created_at'], (string) $r['updated_at']);
             $out = [
@@ -319,6 +337,7 @@ final class JournalController
                 'visibility' => $r['visibility'],
                 'pinned' => (bool) $r['pinned'],
                 'npcIds' => $npcs[(string) $r['id']] ?? [],
+                'places' => $places[(string) $r['id']] ?? [],
                 'createdBy' => $r['created_by'],
                 'createdByName' => $r['author_name'],
                 'mine' => $mine,

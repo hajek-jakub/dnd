@@ -11,9 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useCampaign } from '@/features/campaigns/api'
-import { SearchPicker } from '@/components/SearchPicker'
-import { useCampaignPins } from '@/features/maps/api'
-import { emojiOf } from '@/features/maps/pin-icons'
+import { PlaceList, PlacePicker } from '@/features/maps/places'
 import { Avatar } from '@/features/sheet/Avatar'
 import { useCharacters } from '@/features/sheet/api'
 import { ApiError } from '@/lib/api'
@@ -245,19 +243,7 @@ function NpcDetail({ campaignId, npc, entries, isDm, onEdit }: { campaignId: str
         {npc.places.length === 0 ? (
           <p className="text-sm text-muted-foreground">Zatím není na žádném bodu mapy. Přidáš ho v Upravit (Kde se nachází) nebo u bodu na mapě.</p>
         ) : (
-          <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
-            {npc.places.map((p) => (
-              <li key={p.pinId}>
-                <Link to={`/campaigns/${campaignId}/maps/${p.mapId}?pin=${p.pinId}`} className="flex min-h-12 items-center gap-2 rounded-lg border bg-background px-3 py-1.5 hover:border-primary/50">
-                  <span aria-hidden>{emojiOf(p.icon)}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{p.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{p.mapName}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <PlaceList campaignId={campaignId} places={npc.places} />
         )}
       </section>
 
@@ -453,7 +439,7 @@ function NpcForm({ campaignId, npc, isDm, onDone }: { campaignId: string; npc: J
             : 'Vzhled, povaha, čím se živí. Příběh NPC piš jako zápisy v deníku a přiřaď je k němu. Formátování: **tučně**, *kurzíva*.'}
         </p>
       </div>
-      <PlacePicker campaignId={campaignId} value={pinIds} onChange={setPinIds} />
+      <PlacePicker campaignId={campaignId} value={pinIds} onChange={setPinIds} label="Kde se nachází (body na mapě)" />
       {isDm && (
         <div className="space-y-2">
           <Label htmlFor="npc-visibility">Kdo NPC uvidí</Label>
@@ -527,20 +513,3 @@ function CampaignCharactersForm({ campaignId, npcs, onDone }: { campaignId: stri
 }
 
 /** Kde se NPC nachází: body ze všech map kampaně, které uživatel vidí, s hledáním podle názvu bodu i mapy. */
-function PlacePicker({ campaignId, value, onChange }: { campaignId: string; value: string[]; onChange: (ids: string[]) => void }) {
-  const { data: pins = [], isPending } = useCampaignPins(campaignId)
-  const toOption = (p: (typeof pins)[number]) => ({ id: p.pinId, label: p.title, hint: p.mapName, icon: <span aria-hidden>{emojiOf(p.icon)}</span> })
-  return (
-    <SearchPicker
-      label="Kde se nachází (body na mapě)"
-      selectedLabel="Vybraná místa"
-      selected={pins.filter((p) => value.includes(p.pinId)).map(toOption)}
-      options={pins.filter((p) => !value.includes(p.pinId)).map(toOption)}
-      onAdd={(id) => onChange([...value, id])}
-      onRemove={(id) => onChange(value.filter((v) => v !== id))}
-      removeLabel={(o) => `Odebrat místo ${o.label}`}
-      placeholder="Hledat bod nebo mapu…"
-      empty={isPending ? 'Načítám body…' : 'Na mapách zatím nejsou žádné body.'}
-    />
-  )
-}

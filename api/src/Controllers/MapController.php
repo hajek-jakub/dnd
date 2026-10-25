@@ -21,13 +21,16 @@ use Dnd\Response;
  *  - DM přidává piny all / selected / dm, hráč body pro všechny (all); soukromé poznámky (owner) už nově nevznikají,
  *    starou smí autor nechat soukromou nebo zveřejnit (owner → all), zpět ne,
  *  - upravit nebo smazat pin smí jeho autor a DM (piny, které vidí; cizí soukromé poznámky ne),
- *  - pin může mít NPC a postavy z přehledu deníku (`npcIds`, kdo se tam nachází); skrytá NPC DM hráč nevidí ani nepřiřadí.
+ *  - pin může mít NPC a postavy z přehledu deníku (`npcIds`, kdo se tam nachází); skrytá NPC DM hráč nevidí ani nepřiřadí,
+ *  - pin může mít zápisy deníku (`entryIds`, co se tu stalo): přiřadit jde jen zápis, který autor změny vidí; propojení se zápisy,
+ *    které nevidí, zůstanou a nikomu, kdo zápis nevidí, se nevrací.
  */
 final class MapController
 {
     public const ICONS = ['pin', 'castle', 'camp', 'danger', 'treasure', 'quest', 'town', 'cave', 'door', 'skull', 'npc'];
     private const MAX_MAPS = 30;
     private const MAX_PINS = 300;
+    private const MAX_ENTRY_LINKS = 30;
 
     // ------------------------------------------------------------------ mapy
 
@@ -205,9 +208,10 @@ final class MapController
         $visibility = $data['visibility'] ?? 'all';
         $viewers = self::checkVisibility($visibility, $data, $role, (string) $map['campaign_id'], null);
         $npcIds = JournalNpcController::checkLinks($data['npcIds'] ?? [], (string) $map['campaign_id'], $role);
+        $entryIds = self::checkEntries($data['entryIds'] ?? [], (string) $map['campaign_id'], $user['id'], $role);
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $map, $user, $fields, $visibility, $viewers, $npcIds, $role): void {
+        Db::transaction(static function () use ($id, $map, $user, $fields, $visibility, $viewers, $npcIds, $entryIds, $role): void {
             Db::exec(
                 'INSERT INTO map_pins (id, map_id, x, y, title, description, icon, visibility, created_by, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
@@ -217,6 +221,7 @@ final class MapController
                 Db::exec('INSERT INTO map_pin_viewers (pin_id, user_id) VALUES (?, ?)', [$id, $v]);
             }
             JournalNpcController::replacePinLinks($id, $npcIds, $role);
+            self::replaceEntries($id, $entryIds, $user['id'], $role);
         });
         return Response::json(['pin' => self::onePayload($id, $user['id'], $role)], 201);
     }
@@ -244,8 +249,10 @@ final class MapController
             $values[] = $visibility;
         }
         $npcIds = array_key_exists('npcIds', $data) ? JournalNpcController::checkLinks($data['npcIds'], (string) $map['campaign_id'], $role) : null;
-        Db::transaction(static function () use ($pin, $sets, $values, $viewers, $npcIds, $role): void {
+        $entryIds = array_key_exists('entryIds', $data) ? self::checkEntries($data['entryIds'], (string) $map['campaign_id'], $user['id'], $role) : null;
+        Db::transaction(static function () use ($pin, $sets, $values, $viewers, $npcIds, $entryIds, $user, $role): void {
             $linksChanged = $npcIds !== null && JournalNpcController::replacePinLinks((string) $pin['id'], $npcIds, $role);
+            $linksChanged = ($entryIds !== null && self::replaceEntries((string) $pin['id'], $entryIds, $user['id'], $role)) || $linksChanged;
             if ($sets !== []) {
                 $sets[] = 'updated_at = UTC_TIMESTAMP()';
                 $values[] = $pin['id'];
@@ -269,6 +276,133 @@ final class MapController
         [$pin] = self::loadPin($params['id'], $user);
         Db::exec('DELETE FROM map_pins WHERE id = ?', [$pin['id']]);
         return null;
+    }
+
+    // ------------------------------------------------------------------ zápisy deníku u bodů
+
+    /**
+     * Ověří zápisy pro bod: musí být z kampaně a autor změny je musí vidět (jinak 422, jako by neexistovaly).
+     * @return list<string>
+     */
+    private static function checkEntries(mixed $ids, string $campaignId, string $userId, string $role): array
+    {
+        if (!is_array($ids) || count($ids) > self::MAX_ENTRY_LINKS) {
+            throw HttpError::validation('Seznam zápisů je neplatný (nejvýš ' . self::MAX_ENTRY_LINKS . ').', 'entryIds');
+        }
+        $out = [];
+        foreach ($ids as $id) {
+            if (!is_string($id) || !Ids::isUuid($id)) {
+                throw HttpError::validation('Neplatný zápis.', 'entryIds');
+            }
+            $out[$id] = $id;
+        }
+        $out = array_values($out);
+        if ($out === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($out), '?'));
+        $found = (int) Db::value(
+            "SELECT COUNT(*) FROM journal_entries e WHERE e.campaign_id = ? AND e.id IN ($in) AND " . JournalController::entryVisibleSql(),
+            [$campaignId, ...$out, ...JournalController::entryVisibleArgs($userId, $role)],
+        );
+        if ($found !== count($out)) {
+            throw HttpError::validation('Některý zápis v deníku téhle kampaně neexistuje.', 'entryIds');
+        }
+        return $out;
+    }
+
+    /**
+     * Nastaví zápisy bodu na `$requested`; propojení se zápisy, které autor změny nevidí, zůstanou. Vrací, jestli se sada změnila.
+     * @param list<string> $requested
+     */
+    private static function replaceEntries(string $pinId, array $requested, string $userId, string $role): bool
+    {
+        $existing = array_map('strval', array_column(Db::all('SELECT entry_id FROM map_pin_entries WHERE pin_id = ?', [$pinId]), 'entry_id'));
+        $visible = $existing === [] ? [] : array_map('strval', array_column(Db::all(
+            'SELECT e.id FROM journal_entries e WHERE e.id IN (' . implode(',', array_fill(0, count($existing), '?')) . ') AND ' . JournalController::entryVisibleSql(),
+            [...$existing, ...JournalController::entryVisibleArgs($userId, $role)],
+        ), 'id'));
+        $final = array_values(array_unique(array_merge($requested, array_diff($existing, $visible))));
+        $a = $existing;
+        $b = $final;
+        sort($a);
+        sort($b);
+        if ($a === $b) {
+            return false;
+        }
+        Db::exec('DELETE FROM map_pin_entries WHERE pin_id = ?', [$pinId]);
+        foreach ($final as $entryId) {
+            Db::exec('INSERT INTO map_pin_entries (pin_id, entry_id) VALUES (?, ?)', [$pinId, $entryId]);
+        }
+        return true;
+    }
+
+    /**
+     * Nastaví body zápisu (ze strany zápisu): mění se jen body, které uživatel vidí; propojení se skrytými body zůstanou.
+     * @param list<string> $pinIds už ověřené (`JournalNpcController::checkPins`)
+     */
+    public static function replaceEntryPins(string $entryId, string $campaignId, array $pinIds, string $userId, string $role): bool
+    {
+        $existing = array_map('strval', array_column(Db::all('SELECT pin_id FROM map_pin_entries WHERE entry_id = ?', [$entryId]), 'pin_id'));
+        $visible = array_map(static fn (array $p): string => (string) $p['pinId'], self::placesSql($campaignId, $userId, $role, $existing));
+        $remove = array_values(array_diff($visible, $pinIds));
+        $add = array_values(array_diff($pinIds, $existing));
+        foreach ($remove as $pinId) {
+            Db::exec('DELETE FROM map_pin_entries WHERE pin_id = ? AND entry_id = ?', [$pinId, $entryId]);
+        }
+        foreach ($add as $pinId) {
+            Db::exec('INSERT IGNORE INTO map_pin_entries (pin_id, entry_id) VALUES (?, ?)', [$pinId, $entryId]);
+        }
+        return $remove !== [] || $add !== [];
+    }
+
+    /**
+     * Zápisy na bodech, jak je vidí uživatel.
+     * @param list<string> $pinIds
+     * @return array<string, list<string>>
+     */
+    private static function entryLinkMap(array $pinIds, string $userId, string $role): array
+    {
+        if ($pinIds === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($pinIds), '?'));
+        $map = [];
+        foreach (Db::all(
+            "SELECT l.pin_id, l.entry_id FROM map_pin_entries l JOIN journal_entries e ON e.id = l.entry_id WHERE l.pin_id IN ($in) AND " . JournalController::entryVisibleSql() . ' ORDER BY e.created_at',
+            [...$pinIds, ...JournalController::entryVisibleArgs($userId, $role)],
+        ) as $r) {
+            $map[(string) $r['pin_id']][] = (string) $r['entry_id'];
+        }
+        return $map;
+    }
+
+    /**
+     * Kde na mapách se zápisy odehrávají: jen body, které uživatel vidí (ve tvaru `placesSql`).
+     * @param list<string> $entryIds
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public static function entryPlaces(string $campaignId, array $entryIds, string $userId, string $role): array
+    {
+        if ($entryIds === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($entryIds), '?'));
+        $links = Db::all("SELECT entry_id, pin_id FROM map_pin_entries WHERE entry_id IN ($in)", $entryIds);
+        if ($links === []) {
+            return [];
+        }
+        $places = [];
+        foreach (self::placesSql($campaignId, $userId, $role, array_values(array_unique(array_map(static fn (array $l): string => (string) $l['pin_id'], $links)))) as $p) {
+            $places[(string) $p['pinId']] = $p;
+        }
+        $out = [];
+        foreach ($links as $l) {
+            if (isset($places[(string) $l['pin_id']])) {
+                $out[(string) $l['entry_id']][] = $places[(string) $l['pin_id']];
+            }
+        }
+        return $out;
     }
 
     // ------------------------------------------------------------------ pomocné
@@ -443,8 +577,10 @@ final class MapController
                 $viewers[$v['pin_id']][] = $v['user_id'];
             }
         }
-        $npcs = JournalNpcController::pinLinkMap(array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows)), $role);
-        return array_map(static function (array $r) use ($userId, $role, $viewers, $npcs): array {
+        $pinIds = array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows));
+        $npcs = JournalNpcController::pinLinkMap($pinIds, $role);
+        $entries = self::entryLinkMap($pinIds, $userId, $role);
+        return array_map(static function (array $r) use ($userId, $role, $viewers, $npcs, $entries): array {
             $mine = $r['created_by'] === $userId;
             $out = [
                 'id' => $r['id'],
@@ -460,6 +596,7 @@ final class MapController
                 'mine' => $mine,
                 'canEdit' => $mine || $role === 'dm',
                 'npcIds' => $npcs[(string) $r['id']] ?? [],
+                'entryIds' => $entries[(string) $r['id']] ?? [],
                 'createdAt' => Ids::iso((string) $r['created_at']),
             ];
             // Kdo smí pin vidět, to ví jen autor a DM.

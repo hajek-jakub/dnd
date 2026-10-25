@@ -15,6 +15,7 @@ import { DEFAULT_TOPICS } from './topics'
 import { JournalHeader } from './JournalTabs'
 import { fold } from './npc-list'
 import { useJournalNpcs } from './npc-api'
+import { PlaceList } from '@/features/maps/places'
 import { usePageTitle } from '@/lib/page-title'
 
 const VISIBILITY_LABELS: Record<JournalEntry['visibility'], string> = {
@@ -111,6 +112,7 @@ export function JournalPage() {
               {e.topic} · {e.mine ? 'ty' : e.createdByName} · {dateFormat(e.updatedAt)}
               {e.visibility !== 'all' && ` · ${VISIBILITY_LABELS[e.visibility]}`}
               {e.npcIds.length > 0 && ` · ${e.npcIds.length} NPC`}
+              {e.places.length > 0 && ` · na mapě`}
             </span>
           </span>
           <ChevronDownIcon aria-hidden className={cn('size-5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
@@ -135,6 +137,12 @@ export function JournalPage() {
                   )
                 })}
               </ul>
+            )}
+            {e.places.length > 0 && (
+              <section aria-label="Na mapě" className="space-y-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Na mapě</h3>
+                <PlaceList campaignId={campaignId} places={e.places} />
+              </section>
             )}
             {e.canEdit && (
               <div className="flex gap-2">

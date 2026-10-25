@@ -30,6 +30,8 @@ export interface MapPin {
   viewerIds?: string[]
   /** NPC a postavy z přehledu deníku, které se na bodu nacházejí (skrytá NPC DM jen pro DM) */
   npcIds: string[]
+  /** zápisy deníku k bodu (jen ty, které uživatel vidí) */
+  entryIds: string[]
   createdAt: string
 }
 
@@ -42,6 +44,7 @@ export interface PinInput {
   visibility?: MapPin['visibility']
   viewerIds?: string[]
   npcIds?: string[]
+  entryIds?: string[]
 }
 
 const base = () => import.meta.env.BASE_URL.replace(/\/$/, '')
@@ -131,6 +134,8 @@ export function useCreatePin(mapId: string) {
     onSuccess: (pin) => {
       queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => (old ? [...old, pin] : [pin]))
       void queryClient.invalidateQueries({ queryKey: ['journal-npcs'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign-pins'] })
+      if (pin.entryIds.length > 0) void queryClient.invalidateQueries({ queryKey: ['journal'] })
     },
   })
 }
@@ -145,6 +150,8 @@ export function useUpdatePin(mapId: string) {
     onSuccess: (pin, input) => {
       queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => old?.map((p) => (p.id === pin.id ? pin : p)))
       if (input.npcIds || input.title || input.icon) void queryClient.invalidateQueries({ queryKey: ['journal-npcs'] })
+      if (input.entryIds || input.title || input.icon) void queryClient.invalidateQueries({ queryKey: ['journal'] })
+      if (input.title || input.icon) void queryClient.invalidateQueries({ queryKey: ['campaign-pins'] })
     },
   })
 }
@@ -156,6 +163,8 @@ export function useDeletePin(mapId: string) {
     onSuccess: (_r, id) => {
       queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => old?.filter((p) => p.id !== id))
       void queryClient.invalidateQueries({ queryKey: ['journal-npcs'] })
+      void queryClient.invalidateQueries({ queryKey: ['journal'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign-pins'] })
     },
   })
 }

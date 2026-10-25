@@ -215,6 +215,48 @@ test('místa a postavy: k bodu se přiřadí NPC z deníku, bod ukáže popis a 
   await expect(page.getByRole('region', { name: 'Kdo se tu nachází' })).toHaveCount(0)
 })
 
+test('místa a zápisy: k bodu se přiřadí zápis deníku, bod na něj odkáže a zápis ukáže, kde je na mapě', async ({ page }) => {
+  await registerDm(page, 'mapent')
+  const { campaignId } = await newCampaign(page, 'Místa a zápisy')
+  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { topic: 'Příběh', title: 'Zápisky o Kupice', body: '# O městě\n> „Není pouště bez písku.“' } })
+  await uploadMap(page, campaignId, 'Poušť')
+  await page.getByRole('link', { name: /Poušť/ }).click()
+  await expect(page.locator('.leaflet-image-layer')).toBeVisible()
+
+  await addPin(page, 'Přidat bod', 'Kupika', {
+    beforeSave: async (dialog) => {
+      await dialog.getByLabel('Zápisy z deníku').fill('kupice')
+      await dialog.getByRole('list', { name: /výsledky/ }).getByRole('button', { name: /Zápisky o Kupice/ }).click()
+      await expect(dialog.getByRole('button', { name: 'Odebrat zápis Zápisky o Kupice z bodu' })).toBeVisible()
+    },
+  })
+  await expect(page.getByRole('region', { name: 'Seznam bodů' })).toContainText('📖 1')
+  await page.getByRole('region', { name: 'Zápisy z deníku' }).getByRole('link', { name: /Zápisky o Kupice/ }).click()
+  await expect(page).toHaveURL(/journal\?entry=/)
+  // zápis je otevřený: citace z formátování a místo na mapě
+  await expect(page.locator('blockquote')).toHaveText('„Není pouště bez písku.“')
+  const onMap = page.getByRole('region', { name: 'Na mapě' })
+  await expect(onMap.getByRole('link')).toHaveText([/Kupika/])
+  await expectNoHorizontalScroll(page)
+
+  // místo jde změnit i v úpravě zápisu
+  await addPinViaApi(page, campaignId, 'Citadela')
+  await page.reload()
+  await page.getByRole('button', { name: 'Upravit' }).click()
+  const form = page.getByRole('dialog')
+  await form.getByLabel('Kde se to odehrálo (body na mapě)').fill('citadela')
+  await form.getByRole('list', { name: /výsledky/ }).getByRole('button', { name: /Citadela/ }).click()
+  await form.getByRole('button', { name: 'Odebrat místo Kupika' }).click()
+  await form.getByRole('button', { name: 'Uložit' }).click()
+  await expect(page.getByRole('region', { name: 'Na mapě' }).getByRole('link')).toHaveText([/Citadela/])
+})
+
+async function addPinViaApi(page: Page, campaignId: string, title: string) {
+  const maps = (await (await page.request.get(`/api/campaigns/${campaignId}/maps`)).json()).maps as { id: string }[]
+  const res = await page.request.post(`/api/maps/${maps[0]!.id}/pins`, { data: { x: 50, y: 50, title } })
+  expect(res.status()).toBe(201)
+}
+
 test('DM mění pořadí map: důležitou mapu dá na první místo, pořadí vydrží obnovení stránky', async ({ page }) => {
   await registerDm(page, 'maporder')
   const { campaignId } = await newCampaign(page, 'Pořadí map')

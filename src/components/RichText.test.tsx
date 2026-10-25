@@ -6,7 +6,7 @@ import { parseBlocks } from './rich-text'
 describe('RichText', () => {
   it('rozpozná nadpisy, odrážky a odstavce', () => {
     expect(parseBlocks('# Nadpis\nprvní řádek\ndruhý řádek\n\n- a\n- b\n\nKonec')).toEqual([
-      { type: 'heading', text: 'Nadpis' },
+      { type: 'heading', level: 1, text: 'Nadpis' },
       { type: 'paragraph', text: 'první řádek\ndruhý řádek' },
       { type: 'list', items: ['a', 'b'] },
       { type: 'paragraph', text: 'Konec' },
@@ -20,11 +20,25 @@ describe('RichText', () => {
       { type: 'gap', lines: 1 },
       { type: 'list', items: ['a'] },
       { type: 'gap', lines: 2 },
-      { type: 'heading', text: 'Konec' },
+      { type: 'heading', level: 1, text: 'Konec' },
     ])
     const { container } = render(<RichText text={'a\n\nb   c'} />)
     expect(container.querySelector('p')?.textContent).toBe('a\n\nb   c')
     expect(container.querySelector('p')).toHaveClass('whitespace-pre-wrap')
+  })
+
+  it('podkapitoly a citace (po sobě jdoucí řádky s „>“ jsou jedna citace)', () => {
+    expect(parseBlocks('# Kapitola\n## Podkapitola\n> „První řádek\n> — přísloví“\nText\n> Druhá')).toEqual([
+      { type: 'heading', level: 1, text: 'Kapitola' },
+      { type: 'heading', level: 2, text: 'Podkapitola' },
+      { type: 'quote', text: '„První řádek\n— přísloví“' },
+      { type: 'paragraph', text: 'Text' },
+      { type: 'quote', text: 'Druhá' },
+    ])
+    const { container } = render(<RichText text={'# A\n## B\n> **Moudrost**'} />)
+    expect(container.querySelector('h3')?.textContent).toBe('A')
+    expect(container.querySelector('h4')?.textContent).toBe('B')
+    expect(container.querySelector('blockquote strong')?.textContent).toBe('Moudrost')
   })
 
   it('tučné, kurzíva a odkazy; odkaz míří ven bezpečně', () => {

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCampaignMembers } from '@/features/campaigns/api'
 import { ApiError } from '@/lib/api'
 import { useCreateEntry, useUpdateEntry, type JournalEntry } from './api'
+import { PlacePicker } from '@/features/maps/places'
 import { NpcPicker } from './NpcPicker'
 
 /**
@@ -42,6 +43,7 @@ export function EntryForm({
   const [viewers, setViewers] = useState<Set<string>>(new Set(entry?.viewerIds ?? []))
   const [pinned, setPinned] = useState(entry?.pinned ?? false)
   const [npcIds, setNpcIds] = useState<string[]>(entry?.npcIds ?? defaultNpcIds)
+  const [pinIds, setPinIds] = useState<string[]>(entry?.places.map((p) => p.pinId) ?? [])
   const legacyPrivate = !isDm && entry?.visibility === 'owner'
   const players = members?.filter((m) => m.role === 'player') ?? []
   const valid = title.trim() !== '' && topic.trim() !== '' && (visibility !== 'selected' || viewers.size > 0)
@@ -55,6 +57,7 @@ export function EntryForm({
       title: title.trim(),
       body,
       npcIds,
+      pinIds,
       ...(isDm ? { visibility, pinned, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) } : legacyPrivate ? { visibility } : {}),
     }
     const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'Zápis se nepodařilo uložit.')
@@ -80,9 +83,10 @@ export function EntryForm({
       <div className="space-y-2">
         <Label htmlFor="journal-body">Text</Label>
         <Textarea id="journal-body" rows={8} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} />
-        <p className="text-xs text-muted-foreground">Formátování: **tučně**, *kurzíva*, „# Nadpis“, odrážky „- položka“, odkazy https://…</p>
+        <p className="text-xs text-muted-foreground">Formátování: **tučně**, *kurzíva*, „# Kapitola“, „## Podkapitola“, „&gt; citace“, odrážky „- položka“, odkazy https://…</p>
       </div>
       <NpcPicker campaignId={campaignId} value={npcIds} onChange={setNpcIds} />
+      <PlacePicker campaignId={campaignId} value={pinIds} onChange={setPinIds} label="Kde se to odehrálo (body na mapě)" />
       {isDm ? (
         <div className="space-y-3">
           <div className="space-y-2">

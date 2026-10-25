@@ -335,7 +335,7 @@ final class JournalNpcController
      * Ověří body pro „kde se NPC nachází“: každý musí být z kampaně a uživatel ho musí vidět (jinak 422, nic neprozradí).
      * @return list<string>
      */
-    private static function checkPins(mixed $ids, string $campaignId, string $userId, string $role): array
+    public static function checkPins(mixed $ids, string $campaignId, string $userId, string $role): array
     {
         if (!is_array($ids) || count($ids) > self::MAX_LINKS) {
             throw HttpError::validation('Seznam míst je neplatný (nejvýš ' . self::MAX_LINKS . ').', 'pinIds');

@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import { parseBlocks } from './rich-text'
 
 /**
- * Jednoduché formátování textů (deník, popisy) bez HTML: odstavce, `# nadpis`, `- odrážky`, **tučně**, *kurzíva* a odkazy http(s).
+ * Jednoduché formátování textů (deník, popisy) bez HTML: odstavce, `# kapitola`, `## podkapitola`, `> citace`, `- odrážky`, **tučně**, *kurzíva* a odkazy http(s).
  * Zalomení řádků, prázdné řádky i mezery zůstanou, jak je autor napsal.
  * Vše se vykresluje jako React prvky, takže se z textu nikdy nevykoná žádné HTML ani skript.
  */
@@ -12,9 +12,19 @@ export function RichText({ text, className }: { text: string; className?: string
     <div className={className}>
       {blocks.map((b, i) =>
         b.type === 'heading' ? (
-          <h4 key={i} className="mt-3 font-semibold first:mt-0">
+          b.level === 1 ? (
+            <h3 key={i} className="mt-5 font-display text-lg font-semibold first:mt-0">
+              {inline(b.text)}
+            </h3>
+          ) : (
+            <h4 key={i} className="mt-3 font-semibold first:mt-0">
+              {inline(b.text)}
+            </h4>
+          )
+        ) : b.type === 'quote' ? (
+          <blockquote key={i} className="my-3 whitespace-pre-wrap border-l-4 border-foreground/30 pl-3 italic first:mt-0 last:mb-0">
             {inline(b.text)}
-          </h4>
+          </blockquote>
         ) : b.type === 'list' ? (
           <ul key={i} className="my-2 list-disc space-y-1 pl-5">
             {b.items.map((item, j) => (

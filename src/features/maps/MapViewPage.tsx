@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon, MapPinPlusIcon, MoveIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { RichText } from '@/components/RichText'
+import { SearchPicker } from '@/components/SearchPicker'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
@@ -12,7 +13,7 @@ import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
-import { useJournal } from '@/features/journal/api'
+import { useJournal, type JournalEntry } from '@/features/journal/api'
 import { NpcPicker } from '@/features/journal/NpcPicker'
 import { useJournalNpcs, type JournalNpc } from '@/features/journal/npc-api'
 import { Avatar } from '@/features/sheet/Avatar'
@@ -139,6 +140,7 @@ export default function MapViewPage() {
               )}
             </div>
             {selected.description && <p className="whitespace-pre-wrap break-words">{selected.description}</p>}
+            <PinEntries campaignId={campaignId} entryIds={selected.entryIds} />
             <PinNpcs campaignId={campaignId} npcs={selected.npcIds.flatMap((id) => npcById.get(id) ?? [])} />
           </CardContent>
         </Card>
@@ -162,7 +164,7 @@ export default function MapViewPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{p.title}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {[VISIBILITY_LABELS[p.visibility], ...p.npcIds.flatMap((id) => npcById.get(id)?.name ?? [])].join(' · ')}
+                    {[VISIBILITY_LABELS[p.visibility], ...p.npcIds.flatMap((id) => npcById.get(id)?.name ?? []), ...(p.entryIds.length > 0 ? [`📖 ${p.entryIds.length}`] : [])].join(' · ')}
                   </span>
                 </span>
               </button>
@@ -189,6 +191,7 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
   const [visibility, setVisibility] = useState<MapPin['visibility']>(editing?.visibility ?? 'all')
   const [viewers, setViewers] = useState<Set<string>>(new Set(editing?.viewerIds ?? []))
   const [npcIds, setNpcIds] = useState<string[]>(editing?.npcIds ?? [])
+  const [entryIds, setEntryIds] = useState<string[]>(editing?.entryIds ?? [])
   const players = members?.filter((m) => m.role === 'player') ?? []
   // Viditelnost volí jen DM; body hráčů vidí všichni (stará soukromá poznámka zůstane, jak je).
   const choosesVisibility = isDm && editing?.visibility !== 'owner'
@@ -198,7 +201,7 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
-    const common = { title: title.trim(), description, icon, npcIds, ...(choosesVisibility ? { visibility, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) } : {}) }
+    const common = { title: title.trim(), description, icon, npcIds, entryIds, ...(choosesVisibility ? { visibility, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) } : {}) }
     const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'Uložení se nepodařilo.')
     if (editing) update.mutate({ id: editing.id, ...common }, { onSuccess: (p) => onDone(p.id), onError })
     else if (draft.kind === 'new') create.mutate({ x: draft.x, y: draft.y, ...common }, { onSuccess: (p) => onDone(p.id), onError })
@@ -214,7 +217,8 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
         <Label htmlFor="pin-desc">Popis</Label>
         <Textarea id="pin-desc" rows={3} maxLength={2000} className="min-h-20" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
-<NpcPicker campaignId={campaignId} value={npcIds} onChange={setNpcIds} id="pin-npc" label="Kdo se tu nachází (NPC a postavy z deníku)" removeSuffix="z bodu" />
+      <EntryPicker campaignId={campaignId} value={entryIds} onChange={setEntryIds} />
+      <NpcPicker campaignId={campaignId} value={npcIds} onChange={setNpcIds} id="pin-npc" label="Kdo se tu nachází (NPC a postavy z deníku)" removeSuffix="z bodu" />
       <div role="group" aria-label="Ikona" className="flex flex-wrap gap-2">
         {PIN_ICONS.map((i) => (
           <button
@@ -272,6 +276,48 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
         {editing ? 'Uložit' : 'Přidat na mapu'}
       </Button>
     </form>
+  )
+}
+
+/** Výběr zápisů deníku k bodu (co se tu stalo, co o místě víme). */
+function EntryPicker({ campaignId, value, onChange }: { campaignId: string; value: string[]; onChange: (ids: string[]) => void }) {
+  const { data: journal, isPending } = useJournal(campaignId)
+  const entries = journal?.entries ?? []
+  const toOption = (e: JournalEntry) => ({ id: e.id, label: e.title, hint: e.topic, icon: <span aria-hidden>📖</span> })
+  return (
+    <SearchPicker
+      label="Zápisy z deníku"
+      selectedLabel="Vybrané zápisy"
+      selected={value.flatMap((id) => entries.find((e) => e.id === id) ?? []).map(toOption)}
+      options={entries.filter((e) => !value.includes(e.id)).map(toOption)}
+      onAdd={(id) => onChange([...value, id])}
+      onRemove={(id) => onChange(value.filter((v) => v !== id))}
+      removeLabel={(o) => `Odebrat zápis ${o.label} z bodu`}
+      placeholder="Hledat zápis nebo téma…"
+      empty={isPending ? 'Načítám deník…' : 'V deníku zatím nejsou žádné zápisy.'}
+    />
+  )
+}
+
+/** Zápisy deníku na bodu: odkazy, které zápis v deníku rovnou otevřou. */
+function PinEntries({ campaignId, entryIds }: { campaignId: string; entryIds: string[] }) {
+  const { data: journal } = useJournal(campaignId)
+  const entries = entryIds.flatMap((id) => journal?.entries.find((e) => e.id === id) ?? [])
+  if (entries.length === 0) return null
+  return (
+    <section aria-label="Zápisy z deníku" className="space-y-2 border-t pt-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Zápisy z deníku</h3>
+      <ul className="space-y-1">
+        {entries.map((e) => (
+          <li key={e.id}>
+            <Link to={`/campaigns/${campaignId}/journal?entry=${e.id}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-primary underline underline-offset-2">
+              📖 {e.title}
+              <span className="text-xs text-muted-foreground no-underline">{e.topic}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
