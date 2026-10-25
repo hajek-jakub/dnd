@@ -11,6 +11,7 @@ import { CONCENTRATION_RIDER, useClassToggle } from '@/features/sheet/class-togg
 import { useSheet } from '@/features/sheet/sheet-context'
 import { useDeleteTactic, useReorderTactics, useTactics } from './api'
 import { kiState } from './cost'
+import { AttackModeBar } from './AttackModeBar'
 import { ConcentrationCard } from './ConcentrationCard'
 import { BatchResultDialog, type BatchOutcome } from './BatchResultDialog'
 import { AttackCard, ComboCard, KiCard, PassiveCard, RuleCard, SpellCard, type EditControls, type RunContext } from './TacticCards'
@@ -111,6 +112,7 @@ export function TacticsTab() {
         </div>
       )}
 
+      {canEdit && <AttackModeBar />}
       <ConcentrationCard tactics={data ?? []} />
 
       {canEdit && sneak && <ClassRiderToggle rider={sneak} />}

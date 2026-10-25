@@ -42,6 +42,8 @@ export function RollButton({
             ? sheet.conditions.checks[kind.check]
             : sheet.conditions.saves[kind.save]
   const conditionMode = info?.mode ?? 'normal'
+  // Výhoda a nevýhoda patří jen k hodům k20 (útok, zkouška, záchrana, iniciativa); zranění se hází vždy jednou.
+  const d20 = kind !== undefined || initiative === true || /d20(?!\d)/i.test(expression)
   const note =
     info && info.sources.length > 0
       ? conditionMode === 'normal'
@@ -52,7 +54,7 @@ export function RollButton({
     <button
       type="button"
       disabled={pending}
-      onClick={() => roll(label, expression, { crit, critExtra, initiative, conditionMode })}
+      onClick={() => roll(label, expression, { crit, critExtra, initiative, conditionMode, ...(d20 ? {} : { mode: 'normal' as const }) })}
       aria-label={`Hodit: ${label}${crit ? ' (kritický)' : ''} (${expression}${crit && critExtra ? ` + ${critExtra}` : ''})${note ? `, ${note}` : ''}`}
       title={`Hodit ${expression}${note ? ` – ${note}` : ''}`}
       className={cn(

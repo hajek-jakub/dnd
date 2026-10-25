@@ -285,6 +285,41 @@ test('okno série hodů: kostky, zásah nebo minutí mění součet zranění', 
   await expect(results).toHaveCount(0)
 })
 
+test('výhoda a nevýhoda v taktikách platí jen na zásah: 2× k20, zranění jednou; stav ji ruší', async ({ page }) => {
+  const id = await openTactics(page, 'tactadv')
+  const bar = page.getByTestId('attack-mode')
+  await bar.getByRole('group', { name: 'Hod na zásah' }).getByRole('button', { name: 'Výhoda', exact: true }).click()
+  await expect(page.getByTestId('attack-mode-effective')).toContainText('s výhodou')
+
+  await card(page, 'Flurry of Blows').getByRole('button', { name: /^Použít Flurry of Blows/ }).click()
+  const results = page.getByRole('dialog', { name: 'Hody: Flurry of Blows' })
+  await expect(results).toContainText('výhoda na zásah')
+  await expect(results.getByTestId('batch-row')).toHaveCount(2)
+  for (const row of await results.getByTestId('batch-row').all()) {
+    await expect(row.getByTestId('batch-hit').locator('[data-die="20"]')).toHaveCount(2)
+    // krit přidá zlatou kostku zvlášť; běžná kostka zranění je jen jedna (žádný druhý hod)
+    await expect(row.getByTestId('batch-damage').locator('[data-die]:not([data-testid="crit-dice"] [data-die])')).toHaveCount(1)
+  }
+  await page.keyboard.press('Escape')
+
+  // samostatný hod na zranění výhodu nebere
+  await card(page, 'Démonické kopí (hlavní)').getByRole('button', { name: /^Hodit: Démonické kopí \(hlavní\): zranění \(/ }).first().click()
+  const dialog = page.getByRole('dialog', { name: 'Hod kostkou' })
+  await expect(dialog.getByTestId('roll-result-total')).toBeVisible()
+  await expect(dialog.getByTestId('attempt')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+
+  // Poisoned (nevýhoda) + výhoda = normálně
+  await page.request.post(`/api/characters/${id}/adjust`, { data: { ops: [{ op: 'condition', name: 'Poisoned', set: true }] } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Taktiky', exact: true }).click()
+  await expect(page.getByTestId('attack-mode-effective')).toContainText('Poisoned')
+  await expect(page.getByTestId('attack-mode-effective')).toContainText('normálně')
+  await expect(page.getByTestId('attack-mode-effective')).toContainText('navzájem ruší')
+  await page.getByTestId('attack-mode').getByRole('button', { name: 'Normálně' }).click()
+  expect(await problems(page)).toEqual([])
+})
+
 test('úpravy: přidat, upravit, přeřadit a smazat položky (data zůstanou v DB)', async ({ page }) => {
   const id = await openTactics(page, 'tactedit')
   page.on('dialog', (d) => void d.accept())
