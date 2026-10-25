@@ -1,5 +1,4 @@
 import { formatModifier, riderApplies, type DamageRiderInfo } from '@/engine'
-import { useState } from 'react'
 import { FlameIcon, SkullIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,14 +7,14 @@ import { d20, damageExpression } from '@/features/dice/format'
 import { ComputedValue } from './ComputedValue'
 import { riderFor } from './riders'
 import { ClassRiderToggle } from './ClassRiderToggle'
-import { useClassToggle } from './class-toggles'
+import { CONCENTRATION_RIDER, useClassToggle } from './class-toggles'
 import { useSheet } from './sheet-context'
 
 export function AttacksCard() {
   const { sheet, character, canEdit, adjust } = useSheet()
   // Soustředění na Hex apod.: ke každému zásahu proti označenému cíli přibývá kostka zranění.
   const rider = riderFor(character.state.concentration)
-  const [riderOn, setRiderOn] = useState(true)
+  const [riderOn, toggleRider] = useClassToggle(character.id, CONCENTRATION_RIDER, true)
   const active = rider !== null && riderOn
   // Přídavky od tříd (Sneak Attack, ...): „vždy“ se přidají samy, ostatní si hráč zapíná pro konkrétní zásah.
   const [sneakOn] = useClassToggle(character.id, 'sneak-attack')
@@ -64,7 +63,7 @@ export function AttacksCard() {
         )}
         {canEdit && togglable.map((r) => <ClassRiderToggle key={r.id} rider={r} />)}
         {rider && canEdit && (
-          <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={() => setRiderOn((v) => !v)} className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
+          <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={toggleRider} className="mb-3 h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
             <SkullIcon aria-hidden />
             <span>
               Cíl je pod kouzlem {rider.name}: ke zranění se přidá {rider.dice} {rider.type.toLowerCase()}

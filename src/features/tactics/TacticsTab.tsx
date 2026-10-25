@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ApiError } from '@/lib/api'
 import { riderFor } from '@/features/sheet/riders'
 import { ClassRiderToggle } from '@/features/sheet/ClassRiderToggle'
-import { useClassToggle } from '@/features/sheet/class-toggles'
+import { CONCENTRATION_RIDER, useClassToggle } from '@/features/sheet/class-toggles'
 import { useSheet } from '@/features/sheet/sheet-context'
 import { useDeleteTactic, useReorderTactics, useTactics } from './api'
 import { kiState } from './cost'
@@ -35,7 +35,7 @@ export function TacticsTab() {
   const remove = useDeleteTactic(character.id)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<{ kind: TacticKind; tactic?: Tactic } | null>(null)
-  const [riderOn, setRiderOn] = useState(true)
+  const [riderOn, toggleRider] = useClassToggle(character.id, CONCENTRATION_RIDER, true)
   const [outcome, setOutcome] = useState<BatchOutcome | null>(null)
   const rider = riderFor(character.state.concentration)
   // Rage platí, když je zapnutá; Sneak Attack, když ho hráč zapnul (stejný přepínač jako na kartě Útoky).
@@ -102,7 +102,7 @@ export function TacticsTab() {
       )}
 
       {rider && canEdit && (
-        <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={() => setRiderOn((v) => !v)} className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
+        <Button type="button" variant={riderOn ? 'default' : 'outline'} aria-pressed={riderOn} onClick={toggleRider} className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left">
           <SkullIcon aria-hidden />
           <span>
             Cíl je pod kouzlem {rider.name}: ke zranění útoků se přidá {rider.dice} {rider.type.toLowerCase()}
