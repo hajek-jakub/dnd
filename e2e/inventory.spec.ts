@@ -234,10 +234,12 @@ test('povinný případ: warlock v multiclassu sesílá z pact slotu, který se 
   await expect(page.getByRole('region', { name: 'Sloty' }).getByText('Pact (1. úroveň): 0 / 1')).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: 'Soustředíš se na Expeditious Retreat' })).toBeVisible()
 
-  // další seslání už nejde
+  // pact slot došel: zbývá jen seslání bez slotu (kouzlo z rasy nebo předmětu)
   await page.getByRole('button', { name: 'Seslat Expeditious Retreat' }).click()
-  await expect(page.getByRole('dialog', { name: 'Seslat: Expeditious Retreat' }).getByText('Nemáš žádný volný slot')).toBeVisible()
-  await page.getByRole('dialog', { name: 'Seslat: Expeditious Retreat' }).getByRole('button', { name: 'Zavřít' }).click()
+  const again = page.getByRole('dialog', { name: 'Seslat: Expeditious Retreat' })
+  await expect(again.getByLabel(/^Pact slot/)).toHaveCount(0)
+  await expect(again.getByLabel(/^Bez slotu \(kouzlo z rasy/)).toBeChecked()
+  await again.getByRole('button', { name: 'Zavřít' }).click()
 
   // short rest obnoví pact slot
   await page.getByRole('button', { name: 'Přehled', exact: true }).click()
@@ -245,6 +247,49 @@ test('povinný případ: warlock v multiclassu sesílá z pact slotu, který se 
   await page.getByRole('dialog', { name: 'Short rest' }).getByRole('button', { name: 'Dokončit short rest' }).click()
   await page.getByRole('button', { name: 'Kouzla', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Sloty' }).getByText('Pact (1. úroveň): 1 / 1')).toBeVisible()
+})
+
+test('kouzlo bez slotu (Drow Magic): rogue bez slotů ho sešle, hlídaný počet se spotřebuje a long rest ho obnoví', async ({ page }) => {
+  await openCharacter(page, { name: 'Robinn', abilityScores: { str: 10, dex: 16, con: 8, int: 13, wis: 12, cha: 16 }, levels: Array.from({ length: 6 }, () => ({ classIndex: 'rogue', hpRoll: null })) }, 'drow')
+  await page.getByRole('button', { name: 'Kouzla', exact: true }).click()
+  await page.getByRole('button', { name: 'Přidat kouzlo' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Přidat kouzlo' })
+  await dialog.getByLabel('Seznam kouzel třídy').selectOption({ label: 'Mimo třídu (rasa, item, ...)' })
+  await dialog.getByLabel('Hledat kouzlo').fill('Faerie Fire')
+  await dialog.getByRole('button', { name: 'Přidat Faerie Fire', exact: true }).click()
+  await expect(page.getByText('Přidáno: Faerie Fire')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Zavřít' }).click()
+
+  // bez slotů jde seslat bez slotu (dřív bylo tlačítko Seslat vypnuté)
+  await page.getByRole('button', { name: 'Seslat Faerie Fire' }).click()
+  const cast = page.getByRole('dialog', { name: 'Seslat: Faerie Fire' })
+  await expect(cast.getByLabel(/^Bez slotu \(kouzlo z rasy/)).toBeChecked()
+  await expect(cast.getByLabel(/^Slot /)).toHaveCount(0)
+  // hlídat 1× za long rest
+  await cast.getByRole('button', { name: /Hlídat počet seslání bez slotu/ }).click()
+  await cast.getByLabel('Kolikrát').fill('1')
+  await cast.getByLabel('Obnoví').selectOption('long')
+  await cast.getByRole('button', { name: 'Uložit' }).click()
+  await expect(cast.getByLabel('Bez slotu (zbývá 1 z 1, obnova: long rest)')).toBeChecked()
+  await cast.getByRole('button', { name: 'Seslat', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Soustředíš se na Faerie Fire' })).toBeVisible()
+
+  // použití došlo: seslat už nejde
+  await page.getByRole('button', { name: 'Seslat Faerie Fire' }).click()
+  await expect(cast.getByText('Použití bez slotu došla (obnova: long rest) a nemáš ani volný slot.')).toBeVisible()
+  await expect(cast.getByRole('button', { name: 'Seslat', exact: true })).toBeDisabled()
+  await cast.getByRole('button', { name: 'Zavřít' }).click()
+  await page.reload()
+  await page.getByRole('button', { name: 'Přehled', exact: true }).click()
+  await expect(page.getByText('Faerie Fire (bez slotu)')).toBeVisible() // počítadlo je i mezi zdroji
+
+  // long rest použití vrátí
+  await page.getByRole('button', { name: 'Long rest' }).click()
+  await page.getByRole('dialog', { name: 'Long rest' }).getByRole('button', { name: 'Dát si long rest' }).click()
+  await page.getByRole('button', { name: 'Kouzla', exact: true }).click()
+  await page.getByRole('button', { name: 'Seslat Faerie Fire' }).click()
+  await expect(cast.getByLabel('Bez slotu (zbývá 1 z 1, obnova: long rest)')).toBeChecked()
+  await expectNoHorizontalScroll(page)
 })
 
 test('záložky Kouzla a Inventář: dotykové prvky dost velké a žádný horizontální scroll', async ({ page }) => {

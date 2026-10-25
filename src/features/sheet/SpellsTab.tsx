@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { groupClasses } from '@/engine'
 import { useAddSpell, useDeleteSpell, useUpdateSpell } from './api'
 import { toEngineInput } from './model'
+import { RECHARGE_LABELS } from './labels'
 import { useSheet } from './sheet-context'
 import type { CharacterSpell } from './types'
 
@@ -180,7 +181,7 @@ function SlotsSummary() {
 }
 
 function SpellDetailDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose: () => void }) {
-  const { character, canEdit } = useSheet()
+  const { character, canEdit, update } = useSheet()
   const remove = useDeleteSpell(character.id)
   const { data: entry, isPending } = useRule(spell?.ruleId)
   const facts = entry ? factsFor(entry) : []
@@ -214,7 +215,14 @@ function SpellDetailDialog({ spell, onClose }: { spell: CharacterSpell | null; o
               disabled={remove.isPending}
               onClick={() => {
                 if (!window.confirm(`Odebrat kouzlo „${spell.name}“ z postavy?`)) return
-                remove.mutate(spell.id, { onSuccess: onClose, onError: () => toast.error('Kouzlo se nepodařilo odebrat') })
+                const tracked = character.customResources.filter((c) => c.key !== freeCastKey(spell.id))
+                remove.mutate(spell.id, {
+                  onSuccess: () => {
+                    if (tracked.length !== character.customResources.length) update({ customResources: tracked })
+                    onClose()
+                  },
+                  onError: () => toast.error('Kouzlo se nepodařilo odebrat'),
+                })
               }}
             >
               <Trash2Icon aria-hidden /> Odebrat z postavy
@@ -226,11 +234,17 @@ function SpellDetailDialog({ spell, onClose }: { spell: CharacterSpell | null; o
   )
 }
 
+/** Vlastní zdroj, který hlídá seslání kouzla bez slotu (rasa, předmět, feat: „1× za long rest“). Long rest ho obnoví sám. */
+const freeCastKey = (spellId: string) => `custom.spell-${spellId}`
+
 function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose: () => void }) {
-  const { sheet, character, adjust } = useSheet()
+  const { sheet, character, adjust, update, canEdit } = useSheet()
   const { slots, pact } = sheet.spellcasting
   const { data: entry } = useRule(spell?.ruleId)
   const [choice, setChoice] = useState<string>('')
+  const [tracking, setTracking] = useState(false)
+  const [uses, setUses] = useState('1')
+  const [recharge, setRecharge] = useState<'long' | 'short' | 'dawn'>('long')
 
   if (!spell)
     return (
@@ -256,6 +270,13 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
       })
     if (spell.ritual) options.push({ id: 'ritual', label: 'Jako rituál (+10 minut, bez slotu)' })
   }
+  // Kouzla z rasy (Drow Magic), předmětů a featů se sesílají bez slotu; s hlídaným počtem použití se jedno odečte.
+  const free = spell.level > 0 ? sheet.resources.find((r) => r.key === freeCastKey(spell.id)) : undefined
+  if (spell.level > 0) {
+    if (free) {
+      if (free.current > 0) options.unshift({ id: 'free', label: `Bez slotu (zbývá ${free.current} z ${free.max.value}, obnova: ${RECHARGE_LABELS[free.recharge]})` })
+    } else options.push({ id: 'free', label: 'Bez slotu (kouzlo z rasy, předmětu nebo schopnosti)' })
+  }
   const selected = spell.level === 0 ? 'free' : options.some((o) => o.id === choice) ? choice : (options[0]?.id ?? '')
   const upcastLevel = selected.startsWith('slot:') ? Number(selected.slice(5)) : selected === 'pact' ? (pact?.level ?? spell.level) : spell.level
   const currentFocus = character.state.concentration
@@ -269,6 +290,8 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
       if (slot) ops.push({ op: 'slot', level, delta: 1, max: slot.max })
     } else if (selected === 'pact' && pact) {
       ops.push({ op: 'pact', delta: 1, max: pact.count })
+    } else if (selected === 'free' && free) {
+      ops.push({ op: 'resource', key: free.key, delta: -1, max: free.max.value })
     }
     if (spell.concentration) ops.push({ op: 'concentration', set: spell.name })
     if (ops.length > 0) adjust(ops)
@@ -289,7 +312,7 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
           <p>Cantripy nespotřebují slot.</p>
         ) : options.length === 0 ? (
           <p role="alert" className="text-destructive">
-            Nemáš žádný volný slot, který by na toto kouzlo stačil.
+            {free ? `Použití bez slotu došla (obnova: ${RECHARGE_LABELS[free.recharge]}) a nemáš ani volný slot.` : 'Nemáš žádný volný slot, který by na toto kouzlo stačil.'}
           </p>
         ) : (
           <fieldset className="space-y-2">
@@ -313,6 +336,43 @@ function CastDialog({ spell, onClose }: { spell: CharacterSpell | null; onClose:
               </label>
             ))}
           </fieldset>
+        )}
+
+        {spell.level > 0 && canEdit && !free && (
+          <div className="space-y-2 rounded-lg border p-3 text-sm">
+            {!tracking ? (
+              <Button variant="outline" className="w-full" onClick={() => setTracking(true)}>
+                Hlídat počet seslání bez slotu (např. 1× za long rest)
+              </Button>
+            ) : (
+              <form
+                className="flex flex-wrap items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const max = Number.parseInt(uses, 10)
+                  if (!(max >= 1 && max <= 20)) return
+                  const name = `${spell.name} (bez slotu)`.slice(0, 60)
+                  update({ customResources: [...character.customResources.filter((c) => c.key !== freeCastKey(spell.id)), { key: freeCastKey(spell.id), name, max, recharge }] })
+                  setChoice('free')
+                  setTracking(false)
+                }}
+              >
+                <label className="space-y-1">
+                  <span className="block font-medium">Kolikrát</span>
+                  <Input type="number" min={1} max={20} value={uses} onChange={(e) => setUses(e.target.value)} className="w-20" />
+                </label>
+                <label className="min-w-0 flex-1 space-y-1">
+                  <span className="block font-medium">Obnoví</span>
+                  <NativeSelect value={recharge} onChange={(e) => setRecharge(e.target.value as typeof recharge)}>
+                    <option value="long">long rest</option>
+                    <option value="short">short rest</option>
+                    <option value="dawn">úsvit</option>
+                  </NativeSelect>
+                </label>
+                <Button type="submit">Uložit</Button>
+              </form>
+            )}
+          </div>
         )}
 
         {upcastLevel > spell.level && entry && typeof entry.data.higher_level === 'string' && entry.data.higher_level && (

@@ -155,7 +155,7 @@ Nikdy neupravovat už nasazenou migraci, vždy přidat novou.
 
 ### Fáze 4 – Kouzla a inventář: HOTOVO
 - **Kouzla** (`character_spells`, odkaz na `rules_entries`, SRD i homebrew kampaně): přidání do seznamu třídy (nebo mimo třídu), připravená kouzla u cleric/druid/paladin/wizard (limity jen jako upozornění, nikdy neblokují),
-  detail kouzla, **seslání**: výběr slotu (kouzlo na vyšší úrovni ukáže text „na vyšší úrovni“), pact slot (např. warlock v multiclassu), rituál bez slotu, cantripy bez slotu, **koncentrace** (`characters.concentration`, adjust op `concentration`).
+  detail kouzla, **seslání**: výběr slotu (kouzlo na vyšší úrovni ukáže text „na vyšší úrovni“), pact slot (např. warlock v multiclassu), rituál bez slotu, cantripy bez slotu, **bez slotu** (kouzlo z rasy, itemu nebo schopnosti, např. Drow Magic u rogua bez slotů: volba je u každého kouzla 1.+ úrovně; hráč si může zapnout hlídání počtu, např. 1× za long rest, což založí vlastní zdroj `custom.spell-<id kouzla>` a seslání ho ubere; odebrání kouzla zdroj smaže), **koncentrace** (`characters.concentration`, adjust op `concentration`).
 - **Inventář** (`character_items`): položka je kopie z pravidel (`Items::fromRule`: zbraň, zbroj, štít, magický item včetně známých efektů jako Ring of Protection; magická zbroj a zbraň dostane hodnoty základu, viz „Itemy, kletby, loot a AC“) nebo vlastní.
   Equip se promítá do enginu (AC, útoky, efekty); nosí se jedna zbroj a jeden štít; **attunement max 3** vynucuje server (transakce se zámkem postavy, souběžné požadavky se nepředběhnou).
   Efekty itemů (bonusy k AC, savům, skillům, rychlosti, ...) se započítají jen u nošeného (a u attunement itemů attunovaného) itemu a s původem se ukážou v rozpisu hodnoty.
