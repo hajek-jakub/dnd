@@ -130,7 +130,7 @@ final class CampaignController
     {
         Access::requireMember($user, $params['id']);
         $rows = Db::all(
-            'SELECT u.id, u.display_name, m.role, m.joined_at
+            'SELECT u.id, u.display_name, u.accent, m.role, m.joined_at
              FROM campaign_members m JOIN users u ON u.id = m.user_id
              WHERE m.campaign_id = ? ORDER BY m.joined_at, u.display_name',
             [$params['id']],
@@ -138,6 +138,7 @@ final class CampaignController
         return ['members' => array_map(static fn (array $r): array => [
             'userId' => $r['id'],
             'displayName' => $r['display_name'],
+            'accent' => $r['accent'],
             'role' => $r['role'],
             'joinedAt' => Ids::iso((string) $r['joined_at']),
         ], $rows)];

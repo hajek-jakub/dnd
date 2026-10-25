@@ -56,6 +56,11 @@ export function MessagesPage() {
       list.push({ id: 'drafts', label: 'Připravené zprávy', hint: 'Nachystej předem, odešli jedním klepnutím', icon: 'draft' })
     } else {
       if (dmMember) list.push({ id: `dm:${me}`, label: `${dmMember.displayName} (DM)`, hint: 'Soukromě jen mezi tebou a DM', icon: 'private' })
+      // Soukromý chat s každým dalším hráčem (vlákno pm:<id>:<id> se seřazenými id, stejně jako na serveru); DM ho nevidí.
+      for (const p of members?.filter((x) => x.role === 'player' && x.userId !== me) ?? []) {
+        const id = `pm:${[me, p.userId].sort().join(':')}`
+        list.push({ id, label: senders.get(p.userId)?.name ?? p.displayName, hint: 'Soukromě jen vy dva, DM to nevidí', icon: 'private', peerId: p.userId })
+      }
       if (messages.some((m) => m.thread === 'secret')) list.push({ id: 'secret', label: 'Tajné zprávy', hint: 'Zprávy od DM jen pro vybrané', icon: 'secret' })
       // Jazyky, které umím a umí je ještě někdo další, plus vlákna, kde už nějaké zprávy jsou.
       const shown = new Set<string>()
@@ -70,7 +75,7 @@ export function MessagesPage() {
       }
     }
     return list
-  }, [isDm, members, dmMember, me, messages, languages])
+  }, [isDm, members, dmMember, me, messages, languages, senders])
 
   const selectedParam = params.get('t')
   const selected = threads.find((t) => t.id === (selectedParam ?? 'group')) ?? threads[0]

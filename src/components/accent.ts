@@ -97,6 +97,19 @@ export function accentVars(hex: string, mode: 'light' | 'dark'): Record<string, 
   }
 }
 
+/** Výchozí červená z `index.css` (uživatel bez vlastní barvy). */
+const DEFAULT_VARS = {
+  light: { '--primary': 'oklch(0.5 0.185 27)', '--primary-foreground': LEVELS.light.foreground },
+  dark: { '--primary': 'oklch(0.69 0.17 25)', '--primary-foreground': LEVELS.dark.foreground },
+} as const
+
+/** Barva jiného uživatele pro prvek s `bg-primary text-primary-foreground` (např. bublina chatu); null = výchozí červená. */
+export function userAccentStyle(hex: string | null, mode: 'light' | 'dark'): Record<string, string> {
+  if (!hex || !isAccentHex(hex)) return { ...DEFAULT_VARS[mode] }
+  const vars = accentVars(hex, mode)
+  return { '--primary': vars['--primary']!, '--primary-foreground': vars['--primary-foreground']! }
+}
+
 /** Barva pro vzorník a `theme-color` (#rrggbb) ve světlém režimu. */
 export function accentHex(hex: string, mode: 'light' | 'dark' = 'light'): string {
   const { c, h } = hexToOklch(hex)

@@ -18,7 +18,8 @@ use Dnd\Response;
 /**
  * Zprávy v kampani.
  *  - skupinový chat (thread 'group'): píše i čte každý člen kampaně,
- *  - soukromá konverzace DM a hráče (thread 'dm:<id hráče>'): hráč smí psát jen DM, DM smí psát hráči,
+ *  - soukromá konverzace DM a hráče (thread 'dm:<id hráče>'): hráč píše DM, DM hráči,
+ *  - soukromá konverzace dvou hráčů (thread 'pm:<id>:<id>', id seřazená): vidí ji jen ti dva, DM ne,
  *  - tajná zpráva od DM více hráčům (thread 'secret'): vidí ji jen DM a příjemci,
  *  - zpráva v jazyce (thread 'lang:<jazyk>'): píše hráč, který jazyk umí, a čtou ji ostatní hráči, kteří ho umí (v okamžiku odeslání), a DM.
  *    DM je mezi příjemci, takže ji vidí podle obecného pravidla níže; zprávy z doby, kdy se DM nepřidával, mu zůstanou skryté.
@@ -26,7 +27,7 @@ use Dnd\Response;
  * Na každou zprávu jde reagovat jedním emoji (libovolným, jako na Messengeru; jiné emoji předchozí reakci nahradí), odpovědět na ni (reply_to_id, jen ve stejném vlákně a jen na zprávu, kterou odesílatel vidí),
  * autor ji smí upravit a smazat, DM smí smazat kteroukoli zprávu, kterou vidí (moderace). Smazaná zpráva ztratí text, ale zůstane v chatu.
  * Viditelnost drží jediné pravidlo (visibleSql): skupinové vidí každý člen, ostatní jen odesílatel a příjemci.
- * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal. Hráči si mezi sebou píšou jen přes jazyky, které sdílejí (a DM to čte).
+ * DM tedy nečte nic, co mu nebylo adresováno ani sám neodeslal (ani soukromý chat dvou hráčů; zprávy v jazyce ano, je mezi příjemci).
  */
 final class MessageController
 {
@@ -276,11 +277,15 @@ final class MessageController
         $recipientIds = array_values(array_unique($recipientIds));
 
         if ($role !== 'dm') {
-            // Hráč smí soukromě psát jen DM (a jen jednomu).
-            if (count($recipientIds) !== 1 || Access::role($recipientIds[0], $campaignId) !== 'dm') {
-                throw HttpError::forbidden('Hráč může soukromě psát jen DM.');
+            // Hráč píše soukromě jednomu: DM (vlákno dm:<hráč>), nebo jinému hráči (pm:<hráč>:<hráč>, DM ho nečte).
+            $otherRole = count($recipientIds) === 1 && $recipientIds[0] !== $userId ? Access::role($recipientIds[0], $campaignId) : null;
+            if ($otherRole === 'dm') {
+                return ['dm:' . $userId, $recipientIds];
             }
-            return ['dm:' . $userId, $recipientIds];
+            if ($otherRole === 'player') {
+                return [self::pairThread($userId, $recipientIds[0]), $recipientIds];
+            }
+            throw HttpError::forbidden('Hráč může soukromě psát jen DM nebo jednomu hráči z kampaně.');
         }
         foreach ($recipientIds as $id) {
             if ($id === $userId) {
@@ -291,6 +296,12 @@ final class MessageController
             }
         }
         return [count($recipientIds) === 1 ? 'dm:' . $recipientIds[0] : 'secret', $recipientIds];
+    }
+
+    /** Vlákno dvou hráčů: stejné, ať píše kterýkoli z nich (id seřazená). */
+    private static function pairThread(string $a, string $b): string
+    {
+        return 'pm:' . (strcmp($a, $b) < 0 ? $a . ':' . $b : $b . ':' . $a);
     }
 
     /**
@@ -512,7 +523,7 @@ final class MessageController
     {
         Access::requireMember($user, $params['id']);
         $thread = $req->json()['thread'] ?? null;
-        if (!is_string($thread) || preg_match('/^(group|secret|dm:[0-9a-f-]{36}|lang:[\p{L}\p{N}-]{1,40})$/u', $thread) !== 1) {
+        if (!is_string($thread) || preg_match('/^(group|secret|dm:[0-9a-f-]{36}|pm:[0-9a-f-]{36}:[0-9a-f-]{36}|lang:[\p{L}\p{N}-]{1,40})$/u', $thread) !== 1) {
             throw HttpError::validation('Neplatné vlákno.', 'thread');
         }
         $max = Db::value(

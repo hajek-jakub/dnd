@@ -94,6 +94,20 @@ export function dayLabel(iso: string, now: Date = new Date()): string {
   return d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' })
 }
 
+/** Pauza v konverzaci, po které se nad další zprávou ukáže čas (jako na Messengeru). */
+export const TIME_GAP_MS = 15 * 60_000
+
+const clock = (iso: string) => new Date(iso).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
+
+/**
+ * Oddělovač nad zprávou místo času u každé zprávy: na začátku dne den a čas („Dnes 21:30“), po pauze aspoň 15 minut jen čas,
+ * jinak nic (rychlá výměna zpráv tak nezabírá místo; přesný čas je v akcích zprávy).
+ */
+export function timeDivider(prevIso: string | undefined, iso: string, now: Date = new Date()): string | null {
+  if (prevIso === undefined || dayKey(prevIso) !== dayKey(iso)) return `${dayLabel(iso, now)} ${clock(iso)}`
+  return new Date(iso).getTime() - new Date(prevIso).getTime() >= TIME_GAP_MS ? clock(iso) : null
+}
+
 /** Čas zprávy: dnes jen hodiny, jinak i datum. */
 export function formatTime(iso: string): string {
   const d = new Date(iso)

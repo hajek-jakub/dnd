@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { ArrowDownIcon, CopyIcon, CornerUpLeftIcon, PencilIcon, PlusIcon, SmilePlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
+import { userAccentStyle } from '@/components/accent'
+import { useTheme } from '@/components/theme-context'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useDeleteMessage, useReact, type ChatMessage } from './api'
-import { QUICK_REACTIONS, dayKey, dayLabel, formatTime, myReaction, reactionSummary, rememberEmoji } from './chat-utils'
+import { QUICK_REACTIONS, formatTime, myReaction, reactionSummary, rememberEmoji, timeDivider } from './chat-utils'
 import { EmojiPickerDialog, ReactionsDialog } from './ReactionDialogs'
 import { SenderAvatar } from './SenderAvatar'
 import type { Sender } from './senders'
@@ -15,6 +17,8 @@ function quoteText(reply: NonNullable<ChatMessage['replyTo']>, original: ChatMes
   if (original) return original.deletedAt ? 'Smazaná zpráva' : original.body
   return reply.deleted ? 'Smazaná zpráva' : reply.snippet
 }
+
+const recipientsKey = (m: ChatMessage | undefined) => (m ? m.recipients.map((r) => r.id).join(',') : '')
 
 /**
  * Chat: bubliny s odpověďmi (citace původní zprávy), emoji reakce (jako na Messengeru: jedna na člověka, souhrn v jedné bublině), úprava a smazání, oddělovače dnů a posun na nejnovější.
@@ -44,6 +48,7 @@ export function MessageList({
   const [flashId, setFlashId] = useState<number | null>(null)
   const [pickerFor, setPickerFor] = useState<number | null>(null)
   const [detailFor, setDetailFor] = useState<number | null>(null)
+  const { resolvedTheme, accent: myAccent } = useTheme()
   const react = useReact(campaignId)
   const remove = useDeleteMessage(campaignId)
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages])
@@ -112,7 +117,7 @@ export function MessageList({
 
   return (
     <div className="relative">
-      <div ref={box} onScroll={onScroll} role="log" aria-label="Zprávy" aria-live="polite" className="scroll-area max-h-[50dvh] min-h-40 space-y-3 pr-2">
+      <div ref={box} onScroll={onScroll} role="log" aria-label="Zprávy" aria-live="polite" className="scroll-area max-h-[50dvh] min-h-40 space-y-1 pr-2">
         {messages.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nic není. Napiš první zprávu.</p>}
         {messages.map((m, index) => {
           const mine = m.senderId === me.id
@@ -120,37 +125,46 @@ export function MessageList({
           const open = openId === m.id
           const myEmoji = myReaction(m.reactions, me.id)
           const summary = reactionSummary(m.reactions)
-          const separator = index === 0 || dayKey(m.createdAt) !== dayKey(messages[index - 1]!.createdAt)
-          const original = m.replyTo ? byId.get(m.replyTo.id) : undefined
+          const prev = messages[index - 1]
           const next = messages[index + 1]
+          // Čas jen nad začátkem dne nebo po pauze v konverzaci, ne u každé zprávy (přesný čas je v akcích zprávy a v `title`).
+          const divider = timeDivider(prev?.createdAt, m.createdAt)
+          const firstInRun = !prev || prev.senderId !== m.senderId || divider !== null
           // jako na Messengeru: kolečko s postavou jen u poslední zprávy z řady zpráv téhož odesílatele
-          const lastInRun = !next || next.senderId !== m.senderId || dayKey(next.createdAt) !== dayKey(m.createdAt)
+          const lastInRun = !next || next.senderId !== m.senderId || timeDivider(m.createdAt, next.createdAt) !== null
+          const original = m.replyTo ? byId.get(m.replyTo.id) : undefined
           const sender = senders.get(m.senderId)
+          const restricted = (m.thread === 'secret' || m.thread.startsWith('lang:')) && m.recipients.length > 0
+          // komu zpráva patří, se v tajném vlákně a v jazyce ukáže jen při změně (příjemci se mezi zprávami liší)
+          const showRecipients = restricted && (firstInRun || recipientsKey(prev) !== recipientsKey(m))
+          const accent = mine ? myAccent : (sender?.accent ?? null)
           return (
-            <div key={m.id}>
-              {separator && (
+            <div key={m.id} className={cn(firstInRun && index > 0 && 'pt-2')}>
+              {divider && (
                 <p className="my-2 flex items-center gap-3 text-xs font-medium text-muted-foreground">
                   <span aria-hidden className="h-px flex-1 bg-border" />
-                  <span>{dayLabel(m.createdAt)}</span>
+                  <span>{divider}</span>
                   <span aria-hidden className="h-px flex-1 bg-border" />
                 </p>
               )}
               <div id={`msg-${m.id}`} className={cn('flex flex-col rounded-xl transition-shadow', mine ? 'items-end' : 'items-start', flashId === m.id && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background')}>
-                <p className={cn('text-xs text-muted-foreground', !mine && 'ml-10')}>
-                  {mine ? 'Ty · ' : <span className="sr-only">{sender?.name ?? m.senderName}: </span>}
-                  {formatTime(m.createdAt)}
-                  {m.editedAt && !deleted && ' · upraveno'}
-                  {(m.thread === 'secret' || m.thread.startsWith('lang:')) && m.recipients.length > 0 && ` · pro: ${m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}`}
-                </p>
+                {showRecipients && (
+                  <p className={cn('text-xs text-muted-foreground', mine ? 'mr-12' : 'ml-10')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}</p>
+                )}
                 <div className={cn('flex max-w-full items-end gap-1', mine && 'flex-row-reverse')}>
                   {!mine && <span className="mr-1 flex w-8 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
                   <div
                     onClick={() => !deleted && setOpenId(open ? null : m.id)}
+                    title={formatTime(m.createdAt)}
+                    style={deleted ? undefined : (userAccentStyle(accent, resolvedTheme) as CSSProperties)}
                     className={cn(
                       'min-w-0 max-w-[calc(100%-3rem)] break-words rounded-2xl px-3 py-2',
-                      deleted ? 'border border-dashed text-muted-foreground italic' : mine ? 'bg-primary text-primary-foreground' : 'bg-muted',
+                      deleted ? 'border border-dashed text-muted-foreground italic' : mine ? 'bg-primary text-primary-foreground' : 'border-2 border-primary bg-muted',
                     )}
                   >
+                    <span className="sr-only">
+                      {mine ? 'Ty' : (sender?.name ?? m.senderName)}, {formatTime(m.createdAt)}:{' '}
+                    </span>
                     {m.replyTo && !deleted && (
                       <button
                         type="button"
@@ -166,7 +180,10 @@ export function MessageList({
                         <span className="line-clamp-2 break-words opacity-90">{quoteText(m.replyTo, original)}</span>
                       </button>
                     )}
-                    <p className="whitespace-pre-wrap break-words">{deleted ? 'Zpráva byla smazána' : m.body}</p>
+                    <p className="whitespace-pre-wrap break-words">
+                      {deleted ? 'Zpráva byla smazána' : m.body}
+                      {m.editedAt && !deleted && <span className="ml-1.5 text-[0.7rem] whitespace-nowrap opacity-80">(upraveno)</span>}
+                    </p>
                   </div>
                   {!deleted && (
                     <button
@@ -204,6 +221,10 @@ export function MessageList({
 
                 {open && !deleted && (
                   <div id={`toolbar-${m.id}`} role="toolbar" aria-label="Akce zprávy" className="mt-1 w-full max-w-md rounded-xl border bg-card p-2 shadow-sm">
+                    <p className="px-1 pb-1 text-xs text-muted-foreground">
+                      Odesláno {formatTime(m.createdAt)}
+                      {m.editedAt && ` · upraveno ${formatTime(m.editedAt)}`}
+                    </p>
                     <div role="group" aria-label="Reagovat emoji" className="flex flex-wrap gap-1">
                       {QUICK_REACTIONS.map((emoji) => (
                         <button

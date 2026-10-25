@@ -14,6 +14,8 @@ export interface ThreadInfo {
   icon: 'group' | 'private' | 'secret' | 'language' | 'draft'
   /** název jazyka u vlákna `lang:<jazyk>` */
   language?: string
+  /** druhý hráč u soukromého vlákna dvou hráčů `pm:<id>:<id>` */
+  peerId?: string
 }
 
 /** Počítač s myší: Enter odešle a Shift+Enter dá nový řádek. Na dotykovém displeji je Enter nový řádek (odesílá se tlačítkem). */
@@ -60,10 +62,22 @@ export function Composer({
     if (editingId !== undefined || replyId !== undefined) area.current?.focus()
   }, [editingId, replyId])
 
-  // Příjemci podle vlákna: skupina všem, soukromé jednomu, tajné vybraným (jen DM).
+  // Příjemci podle vlákna: skupina všem, soukromé jednomu (DM, hráči, nebo hráč hráči), tajné vybraným (jen DM).
   const secret = thread.id === 'secret'
   const to: 'all' | string[] | { language: string } | null =
-    thread.id === 'group' ? 'all' : thread.language ? { language: thread.language } : secret ? (isDm && picked.size >= 2 ? [...picked] : null) : thread.id.startsWith('dm:') ? [isDm ? thread.id.slice(3) : (dmId ?? '')] : null
+    thread.id === 'group'
+      ? 'all'
+      : thread.language
+        ? { language: thread.language }
+        : secret
+          ? isDm && picked.size >= 2
+            ? [...picked]
+            : null
+          : thread.peerId
+            ? [thread.peerId]
+            : thread.id.startsWith('dm:')
+              ? [isDm ? thread.id.slice(3) : (dmId ?? '')]
+              : null
   const canWrite = !secret || isDm
   const valid = text.trim().length > 0 && (editing !== null || (to !== null && !(Array.isArray(to) && to[0] === '')))
   const readOnly = thread.id.startsWith('lang:') && !thread.language

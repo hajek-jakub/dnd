@@ -69,6 +69,21 @@ test('skupinový chat, soukromě DM a hráč a tajná zpráva: každý vidí jen
     await expect(carol.getByText('Bobovo soukromé tajemství')).toHaveCount(0)
     await expect(carol.getByText('Odpověď DM pro Boba')).toHaveCount(0)
 
+    // --- soukromě dva hráči: Bob píše Carol, odpoví mu; DM vlákno nemá a zprávy nevidí
+    await bob.getByRole('button', { name: 'Zpět na vlákna' }).click()
+    await bob.getByRole('button', { name: new RegExp(`${carolName}.*DM to nevidí`) }).click()
+    await write(bob, 'Carol, mám plán')
+    await carol.getByRole('button', { name: 'Zpět na vlákna' }).click()
+    await expect(carol.getByTestId(/^unread-pm:/)).toBeVisible({ timeout: 15_000 })
+    await carol.getByRole('button', { name: new RegExp(`${bobName}.*DM to nevidí`) }).click()
+    await expect(carol.getByRole('log', { name: 'Zprávy' }).getByText('Carol, mám plán')).toBeVisible()
+    await write(carol, 'Jsem pro')
+    await expect(bob.getByRole('log', { name: 'Zprávy' }).getByText('Jsem pro')).toBeVisible({ timeout: 15_000 })
+    await expectNoHorizontalScroll(carol)
+    await expect(dm.getByRole('navigation', { name: 'Vlákna zpráv' }).getByText('DM to nevidí')).toHaveCount(0)
+    await dm.reload()
+    await expect(dm.getByText('Carol, mám plán')).toHaveCount(0)
+
     // --- tajná zpráva pro Boba i Carol (jeden příjemce nestačí)
     await dm.getByRole('button', { name: /Tajné zprávy/ }).click()
     await expect(dm.getByText('Komu (vyber aspoň dva hráče)')).toBeVisible() // vlákno se přepnulo (rozepsaný text se mezi vlákny nepřenáší)

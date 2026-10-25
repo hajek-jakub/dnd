@@ -71,15 +71,15 @@ describe('zprávy v kampani', () => {
       expect(msg.thread).toBe(`dm:${bob.id}`)
     })
 
-    it('hráč nemůže soukromě psát jinému hráči ani víc lidem naráz', async () => {
-      expectStatus(await send(bob, [carol.id], 'Carol, pst'), 403)
+    it('hráč nepíše soukromě víc lidem naráz, sám sobě ani cizinci', async () => {
       expectStatus(await send(bob, [carol.id, dm.id], 'Nás víc'), 403)
+      expectStatus(await send(bob, [carol.id, dave.id], 'Tři hráči'), 403)
       expectStatus(await send(bob, [bob.id], 'Sám sobě'), 403)
       expectStatus(await send(bob, [eve.id], 'Cizinec'), 403)
       for (const u of [dm, bob, carol, dave]) {
         const all = await bodies(u)
-        expect(all).not.toContain('Carol, pst')
         expect(all).not.toContain('Nás víc')
+        expect(all).not.toContain('Tři hráči')
       }
     })
 
@@ -87,6 +87,55 @@ describe('zprávy v kampani', () => {
       expectStatus(await send(dm, [dm.id]), 422)
       expectStatus(await send(dm, [eve.id]), 422)
       expectStatus(await send(dm, ['neni-uuid']), 422)
+    })
+  })
+
+  describe('soukromě dva hráči', () => {
+    const pair = (a: string, b: string) => `pm:${[a, b].sort().join(':')}`
+
+    it('vidí ho jen ti dva: ani DM, ani jiný hráč; oba píšou do stejného vlákna', async () => {
+      const res = await send(bob, [carol.id], 'Carol, pst')
+      expectStatus(res, 201)
+      expect(res.body.message).toMatchObject({ thread: pair(bob.id, carol.id), recipients: [{ id: carol.id }] })
+      const back = await send(carol, [bob.id], 'Bobe, slyším')
+      expectStatus(back, 201)
+      expect(back.body.message.thread).toBe(pair(bob.id, carol.id))
+      for (const u of [bob, carol]) expect(await bodies(u), u.username).toEqual(expect.arrayContaining(['Carol, pst', 'Bobe, slyším']))
+      for (const u of [dm, dave]) {
+        const all = await bodies(u)
+        expect(all, u.username).not.toContain('Carol, pst')
+        expect(all, u.username).not.toContain('Bobe, slyším')
+      }
+      expectStatus(await eve.client.get(`/campaigns/${campaignId}/messages`), 404)
+    })
+
+    it('nepřečtené a označení přečtení po vláknu; DM zprávu nesmaže ani na ni nereaguje (nevidí ji)', async () => {
+      const thread = pair(bob.id, carol.id)
+      const msg = (await send(bob, [carol.id], 'Další tajnost')).body.message
+      expect((await list(carol)).unread[thread]).toBeGreaterThan(0)
+      expect((await list(dm)).unread[thread]).toBeUndefined()
+      expectStatus(await carol.client.post(`/campaigns/${campaignId}/messages/read`, { thread }), 200)
+      expect((await list(carol)).unread[thread]).toBeUndefined()
+      expectStatus(await dm.client.delete(`/messages/${msg.id}`), 404)
+      expectStatus(await dm.client.post(`/messages/${msg.id}/reactions`, { emoji: '👍' }), 404)
+      expectStatus(await dave.client.post(`/messages/${msg.id}/reactions`, { emoji: '👍' }), 404)
+      expectStatus(await carol.client.post(`/messages/${msg.id}/reactions`, { emoji: '👍' }), 200)
+    })
+
+    it('odpověď jen ve stejném vlákně (zprávu ze skupiny ani z jiného páru nejde citovat)', async () => {
+      const own = (await send(bob, [carol.id], 'Kde jsi?')).body.message
+      expectStatus(await carol.client.post(`/campaigns/${campaignId}/messages`, { to: [bob.id], body: 'Tady', replyToId: own.id }), 201)
+      const other = (await send(bob, [dave.id], 'Dave, potichu')).body.message
+      expect(other.thread).toBe(pair(bob.id, dave.id))
+      expectStatus(await bob.client.post(`/campaigns/${campaignId}/messages`, { to: [carol.id], body: 'Citace', replyToId: other.id }), 422)
+      expect(await bodies(carol)).not.toContain('Dave, potichu')
+    })
+
+    it('členové kampaně vidí barvu aplikace ostatních (bublina v chatu)', async () => {
+      expectStatus(await carol.client.patch('/profile', { accent: '#2e7d32' }), 200)
+      const members = (await bob.client.get(`/campaigns/${campaignId}/members`)).body.members as any[]
+      expect(members.find((m) => m.userId === carol.id)?.accent).toBe('#2e7d32')
+      expect(members.find((m) => m.userId === dave.id)?.accent).toBeNull()
     })
   })
 

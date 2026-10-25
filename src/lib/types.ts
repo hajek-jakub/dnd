@@ -25,6 +25,8 @@ export interface Campaign extends CampaignSummary {
 export interface Member {
   userId: string
   displayName: string
+  /** barva aplikace člena (#rrggbb), null = výchozí */
+  accent: string | null
   role: Role
   joinedAt: string
 }

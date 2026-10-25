@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage, MessagesState, Reaction } from './api'
-import { dayLabel, isSingleEmoji, mergeMessages, myReaction, reactionSummary, toggleReaction } from './chat-utils'
+import { dayLabel, isSingleEmoji, mergeMessages, myReaction, reactionSummary, timeDivider, toggleReaction } from './chat-utils'
 
 const me = { id: 'u1', name: 'Bob' }
 const other = { id: 'u2', name: 'Carol' }
@@ -100,5 +100,14 @@ describe('oddělovače dnů', () => {
     expect(dayLabel(new Date(2026, 9, 25, 8).toISOString(), now)).toBe('Dnes')
     expect(dayLabel(new Date(2026, 9, 24, 23, 59).toISOString(), now)).toBe('Včera')
     expect(dayLabel(new Date(2026, 9, 20, 8).toISOString(), now)).toBe('20. 10. 2026')
+  })
+
+  it('čas jen na začátku dne a po pauze aspoň 15 minut', () => {
+    const at = (h: number, m: number, day = 25) => new Date(2026, 9, day, h, m).toISOString()
+    expect(timeDivider(undefined, at(9, 5), now)).toBe('Dnes 09:05')
+    expect(timeDivider(at(23, 50, 24), at(0, 10), now)).toBe('Dnes 00:10')
+    expect(timeDivider(at(9, 5), at(9, 19), now)).toBeNull()
+    expect(timeDivider(at(9, 5), at(9, 20), now)).toBe('09:20')
+    expect(timeDivider(undefined, at(20, 0, 24), now)).toBe('Včera 20:00')
   })
 })

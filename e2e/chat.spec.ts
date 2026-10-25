@@ -142,7 +142,13 @@ test('na počítači Enter odešle zprávu a Shift+Enter dá nový řádek; chat
   await box.press('Enter')
   await expect(row(page, 'druhý řádek')).toBeVisible()
   await expect(box).toHaveValue('')
-  await expect(log(page).getByText('Dnes', { exact: true })).toBeVisible()
+  // čas není u každé zprávy: jen v oddělovači na začátku dne (a po pauze), přesný čas je v akcích zprávy
+  await box.fill('Hned potom')
+  await box.press('Enter')
+  await expect(row(page, 'Hned potom')).toBeVisible()
+  await expect(log(page).getByText(/^Dnes \d{2}:\d{2}$/)).toHaveCount(1)
+  await row(page, 'Hned potom').getByRole('button', { name: /^Akce zprávy/ }).click()
+  await expect(page.getByRole('toolbar', { name: 'Akce zprávy' }).getByText(/^Odesláno \d{2}:\d{2}$/)).toBeVisible()
 })
 
 test('u zpráv je kolečko s fotkou postavy odesílatele (jako Messenger), DM bez fotky má „DM“', async ({ page: dm, browser, baseURL, isMobile }) => {
