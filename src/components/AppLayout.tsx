@@ -4,7 +4,8 @@ import { Link, Outlet } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { AiButton } from '@/features/ai/AiButton'
-import { DiceSlotContext } from '@/features/dice/dice-slot-context'
+import { DiceDock } from '@/features/dice/DiceDock'
+import { DiceSlotContext, DiceTargetContext, type DiceTarget } from '@/features/dice/dice-slot-context'
 import { RollOverlayProvider } from '@/features/dice/RollOverlay'
 import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useActiveCampaign } from '@/features/campaigns/active-campaign'
@@ -23,6 +24,8 @@ export function AppLayout() {
   usePushLinks()
   const unread = notifications?.unread ?? 0
   const [diceSlot, setDiceSlot] = useState<HTMLElement | null>(null)
+  const [diceTarget, setDiceTarget] = useState<DiceTarget | null>(null)
+  const diceCampaign = diceTarget?.campaignId ?? active?.id
 
   return (
     <div className="min-h-dvh">
@@ -36,7 +39,7 @@ export function AppLayout() {
             <span className="truncate font-display font-semibold">{active?.name ?? 'D&D kampaně'}</span>
           </div>
           <div className="flex shrink-0 items-center">
-            {/* Sem se vykreslí tlačítko kostek stránky (DiceDock), ať nic neplave nad obsahem. */}
+            {/* Sem se vykreslí tlačítko kostek (DiceDock), na každé stránce, ať nic neplave nad obsahem. */}
             <div ref={setDiceSlot} className="contents" />
             <AiButton className={iconLink} />
             <Link to="/rules" className={iconLink} aria-label="Pravidla" title="Pravidla a obsah (SRD, homebrew)">
@@ -59,13 +62,17 @@ export function AppLayout() {
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 tab:max-w-6xl tab:p-6 tab:pb-28 xl:max-w-7xl">
         <PushPrompt />
         <DiceSlotContext.Provider value={diceSlot}>
-          <RollSettingsProvider>
-            <RollOverlayProvider>
-              <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
-                <Outlet />
-              </Suspense>
-            </RollOverlayProvider>
-          </RollSettingsProvider>
+          <DiceTargetContext.Provider value={setDiceTarget}>
+            <RollSettingsProvider>
+              <RollOverlayProvider>
+                {/* Jediný panel kostek pro celou aplikaci (aktivní kampaň, na sheetu za postavu), mimo Suspense, ať při přechodu mezi stránkami nemizí. */}
+                {diceCampaign && <DiceDock key={diceCampaign} campaignId={diceCampaign} characterId={diceTarget?.characterId} />}
+                <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Načítám…</div>}>
+                  <Outlet />
+                </Suspense>
+              </RollOverlayProvider>
+            </RollSettingsProvider>
+          </DiceTargetContext.Provider>
         </DiceSlotContext.Provider>
       </main>
       <BottomNav />

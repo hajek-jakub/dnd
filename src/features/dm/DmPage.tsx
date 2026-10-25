@@ -33,7 +33,6 @@ import { cn } from '@/lib/utils'
 import { useDmHp, useRemoveEffect, useSetCondition } from './api'
 import { DmDialogs, type DmAction, type DmTarget } from './DmDialogs'
 import { NotesPanel } from './NotesPanel'
-import { DiceDock } from '@/features/dice/DiceDock'
 import { usePageTitle } from '@/lib/page-title'
 
 const ACTIONS: { id: DmAction; label: string; icon: typeof ZapIcon }[] = [
@@ -165,7 +164,6 @@ export function DmPage() {
 
       <NotesPanel campaignId={campaignId} characters={rows.map((r) => ({ id: r.character.id, name: r.character.name }))} />
 
-      <DiceDock campaignId={campaignId} />
       {enemyForm && <EnemyForm key={enemyForm.enemy?.id ?? 'new'} campaignId={campaignId} enemy={enemyForm.enemy} onClose={() => setEnemyForm(null)} />}
 
       <DmDialogs action={action} campaignId={campaignId} targets={targets} onClose={() => setAction(null)} />

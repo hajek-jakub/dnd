@@ -240,3 +240,35 @@ test('Hex na cíli: ke zranění se přidá 1d6 necrotic a jde to vypnout pro ji
   await page.goto(`/characters/${char}`)
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('tlačítko Kostky je v horní liště na každé stránce i záložce sheetu', async ({ page }) => {
+  await registerDm(page, 'dicenav')
+  const { campaignId } = await newCampaign(page, 'Kostky všude')
+  const created = await page.request.post(`/api/campaigns/${campaignId}/characters`, {
+    data: { name: 'Všudybyl', abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, levels: [{ classIndex: 'fighter', hpRoll: null }] },
+  })
+  const charId = (await created.json()).character.id as string
+  const dice = page.getByRole('banner').getByRole('button', { name: 'Kostky', exact: true })
+  for (const path of [`/campaigns/${campaignId}`, `/campaigns/${campaignId}/dm`, `/campaigns/${campaignId}/journal`, `/campaigns/${campaignId}/maps`, `/campaigns/${campaignId}/messages`, `/campaigns/${campaignId}/calendar`, '/rules', '/profile', '/notifications']) {
+    await page.goto(path)
+    await expect(dice, path).toHaveCount(1)
+  }
+  await page.goto(`/characters/${charId}`)
+  for (const tab of ['Kouzla', 'Inventář', 'Taktiky', 'Featury', 'Postava', 'Přehled']) {
+    await page.getByRole('button', { name: tab, exact: true }).first().click()
+    await expect(dice, tab).toHaveCount(1)
+  }
+  // přechod přes dolní lištu bez znovunačtení stránky
+  await page.getByRole('navigation').getByRole('link', { name: /Deník/ }).click()
+  await expect(dice).toHaveCount(1)
+  // hod z panelu na sheetu jde za postavu
+  await page.goto(`/characters/${charId}`)
+  await expect(page.getByRole('heading', { name: 'Všudybyl', level: 1 })).toBeVisible()
+  await dice.click()
+  await page.getByRole('dialog', { name: 'Kostky' }).getByRole('button', { name: 'Hodit d20' }).click()
+  await expect(page.getByRole('dialog', { name: 'Hod kostkou' }).getByTestId('roll-result-total')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Hod kostkou' })).toHaveCount(0)
+  if ((await page.getByRole('dialog', { name: 'Kostky' }).count()) === 0) await dice.click()
+  await expect(log(page).getByText(/Všudybyl/).first()).toBeVisible()
+})

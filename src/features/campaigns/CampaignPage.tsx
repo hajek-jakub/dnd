@@ -22,7 +22,6 @@ import {
 import type { Invite } from '@/lib/types'
 import { buildInviteLink } from './invite'
 import { RULESETS, rulesetOf } from './ruleset'
-import { DiceDock } from '@/features/dice/DiceDock'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 import { JournalPreview } from '@/features/journal/JournalPreview'
 import { SessionPreview } from '@/features/sessions/SessionPreview'
@@ -140,7 +139,6 @@ export function CampaignPage() {
           </MasonryItem>
         )}
       </Masonry>
-      {campaignId && <DiceDock campaignId={campaignId} />}
     </>
   )
 }

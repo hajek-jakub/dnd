@@ -18,7 +18,7 @@ import { HpCard } from './HpCard'
 import { ProfileTab } from './ProfileTab'
 import { RestButtons } from './RestDialog'
 import { rememberCampaign, rememberCharacter } from '@/features/campaigns/active-campaign'
-import { DiceDock } from '@/features/dice/DiceDock'
+import { useDiceTarget } from '@/features/dice/dice-slot-context'
 import { RollModeSwitch } from '@/features/dice/RollModeSwitch'
 import { EffectsCard } from './EffectsCard'
 import { MissingInfo } from './MissingInfo'
@@ -61,6 +61,8 @@ export function CharacterPage() {
 
 function SheetView() {
   const { character, sheet, canEdit, adjust } = useSheet()
+  // za cizí postavu (veřejný náhled) se nehází, panel kostek pak hází za hráče samotného
+  useDiceTarget(character.campaignId, canEdit ? character.id : undefined)
   usePageTitle(character.name)
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = tabFromParam(searchParams.get('tab'))
@@ -199,7 +201,6 @@ function SheetView() {
       {tab === 'tactics' && <TacticsTab />}
       {tab === 'features' && <FeaturesTab />}
       {tab === 'profile' && <ProfileTab />}
-      <DiceDock campaignId={character.campaignId} characterId={character.id} />
     </div>
   )
 }
