@@ -13,6 +13,20 @@ describe('RichText', () => {
     ])
   })
 
+  it('drží Entery i prázdné řádky tak, jak byly napsané', () => {
+    expect(parseBlocks('Ráno\nPoledne\n\n\nVečer\r\nNoc')).toEqual([{ type: 'paragraph', text: 'Ráno\nPoledne\n\n\nVečer\nNoc' }])
+    expect(parseBlocks('\n\nÚvod\n\n\n- a\n\n\n\n# Konec\n\n')).toEqual([
+      { type: 'paragraph', text: 'Úvod' },
+      { type: 'gap', lines: 1 },
+      { type: 'list', items: ['a'] },
+      { type: 'gap', lines: 2 },
+      { type: 'heading', text: 'Konec' },
+    ])
+    const { container } = render(<RichText text={'a\n\nb   c'} />)
+    expect(container.querySelector('p')?.textContent).toBe('a\n\nb   c')
+    expect(container.querySelector('p')).toHaveClass('whitespace-pre-wrap')
+  })
+
   it('tučné, kurzíva a odkazy; odkaz míří ven bezpečně', () => {
     render(<RichText text="**Tučně** a *kurzívou* na https://example.com/mapa" />)
     expect(screen.getByText('Tučně').tagName).toBe('STRONG')

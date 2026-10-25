@@ -3,6 +3,7 @@ import { parseBlocks } from './rich-text'
 
 /**
  * Jednoduché formátování textů (deník, popisy) bez HTML: odstavce, `# nadpis`, `- odrážky`, **tučně**, *kurzíva* a odkazy http(s).
+ * Zalomení řádků, prázdné řádky i mezery zůstanou, jak je autor napsal.
  * Vše se vykresluje jako React prvky, takže se z textu nikdy nevykoná žádné HTML ani skript.
  */
 export function RichText({ text, className }: { text: string; className?: string }) {
@@ -20,8 +21,14 @@ export function RichText({ text, className }: { text: string; className?: string
               <li key={j}>{inline(item)}</li>
             ))}
           </ul>
+        ) : b.type === 'gap' ? (
+          <div key={i} aria-hidden>
+            {Array.from({ length: b.lines }, (_, j) => (
+              <div key={j} className="h-6" />
+            ))}
+          </div>
         ) : (
-          <p key={i} className="my-2 whitespace-pre-line first:mt-0 last:mb-0">
+          <p key={i} className="my-2 whitespace-pre-wrap first:mt-0 last:mb-0">
             {inline(b.text)}
           </p>
         ),
