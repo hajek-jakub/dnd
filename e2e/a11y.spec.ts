@@ -121,8 +121,9 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
         await expect(p.getByRole('heading', { name: 'Zprávy', level: 1 })).toBeVisible()
         // tam, kde je vlákno hned otevřené (počítač, tablet), se zkontrolují i akce zprávy
         const actions = p.getByRole('button', { name: /^Akce zprávy/ }).first()
-        if (await actions.waitFor({ timeout: 3000 }).then(() => true, () => false)) {
-          await actions.click()
+        if (await actions.waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false)) {
+          await actions.focus()
+          await p.keyboard.press('Enter')
           await expect(p.getByRole('toolbar', { name: 'Akce zprávy' })).toBeVisible()
         }
       },
@@ -132,7 +133,8 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
       `/campaigns/${campaignId}/messages`,
       async (p) => {
         await p.getByRole('button', { name: /Skupina/ }).first().click()
-        await p.getByRole('button', { name: /^Akce zprávy/ }).first().click()
+        await p.getByRole('button', { name: /^Akce zprávy/ }).first().focus()
+        await p.keyboard.press('Enter')
         await p.getByRole('toolbar', { name: 'Akce zprávy' }).getByRole('button', { name: 'Jiné emoji' }).click()
         await expect(p.getByRole('dialog', { name: 'Reagovat emoji' })).toBeVisible()
       },

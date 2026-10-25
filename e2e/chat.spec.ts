@@ -1,4 +1,4 @@
-import { devices, type Page } from '@playwright/test'
+import { devices, type Locator, type Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 import { makePng } from '../test-utils/png'
 import { newContext, registerDm, registerViaUi, uniqueName } from './helpers'
@@ -22,6 +22,17 @@ async function newCampaign(page: Page, name: string): Promise<{ campaignId: stri
 
 const log = (page: Page) => page.getByRole('log', { name: 'Zprávy' })
 const row = (page: Page, text: string | RegExp) => log(page).locator('[id^="msg-"]').filter({ hasText: text })
+
+/** Akce zprávy se otevřou dlouhým podržením textu bubliny (ne citace odpovědi, ne bublina reakcí pod ní). */
+async function openActions(message: Locator) {
+  const text = message.locator('[data-bubble] > p').last()
+  await text.hover()
+  const page = message.page()
+  await page.mouse.down()
+  await page.waitForTimeout(650)
+  await page.mouse.up()
+  await expect(page.getByRole('toolbar', { name: 'Akce zprávy' })).toBeVisible()
+}
 
 async function write(page: Page, text: string) {
   await page.getByLabel('Zpráva', { exact: true }).fill(text)
@@ -50,12 +61,12 @@ test('reakce, odpověď, úprava a smazání zprávy: DM na počítači, hráč 
     const pill = (page: Page) => row(page, 'Kdo vede dnes hru?').getByRole('button', { name: /^Reakce \d/ })
     // pořadí reakcí ze stejné sekundy se může lišit, proto obě varianty
     const both = (a: string, b: string) => new RegExp(`^Reakce 2: (${a}, ${b}|${b}, ${a})$`)
-    await row(dm, 'Kdo vede dnes hru?').getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(dm, 'Kdo vede dnes hru?'))
     await dm.getByRole('toolbar', { name: 'Akce zprávy' }).getByRole('button', { name: 'Reagovat 👍' }).click()
     await expect(pill(dm)).toHaveAccessibleName('Reakce 1: 👍 1')
     await expect(pill(bob)).toHaveAccessibleName('Reakce 1: 👍 1', { timeout: 15_000 })
     // Bob napíše vlastní emoji
-    await row(bob, 'Kdo vede dnes hru?').getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(bob, 'Kdo vede dnes hru?'))
     await bob.getByRole('toolbar', { name: 'Akce zprávy' }).getByRole('button', { name: 'Jiné emoji' }).click()
     const picker = bob.getByRole('dialog', { name: 'Reagovat emoji' })
     await picker.getByLabel('Vlastní emoji').fill('abc')
@@ -67,7 +78,7 @@ test('reakce, odpověď, úprava a smazání zprávy: DM na počítači, hráč 
     await expect(pill(bob)).toHaveAccessibleName(both('👍 1', '🐉 1'))
     await expect(pill(dm)).toHaveAccessibleName(both('👍 1', '🐉 1'), { timeout: 15_000 })
     // jiné emoji z nabídky předchozí reakci nahradí, naposledy použité se pamatuje
-    await row(bob, 'Kdo vede dnes hru?').getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(bob, 'Kdo vede dnes hru?'))
     await bob.getByRole('toolbar', { name: 'Akce zprávy' }).getByRole('button', { name: 'Jiné emoji' }).click()
     await expect(picker.getByRole('region', { name: 'Naposledy použité' }).getByRole('button', { name: 'Reagovat 🐉' })).toHaveAttribute('aria-pressed', 'true')
     await picker.getByRole('region', { name: 'Dobrodružství' }).getByRole('button', { name: 'Reagovat 🧙' }).click()
@@ -84,7 +95,7 @@ test('reakce, odpověď, úprava a smazání zprávy: DM na počítači, hráč 
     await expectNoHorizontalScroll(bob)
 
     // --- DM odpoví na Bobovu zprávu, Bob vidí citaci
-    await row(dm, 'Kdo vede dnes hru?').getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(dm, 'Kdo vede dnes hru?'))
     await dm.getByRole('button', { name: 'Odpovědět' }).click()
     await expect(dm.getByRole('status').filter({ hasText: 'Odpovídáš:' })).toBeVisible()
     await write(dm, 'Já, jako vždy')
@@ -95,7 +106,7 @@ test('reakce, odpověď, úprava a smazání zprávy: DM na počítači, hráč 
     await expectNoHorizontalScroll(bob)
 
     // --- Bob upraví svou zprávu: změna se ukáže DM i v citaci odpovědi
-    await row(bob, 'Kdo vede dnes hru?').first().getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(bob, 'Kdo vede dnes hru?').first())
     await expect(bob.getByRole('toolbar', { name: 'Akce zprávy' }).getByRole('button', { name: 'Upravit' })).toBeVisible()
     await expectNoHorizontalScroll(bob)
     await bob.getByRole('button', { name: 'Upravit' }).click()
@@ -107,17 +118,18 @@ test('reakce, odpověď, úprava a smazání zprávy: DM na počítači, hráč 
     await expect(row(dm, 'Já, jako vždy').getByRole('button', { name: /^Přejít na zprávu od/ })).toContainText('(v pátek)')
 
     // --- hráč cizí zprávu nemění ani nemaže
-    await row(bob, 'Já, jako vždy').getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(bob, 'Já, jako vždy'))
     const toolbar = bob.getByRole('toolbar', { name: 'Akce zprávy' })
     await expect(toolbar.getByRole('button', { name: 'Odpovědět' })).toBeVisible()
     await expect(toolbar.getByRole('button', { name: 'Upravit' })).toHaveCount(0)
     await expect(toolbar.getByRole('button', { name: 'Smazat' })).toHaveCount(0)
     await bob.getByRole('button', { name: /^Akce zprávy/ }).first().focus()
     await bob.keyboard.press('Escape')
+    await expect(toolbar).toBeHidden() // Esc akce zavře
 
     // --- DM smaže Bobovu zprávu (moderace): text zmizí všem, citace ukáže smazanou zprávu
     dm.once('dialog', (d) => void d.accept())
-    await row(dm, 'Kdo vede dnes hru? (v pátek)').first().getByRole('button', { name: /^Akce zprávy/ }).click()
+    await openActions(row(dm, 'Kdo vede dnes hru? (v pátek)').first())
     await dm.getByRole('button', { name: 'Smazat' }).click()
     await expect(dm.getByText('Zpráva byla smazána')).toBeVisible()
     await expect(bob.getByText('Zpráva byla smazána')).toBeVisible({ timeout: 15_000 })
@@ -147,7 +159,7 @@ test('na počítači Enter odešle zprávu a Shift+Enter dá nový řádek; chat
   await box.press('Enter')
   await expect(row(page, 'Hned potom')).toBeVisible()
   await expect(log(page).getByText(/^Dnes \d{2}:\d{2}$/)).toHaveCount(1)
-  await row(page, 'Hned potom').getByRole('button', { name: /^Akce zprávy/ }).click()
+  await openActions(row(page, 'Hned potom'))
   await expect(page.getByRole('toolbar', { name: 'Akce zprávy' }).getByText(/^Odesláno \d{2}:\d{2}$/)).toBeVisible()
 })
 
@@ -184,6 +196,11 @@ test('u zpráv je kolečko s fotkou postavy odesílatele (jako Messenger), DM be
     await expect(avatar).toHaveAttribute('title', /^Elfka \(/)
     await expect.poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
     await expect(row(dm, 'Druhá zpráva')).toContainText('Elfka') // jméno pro čtečky
+    // hlava je stejně vysoká jako jednořádková zpráva a sedí s ní v jedné výšce
+    const head = (await avatar.boundingBox())!
+    const bubble = (await row(dm, 'Druhá zpráva').locator('[data-bubble]').boundingBox())!
+    expect(Math.abs(head.height - bubble.height)).toBeLessThanOrEqual(1)
+    expect(Math.abs(head.y - bubble.y)).toBeLessThanOrEqual(1)
 
     await write(dm, 'Vítejte, dobrodruzi')
     await expect(row(dm, 'Vítejte, dobrodruzi').getByTestId('sender-avatar')).toHaveCount(0) // vlastní zprávy bez kolečka

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 export function SenderAvatar({ sender, fallbackName, className }: { sender: Sender | undefined; fallbackName: string; className?: string }) {
   const name = sender?.name ?? fallbackName
-  const base = cn('size-8 shrink-0 rounded-full border', className)
+  const base = cn('size-10 shrink-0 rounded-full border', className)
   if (sender?.photoUrl) return <img src={sender.photoUrl} alt="" title={name} loading="lazy" decoding="async" className={cn(base, 'object-cover')} data-testid="sender-avatar" />
   return (
     <span

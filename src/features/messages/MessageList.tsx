@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { ArrowDownIcon, CopyIcon, CornerUpLeftIcon, PencilIcon, PlusIcon, SmilePlusIcon, Trash2Icon } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { ArrowDownIcon, CopyIcon, CornerUpLeftIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { userAccentStyle } from '@/components/accent'
 import { useTheme } from '@/components/theme-context'
@@ -18,11 +18,15 @@ function quoteText(reply: NonNullable<ChatMessage['replyTo']>, original: ChatMes
   return reply.deleted ? 'Smazaná zpráva' : reply.snippet
 }
 
+/** Jak dlouho podržet zprávu, než se otevřou její akce (jako na Messengeru). */
+const LONG_PRESS_MS = 450
+
 const recipientsKey = (m: ChatMessage | undefined) => (m ? m.recipients.map((r) => r.id).join(',') : '')
 
 /**
  * Chat: bubliny s odpověďmi (citace původní zprávy), emoji reakce (jako na Messengeru: jedna na člověka, souhrn v jedné bublině), úprava a smazání, oddělovače dnů a posun na nejnovější.
- * Klepnutí na zprávu (nebo na tlačítko vedle ní) otevře její akce: reakce, odpovědět, kopírovat, upravit, smazat.
+ * Dlouhé podržení zprávy (na počítači i pravé tlačítko myši) otevře její akce: reakce, odpovědět, kopírovat, upravit, smazat.
+ * Pro klávesnici a čtečky má každá zpráva skryté tlačítko akcí; když je na něm fokus, bublina dostane rámeček.
  */
 export function MessageList({
   campaignId,
@@ -56,6 +60,33 @@ export function MessageList({
   const pickerTarget = pickerFor === null ? undefined : byId.get(pickerFor)
   const detailTarget = detailFor === null ? undefined : byId.get(detailFor)
   const lastMine = messages.at(-1)?.senderId === me.id
+  const press = useRef<{ x: number; y: number; timer: number } | null>(null)
+  // po dlouhém podržení přijde ještě klik, ten akce nesmí hned zavřít
+  const suppressClick = useRef(false)
+
+  function cancelPress() {
+    if (press.current) window.clearTimeout(press.current.timer)
+    press.current = null
+  }
+
+  function openActions(id: number) {
+    cancelPress()
+    suppressClick.current = true
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(15)
+    setOpenId(id)
+  }
+
+  function startPress(e: PointerEvent, id: number) {
+    if (e.button !== 0) return
+    cancelPress()
+    press.current = { x: e.clientX, y: e.clientY, timer: window.setTimeout(() => openActions(id), LONG_PRESS_MS) }
+  }
+
+  // posouvání seznamu prstem podržení zruší
+  function movePress(e: PointerEvent) {
+    const p = press.current
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress()
+  }
 
   // Nové zprávy: dole zůstaneš, jen když jsi už dole (nebo jsi psal ty); jinak se ukáže tlačítko „Nové zprávy“.
   useEffect(() => {
@@ -74,6 +105,23 @@ export function MessageList({
   useEffect(() => {
     if (openId === null) return
     document.getElementById(`toolbar-${openId}`)?.scrollIntoView({ block: 'nearest' })
+  }, [openId])
+
+  // Otevřené akce zavře klepnutí mimo zprávu nebo Esc.
+  useEffect(() => {
+    if (openId === null) return
+    const onDown = (e: globalThis.PointerEvent) => {
+      if (!(e.target instanceof Node) || !document.getElementById(`msg-${openId}`)?.contains(e.target)) setOpenId(null)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenId(null)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [openId])
 
   useEffect(() => {
@@ -149,17 +197,46 @@ export function MessageList({
               )}
               <div id={`msg-${m.id}`} className={cn('flex flex-col rounded-xl transition-shadow', mine ? 'items-end' : 'items-start', flashId === m.id && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background')}>
                 {showRecipients && (
-                  <p className={cn('text-xs text-muted-foreground', mine ? 'mr-12' : 'ml-10')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}</p>
+                  <p className={cn('text-xs text-muted-foreground', mine ? 'mr-1' : 'ml-12')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}</p>
                 )}
                 <div className={cn('flex max-w-full items-end gap-1', mine && 'flex-row-reverse')}>
-                  {!mine && <span className="mr-1 flex w-8 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
+                  {!mine && <span className="mr-1 flex w-10 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
+                  {!deleted && (
+                    <button
+                      type="button"
+                      aria-label={`Akce zprávy z ${formatTime(m.createdAt)}`}
+                      aria-expanded={open}
+                      onClick={() => setOpenId(open ? null : m.id)}
+                      className="peer sr-only"
+                    >
+                      Akce
+                    </button>
+                  )}
                   <div
-                    onClick={() => !deleted && setOpenId(open ? null : m.id)}
+                    onPointerDown={deleted ? undefined : (e) => startPress(e, m.id)}
+                    onPointerMove={movePress}
+                    onPointerUp={cancelPress}
+                    onPointerLeave={cancelPress}
+                    onPointerCancel={cancelPress}
+                    onContextMenu={
+                      deleted
+                        ? undefined
+                        : (e) => {
+                            e.preventDefault()
+                            openActions(m.id)
+                          }
+                    }
+                    onClick={() => {
+                      if (suppressClick.current) suppressClick.current = false
+                      else if (open) setOpenId(null)
+                    }}
+                    data-bubble
                     title={formatTime(m.createdAt)}
                     style={deleted ? undefined : (userAccentStyle(accent, resolvedTheme) as CSSProperties)}
                     className={cn(
-                      'min-w-0 max-w-[calc(100%-3rem)] break-words rounded-2xl px-3 py-2',
-                      deleted ? 'border border-dashed text-muted-foreground italic' : mine ? 'bg-primary text-primary-foreground' : 'border-2 border-primary bg-muted',
+                      // obrys 2 px mají všechny bubliny (moje v barvě výplně), jednořádková je tak vysoká jako avatar (40 px)
+                      'min-w-0 max-w-[calc(100%-3rem)] break-words rounded-2xl border-2 px-3 py-2 [-webkit-touch-callout:none] pointer-coarse:select-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background',
+                      deleted ? 'border-dashed border-border text-muted-foreground italic' : mine ? 'border-primary bg-primary text-primary-foreground' : 'border-primary bg-muted',
                     )}
                   >
                     <span className="sr-only">
@@ -185,17 +262,6 @@ export function MessageList({
                       {m.editedAt && !deleted && <span className="ml-1.5 text-[0.7rem] whitespace-nowrap opacity-80">(upraveno)</span>}
                     </p>
                   </div>
-                  {!deleted && (
-                    <button
-                      type="button"
-                      aria-label={`Akce zprávy z ${formatTime(m.createdAt)}`}
-                      aria-expanded={open}
-                      onClick={() => setOpenId(open ? null : m.id)}
-                      className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground', open && 'bg-muted text-foreground')}
-                    >
-                      <SmilePlusIcon aria-hidden className="size-5" />
-                    </button>
-                  )}
                 </div>
 
                 {summary.total > 0 && !deleted && (
@@ -204,7 +270,7 @@ export function MessageList({
                     aria-label={`Reakce ${summary.total}: ${m.reactions.map((r) => `${r.emoji} ${r.users.length}`).join(', ')}`}
                     title={m.reactions.map((r) => `${r.emoji} ${r.users.map((u) => (u.id === me.id ? 'ty' : u.name)).join(', ')}`).join('\n')}
                     onClick={() => setDetailFor(m.id)}
-                    className={cn('-mt-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-12' : 'ml-10')}
+                    className={cn('-mt-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-1' : 'ml-12')}
                   >
                     <span className={cn('inline-flex h-7 items-center gap-0.5 rounded-full border bg-card px-1.5 text-sm shadow-sm', myEmoji && 'border-primary')}>
                       <span aria-hidden className="tracking-tighter">
