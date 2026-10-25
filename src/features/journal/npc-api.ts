@@ -15,8 +15,18 @@ export interface JournalNpc {
   createdByName: string
   mine: boolean
   canEdit: boolean
+  /** body na mapách, kde se nachází (jen ty, které uživatel na mapě vidí) */
+  places: NpcPlace[]
   createdAt: string
   updatedAt: string
+}
+
+export interface NpcPlace {
+  pinId: string
+  mapId: string
+  mapName: string
+  title: string
+  icon: string
 }
 
 export interface NpcInput {

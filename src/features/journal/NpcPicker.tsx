@@ -14,7 +14,21 @@ import { sortNpcs } from './npc-list'
  * Výběr NPC a postav, o kterých zápis je: vybrané jsou štítky, přidat jde NPC z přehledu, postavu nebo NPC postavu z kampaně
  * (ta se zároveň přidá do přehledu) a rovnou i úplně nové NPC (jméno a rasa).
  */
-export function NpcPicker({ campaignId, value, onChange }: { campaignId: string; value: string[]; onChange: (ids: string[]) => void }) {
+export function NpcPicker({
+  campaignId,
+  value,
+  onChange,
+  id = 'journal-npc-add',
+  label = 'NPC a postavy v zápisu',
+  removeSuffix = 'ze zápisu',
+}: {
+  campaignId: string
+  value: string[]
+  onChange: (ids: string[]) => void
+  id?: string
+  label?: string
+  removeSuffix?: string
+}) {
   const { data: npcs = [] } = useJournalNpcs(campaignId)
   const { data: characters = [] } = useCharacters(campaignId, { pollMs: 60_000 })
   const addCharacters = useAddCharacterNpcs(campaignId)
@@ -56,20 +70,20 @@ export function NpcPicker({ campaignId, value, onChange }: { campaignId: string;
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="journal-npc-add">NPC a postavy v zápisu</Label>
+      <Label htmlFor={id}>{label}</Label>
       {selected.length > 0 && (
         <ul aria-label="Vybraná NPC" className="flex flex-wrap gap-2">
           {selected.map((n) => (
             <li key={n.id} className="inline-flex min-h-11 items-center gap-1 rounded-full border bg-muted pl-3 text-sm font-medium">
               {n.name}
-              <button type="button" aria-label={`Odebrat ${n.name} ze zápisu`} onClick={() => onChange(value.filter((id) => id !== n.id))} className="flex size-11 items-center justify-center rounded-full hover:bg-background">
+              <button type="button" aria-label={`Odebrat ${n.name} ${removeSuffix}`} onClick={() => onChange(value.filter((id) => id !== n.id))} className="flex size-11 items-center justify-center rounded-full hover:bg-background">
                 <XIcon aria-hidden className="size-4" />
               </button>
             </li>
           ))}
         </ul>
       )}
-      <NativeSelect id="journal-npc-add" value="" onChange={(e) => pick(e.target.value)} disabled={addCharacters.isPending}>
+      <NativeSelect id={id} value="" onChange={(e) => pick(e.target.value)} disabled={addCharacters.isPending}>
         <option value="">Přidat NPC nebo postavu…</option>
         {available.length > 0 && (
           <optgroup label="Z přehledu NPC">
@@ -95,12 +109,12 @@ export function NpcPicker({ campaignId, value, onChange }: { campaignId: string;
       {creating ? (
         <div className="space-y-3 rounded-xl border p-3">
           <div className="space-y-2">
-            <Label htmlFor="journal-npc-new-name">Jméno nového NPC</Label>
-            <Input id="journal-npc-new-name" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+            <Label htmlFor={`${id}-new-name`}>Jméno nového NPC</Label>
+            <Input id={`${id}-new-name`} maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="journal-npc-new-race">Rasa</Label>
-            <Input id="journal-npc-new-race" maxLength={100} value={race} onChange={(e) => setRace(e.target.value)} />
+            <Label htmlFor={`${id}-new-race`}>Rasa</Label>
+            <Input id={`${id}-new-race`} maxLength={100} value={race} onChange={(e) => setRace(e.target.value)} />
           </div>
           <div className="flex gap-2">
             <Button type="button" onClick={create} disabled={name.trim() === '' || createNpc.isPending}>

@@ -15,6 +15,7 @@ const npc = (name: string, extra: Partial<JournalNpc> = {}): JournalNpc => ({
   createdByName: 'U',
   mine: true,
   canEdit: true,
+  places: [],
   createdAt: '',
   updatedAt: '',
   ...extra,

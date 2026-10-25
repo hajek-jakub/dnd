@@ -20,7 +20,8 @@ use Dnd\Response;
  *  - pin má viditelnost: all (všichni, kdo mapu vidí), selected (vybraní hráči a DM), dm (jen DM), owner (stará soukromá poznámka hráče),
  *  - DM přidává piny all / selected / dm, hráč body pro všechny (all); soukromé poznámky (owner) už nově nevznikají,
  *    starou smí autor nechat soukromou nebo zveřejnit (owner → all), zpět ne,
- *  - upravit nebo smazat pin smí jeho autor a DM (piny, které vidí; cizí soukromé poznámky ne).
+ *  - upravit nebo smazat pin smí jeho autor a DM (piny, které vidí; cizí soukromé poznámky ne),
+ *  - pin může mít NPC a postavy z přehledu deníku (`npcIds`, kdo se tam nachází); skrytá NPC DM hráč nevidí ani nepřiřadí.
  */
 final class MapController
 {
@@ -144,9 +145,10 @@ final class MapController
         $fields = self::pinFields($data, $map, true);
         $visibility = $data['visibility'] ?? 'all';
         $viewers = self::checkVisibility($visibility, $data, $role, (string) $map['campaign_id'], null);
+        $npcIds = JournalNpcController::checkLinks($data['npcIds'] ?? [], (string) $map['campaign_id'], $role);
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $map, $user, $fields, $visibility, $viewers): void {
+        Db::transaction(static function () use ($id, $map, $user, $fields, $visibility, $viewers, $npcIds, $role): void {
             Db::exec(
                 'INSERT INTO map_pins (id, map_id, x, y, title, description, icon, visibility, created_by, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
@@ -155,6 +157,7 @@ final class MapController
             foreach ($viewers as $v) {
                 Db::exec('INSERT INTO map_pin_viewers (pin_id, user_id) VALUES (?, ?)', [$id, $v]);
             }
+            JournalNpcController::replacePinLinks($id, $npcIds, $role);
         });
         return Response::json(['pin' => self::onePayload($id, $user['id'], $role)], 201);
     }
@@ -181,11 +184,15 @@ final class MapController
             $sets[] = 'visibility = ?';
             $values[] = $visibility;
         }
-        Db::transaction(static function () use ($pin, $sets, $values, $viewers): void {
+        $npcIds = array_key_exists('npcIds', $data) ? JournalNpcController::checkLinks($data['npcIds'], (string) $map['campaign_id'], $role) : null;
+        Db::transaction(static function () use ($pin, $sets, $values, $viewers, $npcIds, $role): void {
+            $linksChanged = $npcIds !== null && JournalNpcController::replacePinLinks((string) $pin['id'], $npcIds, $role);
             if ($sets !== []) {
                 $sets[] = 'updated_at = UTC_TIMESTAMP()';
                 $values[] = $pin['id'];
                 Db::exec('UPDATE map_pins SET ' . implode(', ', $sets) . ' WHERE id = ?', $values);
+            } elseif ($linksChanged) {
+                Db::exec('UPDATE map_pins SET updated_at = UTC_TIMESTAMP() WHERE id = ?', [$pin['id']]);
             }
             if ($viewers !== null) {
                 Db::exec('DELETE FROM map_pin_viewers WHERE pin_id = ?', [$pin['id']]);
@@ -206,6 +213,18 @@ final class MapController
     }
 
     // ------------------------------------------------------------------ pomocné
+
+    /** Viditelnost pinu (alias `p`) pro jiné třídy, parametry `pinVisibleArgs`. */
+    public static function pinVisibleSql(): string
+    {
+        return self::visibleSql();
+    }
+
+    /** @return list<string> */
+    public static function pinVisibleArgs(string $userId, string $role): array
+    {
+        return self::visibleArgs($userId, $role);
+    }
 
     /** Viditelnost pinu pro uživatele: parametry viz visibleArgs. */
     private static function visibleSql(): string
@@ -365,7 +384,8 @@ final class MapController
                 $viewers[$v['pin_id']][] = $v['user_id'];
             }
         }
-        return array_map(static function (array $r) use ($userId, $role, $viewers): array {
+        $npcs = JournalNpcController::pinLinkMap(array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows)), $role);
+        return array_map(static function (array $r) use ($userId, $role, $viewers, $npcs): array {
             $mine = $r['created_by'] === $userId;
             $out = [
                 'id' => $r['id'],
@@ -380,6 +400,7 @@ final class MapController
                 'createdByName' => $r['creator_name'],
                 'mine' => $mine,
                 'canEdit' => $mine || $role === 'dm',
+                'npcIds' => $npcs[(string) $r['id']] ?? [],
                 'createdAt' => Ids::iso((string) $r['created_at']),
             ];
             // Kdo smí pin vidět, to ví jen autor a DM.

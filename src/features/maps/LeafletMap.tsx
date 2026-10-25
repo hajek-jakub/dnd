@@ -96,9 +96,9 @@ export function LeafletMap({ imageUrl, width, height, pins, selectedId, addMode,
     if (!focus || !map.current) return
     const p = pins.find((x) => x.id === focus.id)
     if (p) map.current.flyTo(toLatLng(p.x, p.y, height), Math.max(map.current.getZoom(), -1), { duration: 0.4 })
-    // jen při nové žádosti o přiblížení, ne při každé změně bodů
+    // jen při nové žádosti o přiblížení (nebo když se body teprve načetly), ne při každé změně bodů
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focus])
+  }, [focus, pins.length === 0])
 
   return <div ref={el} data-testid="map-canvas" data-add-mode={addMode} className="isolate z-0 h-[60dvh] min-h-80 w-full rounded-xl border bg-muted" />
 }

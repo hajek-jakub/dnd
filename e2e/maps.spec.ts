@@ -156,3 +156,45 @@ test('mapa jde prohlížet a upravovat na telefonu i na počítači bez posouvá
   expect(headerOnTop).toBe(true)
   await expectNoHorizontalScroll(page)
 })
+
+test('místa a postavy: k bodu se přiřadí NPC z deníku, bod ukáže popis a zápisy, NPC ukáže, kde je na mapě', async ({ page }) => {
+  await registerDm(page, 'mapnpc')
+  const { campaignId } = await newCampaign(page, 'Místa a postavy')
+  const npc = (await (await page.request.post(`/api/campaigns/${campaignId}/journal/npcs`, { data: { name: 'Hostinský Brom', race: 'Dwarf', description: 'Nalévá pivo.\nVí o pokladu.' } })).json()).npc.id as string
+  await page.request.post(`/api/campaigns/${campaignId}/journal`, { data: { title: 'Rozhovor s Bromem', body: 'Prozradil cestu.', npcIds: [npc] } })
+  await uploadMap(page, campaignId, 'Vesnice')
+  await page.getByRole('link', { name: /Vesnice/ }).click()
+  await expect(page.locator('.leaflet-image-layer')).toBeVisible()
+
+  // bod s NPC z deníku
+  await addPin(page, 'Přidat bod', 'Hospoda U Draka', {
+    beforeSave: async (dialog) => {
+      await dialog.getByLabel('Kdo se tu nachází (NPC a postavy z deníku)').selectOption({ label: 'Hostinský Brom (Dwarf)' })
+      await expect(dialog.getByRole('button', { name: 'Odebrat Hostinský Brom z bodu' })).toBeVisible()
+    },
+  })
+  const here = page.getByRole('region', { name: 'Kdo se tu nachází' })
+  await expect(here.getByText('Hostinský Brom')).toBeVisible()
+  await expect(here.getByText('Ví o pokladu.')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Seznam bodů' })).toContainText('Hostinský Brom')
+  await here.getByRole('link', { name: /Rozhovor s Bromem/ }).click()
+  await expect(page).toHaveURL(/journal\?entry=/)
+  await page.goBack()
+
+  // z bodu do detailu NPC a zpět na mapu na ten bod
+  await page.getByRole('region', { name: 'Seznam bodů' }).getByRole('button', { name: /Hospoda U Draka/ }).click()
+  await page.getByRole('region', { name: 'Kdo se tu nachází' }).getByRole('link', { name: 'Detail v deníku' }).click()
+  const onMap = page.getByRole('region', { name: 'Na mapě' })
+  await expect(onMap.getByRole('heading', { name: 'Na mapě (1)' })).toBeVisible()
+  await onMap.getByRole('link', { name: /Hospoda U Draka/ }).click()
+  await expect(page).toHaveURL(/\/maps\/.+\?pin=/)
+  await expect(page.getByRole('heading', { name: 'Hospoda U Draka', level: 2 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Kdo se tu nachází' }).getByText('Hostinský Brom')).toBeVisible()
+  await expectNoHorizontalScroll(page)
+
+  // odebrání NPC z bodu
+  await page.getByRole('button', { name: 'Upravit' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Odebrat Hostinský Brom z bodu' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Uložit' }).click()
+  await expect(page.getByRole('region', { name: 'Kdo se tu nachází' })).toHaveCount(0)
+})

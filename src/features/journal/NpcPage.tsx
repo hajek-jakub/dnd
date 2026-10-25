@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useCampaign } from '@/features/campaigns/api'
+import { emojiOf } from '@/features/maps/pin-icons'
 import { Avatar } from '@/features/sheet/Avatar'
 import { useCharacters } from '@/features/sheet/api'
 import { ApiError } from '@/lib/api'
@@ -236,6 +237,27 @@ function NpcDetail({ campaignId, npc, entries, isDm, onEdit }: { campaignId: str
           </>
         )}
       </div>
+
+      <section aria-label="Na mapě" className="space-y-2 border-t pt-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Na mapě ({npc.places.length})</h3>
+        {npc.places.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Zatím není na žádném bodu mapy. Přidáš ho u bodu na mapě (Upravit → Kdo se tu nachází).</p>
+        ) : (
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
+            {npc.places.map((p) => (
+              <li key={p.pinId}>
+                <Link to={`/campaigns/${campaignId}/maps/${p.mapId}?pin=${p.pinId}`} className="flex min-h-12 items-center gap-2 rounded-lg border bg-background px-3 py-1.5 hover:border-primary/50">
+                  <span aria-hidden>{emojiOf(p.icon)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{p.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{p.mapName}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section aria-label="Příběh a zápisy" className="space-y-3 border-t pt-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

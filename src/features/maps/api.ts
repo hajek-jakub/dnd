@@ -27,6 +27,8 @@ export interface MapPin {
   mine: boolean
   canEdit: boolean
   viewerIds?: string[]
+  /** NPC a postavy z přehledu deníku, které se na bodu nacházejí (skrytá NPC DM jen pro DM) */
+  npcIds: string[]
   createdAt: string
 }
 
@@ -38,6 +40,7 @@ export interface PinInput {
   icon?: string
   visibility?: MapPin['visibility']
   viewerIds?: string[]
+  npcIds?: string[]
 }
 
 const base = () => import.meta.env.BASE_URL.replace(/\/$/, '')
@@ -99,7 +102,10 @@ export function useCreatePin(mapId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: PinInput) => (await api.post<{ pin: MapPin }>(`/maps/${mapId}/pins`, input)).pin,
-    onSuccess: (pin) => queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => (old ? [...old, pin] : [pin])),
+    onSuccess: (pin) => {
+      queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => (old ? [...old, pin] : [pin]))
+      void queryClient.invalidateQueries({ queryKey: ['journal-npcs'] })
+    },
   })
 }
 
@@ -110,7 +116,10 @@ export function useUpdatePin(mapId: string) {
       const { id, ...patch } = input
       return (await api.patch<{ pin: MapPin }>(`/pins/${id}`, patch)).pin
     },
-    onSuccess: (pin) => queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => old?.map((p) => (p.id === pin.id ? pin : p))),
+    onSuccess: (pin, input) => {
+      queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => old?.map((p) => (p.id === pin.id ? pin : p)))
+      if (input.npcIds || input.title || input.icon) void queryClient.invalidateQueries({ queryKey: ['journal-npcs'] })
+    },
   })
 }
 
@@ -118,6 +127,9 @@ export function useDeletePin(mapId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/pins/${id}`),
-    onSuccess: (_r, id) => queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => old?.filter((p) => p.id !== id)),
+    onSuccess: (_r, id) => {
+      queryClient.setQueryData<MapPin[]>(['map-pins', mapId], (old) => old?.filter((p) => p.id !== id))
+      void queryClient.invalidateQueries({ queryKey: ['journal-npcs'] })
+    },
   })
 }

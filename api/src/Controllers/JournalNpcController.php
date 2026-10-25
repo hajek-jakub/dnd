@@ -17,7 +17,9 @@ use Dnd\Response;
  *  - přidat NPC smí každý člen kampaně (deník je společný pro celou družinu), upravit a smazat autor a DM,
  *  - DM může NPC držet skryté (`visibility = dm`), dokud ho družina nepotká; hráč o skrytém NPC neví (404),
  *  - do přehledu jde přidat i postavu nebo NPC postavu z kampaně (`characterIds`): jméno a rasu pak určuje postava,
- *  - propojení se zápisem (`journal_entry_npcs`) nastavuje autor zápisu nebo DM přes `npcIds` u zápisu.
+ *  - propojení se zápisem (`journal_entry_npcs`) nastavuje autor zápisu nebo DM přes `npcIds` u zápisu,
+ *  - propojení s bodem mapy (`map_pin_npcs`, kde se NPC nachází) nastavuje autor bodu nebo DM přes `npcIds` u bodu;
+ *    NPC pak v `places` ukazuje jen body, které uživatel na mapě vidí.
  */
 final class JournalNpcController
 {
@@ -157,7 +159,26 @@ final class JournalNpcController
      */
     public static function replaceLinks(string $entryId, array $requested, string $role): bool
     {
-        $rows = Db::all('SELECT l.npc_id, n.visibility FROM journal_entry_npcs l JOIN journal_npcs n ON n.id = l.npc_id WHERE l.entry_id = ?', [$entryId]);
+        return self::replaceIn('journal_entry_npcs', 'entry_id', $entryId, $requested, $role);
+    }
+
+    /**
+     * Totéž pro NPC na bodu mapy.
+     * @param list<string> $requested
+     */
+    public static function replacePinLinks(string $pinId, array $requested, string $role): bool
+    {
+        return self::replaceIn('map_pin_npcs', 'pin_id', $pinId, $requested, $role);
+    }
+
+    /**
+     * @param 'journal_entry_npcs'|'map_pin_npcs' $table pevné jméno tabulky (nikdy ze vstupu)
+     * @param 'entry_id'|'pin_id' $column
+     * @param list<string> $requested
+     */
+    private static function replaceIn(string $table, string $column, string $ownerId, array $requested, string $role): bool
+    {
+        $rows = Db::all("SELECT l.npc_id, n.visibility FROM $table l JOIN journal_npcs n ON n.id = l.npc_id WHERE l.$column = ?", [$ownerId]);
         $existing = array_map(static fn (array $r): string => (string) $r['npc_id'], $rows);
         $kept = $role === 'dm' ? [] : array_map(static fn (array $r): string => (string) $r['npc_id'], array_filter($rows, static fn (array $r): bool => $r['visibility'] === 'dm'));
         $final = array_values(array_unique(array_merge($requested, $kept)));
@@ -168,11 +189,56 @@ final class JournalNpcController
         if ($a === $b) {
             return false;
         }
-        Db::exec('DELETE FROM journal_entry_npcs WHERE entry_id = ?', [$entryId]);
+        Db::exec("DELETE FROM $table WHERE $column = ?", [$ownerId]);
         foreach ($final as $npcId) {
-            Db::exec('INSERT INTO journal_entry_npcs (entry_id, npc_id) VALUES (?, ?)', [$entryId, $npcId]);
+            Db::exec("INSERT INTO $table ($column, npc_id) VALUES (?, ?)", [$ownerId, $npcId]);
         }
         return true;
+    }
+
+    /**
+     * NPC na bodech mapy, jak je vidí uživatel s rolí `$role` (skrytá NPC DM jen DM).
+     * @param list<string> $pinIds
+     * @return array<string, list<string>>
+     */
+    public static function pinLinkMap(array $pinIds, string $role): array
+    {
+        if ($pinIds === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($pinIds), '?'));
+        $map = [];
+        foreach (Db::all(
+            "SELECT l.pin_id, l.npc_id FROM map_pin_npcs l JOIN journal_npcs n ON n.id = l.npc_id WHERE l.pin_id IN ($in) AND " . self::visibleSql(),
+            [...$pinIds, $role],
+        ) as $r) {
+            $map[(string) $r['pin_id']][] = (string) $r['npc_id'];
+        }
+        return $map;
+    }
+
+    /**
+     * Kde na mapách se NPC nacházejí: jen body, které uživatel vidí (mapa zveřejněná nebo DM, viditelnost bodu jako na mapě).
+     * @param list<string> $npcIds
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private static function placesOf(array $npcIds, string $userId, string $role): array
+    {
+        if ($npcIds === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($npcIds), '?'));
+        $out = [];
+        foreach (Db::all(
+            "SELECT l.npc_id, p.id, p.map_id, p.title, p.icon, m.name AS map_name
+             FROM map_pin_npcs l JOIN map_pins p ON p.id = l.pin_id JOIN maps m ON m.id = p.map_id
+             WHERE l.npc_id IN ($in) AND (m.visible = 1 OR ? = 'dm') AND " . MapController::pinVisibleSql() . '
+             ORDER BY m.name, p.title',
+            [...$npcIds, $role, ...MapController::pinVisibleArgs($userId, $role)],
+        ) as $r) {
+            $out[(string) $r['npc_id']][] = ['pinId' => $r['id'], 'mapId' => $r['map_id'], 'mapName' => $r['map_name'], 'title' => $r['title'], 'icon' => $r['icon']];
+        }
+        return $out;
     }
 
     /**
@@ -282,7 +348,8 @@ final class JournalNpcController
      */
     private static function payloads(array $rows, string $userId, string $role): array
     {
-        return array_map(static function (array $r) use ($userId, $role): array {
+        $places = self::placesOf(array_values(array_map(static fn (array $r): string => (string) $r['id'], $rows)), $userId, $role);
+        return array_map(static function (array $r) use ($userId, $role, $places): array {
             $linked = $r['c_name'] !== null;
             $mine = $r['created_by'] === $userId;
             return [
@@ -299,6 +366,7 @@ final class JournalNpcController
                 'createdByName' => $r['author_name'],
                 'mine' => $mine,
                 'canEdit' => $mine || $role === 'dm',
+                'places' => $places[(string) $r['id']] ?? [],
                 'createdAt' => Ids::iso((string) $r['created_at']),
                 'updatedAt' => Ids::iso((string) $r['updated_at']),
             ];

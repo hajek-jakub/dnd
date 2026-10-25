@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon, MapPinPlusIcon, MoveIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { RichText } from '@/components/RichText'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,10 @@ import { Modal } from '@/components/ui/modal'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useCampaign, useCampaignMembers } from '@/features/campaigns/api'
+import { useJournal } from '@/features/journal/api'
+import { NpcPicker } from '@/features/journal/NpcPicker'
+import { useJournalNpcs, type JournalNpc } from '@/features/journal/npc-api'
+import { Avatar } from '@/features/sheet/Avatar'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { mapImageUrl, useCreatePin, useDeletePin, useMapPins, useMaps, useUpdatePin, type MapPin } from './api'
@@ -30,13 +35,17 @@ export default function MapViewPage() {
   const deletePin = useDeletePin(mapId)
   const [addMode, setAddMode] = useState(false)
   const [moveMode, setMoveMode] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null)
+  // Odkaz z přehledu NPC (`?pin=`) bod rovnou vybere a mapa na něj přiletí.
+  const [params] = useSearchParams()
+  const [selectedId, setSelectedId] = useState<string | null>(() => params.get('pin'))
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(() => (params.get('pin') ? { id: params.get('pin')!, n: 0 } : null))
   const [draft, setDraft] = useState<Draft | null>(null)
+  const { data: npcs } = useJournalNpcs(campaignId)
 
   const map = maps?.find((m) => m.id === mapId)
   const isDm = campaign?.role === 'dm'
   const selected = pins?.find((p) => p.id === selectedId) ?? null
+  const npcById = new Map((npcs ?? []).map((n) => [n.id, n]))
 
   if (isPending || mapsPending) return <FullPageSpinner />
   if (!map) {
@@ -130,6 +139,7 @@ export default function MapViewPage() {
               )}
             </div>
             {selected.description && <p className="whitespace-pre-wrap break-words">{selected.description}</p>}
+            <PinNpcs campaignId={campaignId} npcs={selected.npcIds.flatMap((id) => npcById.get(id) ?? [])} />
           </CardContent>
         </Card>
       )}
@@ -151,7 +161,9 @@ export default function MapViewPage() {
                 <span aria-hidden>{emojiOf(p.icon)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{p.title}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{VISIBILITY_LABELS[p.visibility]}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {[VISIBILITY_LABELS[p.visibility], ...p.npcIds.flatMap((id) => npcById.get(id)?.name ?? [])].join(' · ')}
+                  </span>
                 </span>
               </button>
             </li>
@@ -176,6 +188,7 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
   const [icon, setIcon] = useState(editing?.icon ?? 'pin')
   const [visibility, setVisibility] = useState<MapPin['visibility']>(editing?.visibility ?? 'all')
   const [viewers, setViewers] = useState<Set<string>>(new Set(editing?.viewerIds ?? []))
+  const [npcIds, setNpcIds] = useState<string[]>(editing?.npcIds ?? [])
   const players = members?.filter((m) => m.role === 'player') ?? []
   // Viditelnost volí jen DM; body hráčů vidí všichni (stará soukromá poznámka zůstane, jak je).
   const choosesVisibility = isDm && editing?.visibility !== 'owner'
@@ -185,7 +198,7 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
-    const common = { title: title.trim(), description, icon, ...(choosesVisibility ? { visibility, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) } : {}) }
+    const common = { title: title.trim(), description, icon, npcIds, ...(choosesVisibility ? { visibility, ...(visibility === 'selected' ? { viewerIds: [...viewers] } : {}) } : {}) }
     const onError = (err: Error) => toast.error(err instanceof ApiError ? err.message : 'Uložení se nepodařilo.')
     if (editing) update.mutate({ id: editing.id, ...common }, { onSuccess: (p) => onDone(p.id), onError })
     else if (draft.kind === 'new') create.mutate({ x: draft.x, y: draft.y, ...common }, { onSuccess: (p) => onDone(p.id), onError })
@@ -201,6 +214,7 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
         <Label htmlFor="pin-desc">Popis</Label>
         <Textarea id="pin-desc" rows={3} maxLength={2000} className="min-h-20" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
+<NpcPicker campaignId={campaignId} value={npcIds} onChange={setNpcIds} id="pin-npc-add" label="Kdo se tu nachází (NPC a postavy z deníku)" removeSuffix="z bodu" />
       <div role="group" aria-label="Ikona" className="flex flex-wrap gap-2">
         {PIN_ICONS.map((i) => (
           <button
@@ -258,5 +272,48 @@ function PinForm({ mapId, campaignId, draft, isDm, onDone }: { mapId: string; ca
         {editing ? 'Uložit' : 'Přidat na mapu'}
       </Button>
     </form>
+  )
+}
+
+/** NPC a postavy na bodu: popis a jejich zápisy z deníku, s odkazem do přehledu NPC. */
+function PinNpcs({ campaignId, npcs }: { campaignId: string; npcs: JournalNpc[] }) {
+  const { data: journal } = useJournal(campaignId)
+  if (npcs.length === 0) return null
+  const entries = journal?.entries ?? []
+  return (
+    <section aria-label="Kdo se tu nachází" className="space-y-2 border-t pt-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kdo se tu nachází</h3>
+      <ul className="space-y-2">
+        {npcs.map((n) => {
+          const story = entries.filter((e) => e.npcIds.includes(n.id))
+          return (
+            <li key={n.id} className="space-y-2 rounded-xl border bg-background p-3">
+              <div className="flex items-center gap-3">
+                <Avatar id={n.characterId ?? n.id} name={n.name} version={n.photoVersion} className="size-10 text-base" />
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-semibold">{n.name}</p>
+                  {n.race && <p className="text-xs text-muted-foreground">{n.race}</p>}
+                </div>
+              </div>
+              {n.description && <RichText text={n.description} className="break-words text-sm" />}
+              {story.length > 0 && (
+                <ul aria-label={`Zápisy o ${n.name}`} className="space-y-1">
+                  {story.map((e) => (
+                    <li key={e.id}>
+                      <Link to={`/campaigns/${campaignId}/journal?entry=${e.id}`} className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-2">
+                        📖 {e.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link to={`/campaigns/${campaignId}/journal/npcs?npc=${n.id}`} className={buttonVariants({ variant: 'outline' })}>
+                Detail v deníku
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
