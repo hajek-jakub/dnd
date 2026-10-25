@@ -14,8 +14,6 @@ export interface PickerOption {
 /** Bez diakritiky a velikosti písmen, ať „hostinsky“ najde „Hostinský“. */
 const fold = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-const LIMIT = 8
-
 /**
  * Výběr více položek s hledáním: vybrané jsou štítky, pod polem se po klepnutí nebo psaní ukážou odpovídající položky.
  * Místo dlouhého rozbalovacího seznamu, ve kterém nejde hledat.
@@ -52,7 +50,6 @@ export function SearchPicker({
   const [open, setOpen] = useState(false)
   const q = fold(query.trim())
   const matches = options.filter((o) => q === '' || fold(`${o.label} ${o.hint ?? ''}`).includes(q))
-  const shown = matches.slice(0, LIMIT)
   // po výběru se seznam zavře, ať se pod ním formulář neposune ve chvíli, kdy se klepe na další tlačítko
   const pick = (optionId: string) => {
     onAdd(optionId)
@@ -100,7 +97,7 @@ export function SearchPicker({
             if (e.key === 'Escape') setQuery('')
             if (e.key === 'Enter') {
               e.preventDefault()
-              const first = shown[0]
+              const first = matches[0]
               if (first) pick(first.id)
             }
           }}
@@ -110,11 +107,11 @@ export function SearchPicker({
         <div className="rounded-xl border bg-background">
           {options.length === 0 ? (
             <p className="p-3 text-sm text-muted-foreground">{empty}</p>
-          ) : shown.length === 0 ? (
+          ) : matches.length === 0 ? (
             <p className="p-3 text-sm text-muted-foreground">Nic nenalezeno.</p>
           ) : (
             <ul aria-label={`${label}: výsledky`} className="scroll-area max-h-72 overflow-y-auto p-1">
-              {shown.map((o) => (
+              {matches.map((o) => (
                 <li key={o.id}>
                   <button
                     type="button"
@@ -131,7 +128,6 @@ export function SearchPicker({
                   </button>
                 </li>
               ))}
-              {matches.length > shown.length && <li className="px-3 py-2 text-xs text-muted-foreground">a dalších {matches.length - shown.length}, upřesni hledání</li>}
             </ul>
           )}
         </div>

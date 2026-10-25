@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
     // Při nasazení do podsložky nastav VITE_BASE_PATH=/podslozka/.
     base: env.VITE_BASE_PATH || '/',
     plugins: [react(), tailwindcss()],
+    // Verze buildu: uložená cache dat v prohlížeči (query-persist.ts) platí jen pro stejný build, po nasazení se zahodí.
+    define: { __BUILD_ID__: JSON.stringify(String(Date.now())) },
     server: {
       // PHP API běží vedle (npm run api, port 8080). Stejný origin = stejné cookie jako na Endoře.
       proxy: {

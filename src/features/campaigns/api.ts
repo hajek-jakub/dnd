@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Campaign, CampaignSummary, Invite, InvitePreview, Member } from '@/lib/types'
 
-/** Jak často se obnovují data, která mohou změnit ostatní (náhrada realtime; později se zrychlí tam, kde to má smysl). */
-const POLL_MS = 30_000
+/** Náhrada realtime: členové a pozvánky se mění jen připojením hráče nebo akcí DM, stačí se ptát zřídka. */
+const SLOW_POLL_MS = 120_000
 
 export function useMyCampaigns() {
   return useQuery({
@@ -25,7 +25,7 @@ export function useCampaignMembers(campaignId: string | undefined) {
   return useQuery({
     queryKey: ['campaign-members', campaignId],
     enabled: Boolean(campaignId),
-    refetchInterval: POLL_MS,
+    refetchInterval: SLOW_POLL_MS,
     queryFn: async () => (await api.get<{ members: Member[] }>(`/campaigns/${campaignId}/members`)).members,
   })
 }
@@ -34,7 +34,7 @@ export function useInvites(campaignId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['invites', campaignId],
     enabled: Boolean(campaignId) && enabled,
-    refetchInterval: POLL_MS,
+    refetchInterval: SLOW_POLL_MS,
     queryFn: async () => (await api.get<{ invites: Invite[] }>(`/campaigns/${campaignId}/invites`)).invites,
   })
 }

@@ -2,6 +2,7 @@ import { forgetPushOnServer } from '@/features/push/push'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, onUnauthorized } from '@/lib/api'
+import { clearQueryCache, persistQueryCache, restoreQueryCache } from '@/lib/query-persist'
 import type { User } from '@/lib/types'
 import { useTheme } from '@/components/theme-context'
 import { AuthContext, type AuthState } from './auth-context'
@@ -22,7 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true
     api
       .get<{ user: User | null }>('/auth/me')
-      .then((res) => {
+      .then(async (res) => {
+        // uložená data uživatele se vrátí do cache dřív, než se vykreslí první stránka (ukáže se hned, obnoví se na pozadí)
+        if (res.user) await restoreQueryCache(queryClient, res.user.id)
         if (active) setUser(res.user)
       })
       .catch(() => {
@@ -34,13 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [queryClient])
+
+  const userId = user?.id
+  useEffect(() => (userId ? persistQueryCache(queryClient, userId) : undefined), [queryClient, userId])
 
   // Vypršela relace uprostřed práce: odhlásit v UI, RequireAuth přesměruje na přihlášení.
   useEffect(
     () =>
       onUnauthorized(() => {
         setUser(null)
+        void clearQueryCache()
         queryClient.clear()
       }),
     [queryClient],
@@ -63,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.post('/auth/logout')
     } finally {
       setUser(null)
+      void clearQueryCache()
       queryClient.clear()
     }
   }, [queryClient])
