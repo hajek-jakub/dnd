@@ -23,6 +23,14 @@ export function isSingleEmoji(value: string): boolean {
   return graphemes.length === 1 && EMOJI_ALLOWED.test(value) && EMOJI_CORE.test(value)
 }
 
+/** Zpráva jen z 1 až 3 emoji (mezery nevadí): ukáže se velká a bez bubliny jako na Messengeru. */
+export function isEmojiOnly(body: string): boolean {
+  const text = body.replace(/\s+/g, '')
+  if (text === '' || text.length > 40) return false
+  const graphemes = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map((g) => g.segment)
+  return graphemes.length <= 3 && graphemes.every(isSingleEmoji)
+}
+
 /** Reakce uživatele jako na Messengeru: každý má u zprávy jednu, jiné emoji ji nahradí, stejné ji zruší. Pro optimistickou aktualizaci. */
 export function toggleReaction(reactions: Reaction[], emoji: string, me: { id: string; name: string }): Reaction[] {
   const had = reactions.some((r) => r.emoji === emoji && r.users.some((u) => u.id === me.id))

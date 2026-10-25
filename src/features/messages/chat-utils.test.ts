@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage, MessagesState, Reaction } from './api'
-import { dayLabel, isSingleEmoji, mergeMessages, myReaction, reactionSummary, timeDivider, toggleReaction } from './chat-utils'
+import { dayLabel, isEmojiOnly, isSingleEmoji, mergeMessages, myReaction, reactionSummary, timeDivider, toggleReaction } from './chat-utils'
 
 const me = { id: 'u1', name: 'Bob' }
 const other = { id: 'u2', name: 'Carol' }
@@ -109,5 +109,12 @@ describe('oddělovače dnů', () => {
     expect(timeDivider(at(9, 5), at(9, 19), now)).toBeNull()
     expect(timeDivider(at(9, 5), at(9, 20), now)).toBe('09:20')
     expect(timeDivider(undefined, at(20, 0, 24), now)).toBe('Včera 20:00')
+  })
+})
+
+describe('isEmojiOnly', () => {
+  it('1 až 3 emoji (i s mezerami) ano, text, víc emoji nebo číslo ne', () => {
+    expect(['🍺', '😀😀😀', '👍 ❤️', '👨‍👩‍👧', '🇨🇿'].every(isEmojiOnly)).toBe(true)
+    expect(['', 'Ok', 'Super 👍', '😀😀😀😀', '1', '  '].some(isEmojiOnly)).toBe(false)
   })
 })

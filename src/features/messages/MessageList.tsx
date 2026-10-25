@@ -6,7 +6,7 @@ import { useTheme } from '@/components/theme-context'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useDeleteMessage, useReact, type ChatMessage } from './api'
-import { QUICK_REACTIONS, formatTime, myReaction, reactionSummary, rememberEmoji, timeDivider } from './chat-utils'
+import { QUICK_REACTIONS, formatTime, isEmojiOnly, myReaction, reactionSummary, rememberEmoji, timeDivider } from './chat-utils'
 import { EmojiPickerDialog, ReactionsDialog } from './ReactionDialogs'
 import { SenderAvatar } from './SenderAvatar'
 import type { Sender } from './senders'
@@ -165,7 +165,7 @@ export function MessageList({
 
   return (
     <div className="relative">
-      <div ref={box} onScroll={onScroll} role="log" aria-label="Zprávy" aria-live="polite" className="scroll-area max-h-[50dvh] min-h-40 space-y-1 pr-2">
+      <div ref={box} onScroll={onScroll} role="log" aria-label="Zprávy" aria-live="polite" className="scroll-area max-h-[50dvh] min-h-40 space-y-0.5 pr-2">
         {messages.length === 0 && <p className="text-sm text-muted-foreground">Zatím tu nic není. Napiš první zprávu.</p>}
         {messages.map((m, index) => {
           const mine = m.senderId === me.id
@@ -186,10 +186,11 @@ export function MessageList({
           // komu zpráva patří, se v tajném vlákně a v jazyce ukáže jen při změně (příjemci se mezi zprávami liší)
           const showRecipients = restricted && (firstInRun || recipientsKey(prev) !== recipientsKey(m))
           const accent = mine ? myAccent : (sender?.accent ?? null)
+          const bigEmoji = !deleted && !m.replyTo && isEmojiOnly(m.body)
           return (
-            <div key={m.id} className={cn(firstInRun && index > 0 && 'pt-2')}>
+            <div key={m.id} className={cn(firstInRun && index > 0 && 'pt-3')}>
               {divider && (
-                <p className="my-2 flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                <p className="mt-1 mb-3 flex items-center gap-3 text-xs font-medium text-muted-foreground">
                   <span aria-hidden className="h-px flex-1 bg-border" />
                   <span>{divider}</span>
                   <span aria-hidden className="h-px flex-1 bg-border" />
@@ -197,10 +198,10 @@ export function MessageList({
               )}
               <div id={`msg-${m.id}`} className={cn('flex flex-col rounded-xl transition-shadow', mine ? 'items-end' : 'items-start', flashId === m.id && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background')}>
                 {showRecipients && (
-                  <p className={cn('text-xs text-muted-foreground', mine ? 'mr-1' : 'ml-12')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}</p>
+                  <p className={cn('mb-0.5 text-xs text-muted-foreground', mine ? 'mr-2' : 'ml-14')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}</p>
                 )}
-                <div className={cn('flex max-w-full items-end gap-1', mine && 'flex-row-reverse')}>
-                  {!mine && <span className="mr-1 flex w-10 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
+                <div className={cn('flex w-full items-end gap-2', mine && 'flex-row-reverse')}>
+                  {!mine && <span className="flex w-10 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
                   {!deleted && (
                     <button
                       type="button"
@@ -234,9 +235,15 @@ export function MessageList({
                     title={formatTime(m.createdAt)}
                     style={deleted ? undefined : (userAccentStyle(accent, resolvedTheme) as CSSProperties)}
                     className={cn(
-                      // obrys 2 px mají všechny bubliny (moje v barvě výplně), jednořádková je tak vysoká jako avatar (40 px)
-                      'min-w-0 max-w-[calc(100%-3rem)] break-words rounded-2xl border-2 px-3 py-2 [-webkit-touch-callout:none] pointer-coarse:select-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background',
-                      deleted ? 'border-dashed border-border text-muted-foreground italic' : mine ? 'border-primary bg-primary text-primary-foreground' : 'border-primary bg-muted',
+                      // obrys mají všechny bubliny (moje v barvě výplně), jednořádková je tak vysoká jako avatar (40 px)
+                      'min-w-0 max-w-[min(80%,36rem)] break-words rounded-2xl border px-3.5 py-[9px] [-webkit-touch-callout:none] pointer-coarse:select-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background',
+                      deleted
+                        ? 'border-dashed border-border text-muted-foreground italic'
+                        : bigEmoji
+                          ? 'border-transparent px-1 py-0 text-4xl leading-tight'
+                          : mine
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-primary bg-muted',
                     )}
                   >
                     <span className="sr-only">
@@ -259,7 +266,7 @@ export function MessageList({
                     )}
                     <p className="whitespace-pre-wrap break-words">
                       {deleted ? 'Zpráva byla smazána' : m.body}
-                      {m.editedAt && !deleted && <span className="ml-1.5 text-[0.7rem] whitespace-nowrap opacity-80">(upraveno)</span>}
+                      {m.editedAt && !deleted && <span className={cn('ml-1.5 text-[0.7rem] whitespace-nowrap opacity-80', bigEmoji && 'align-middle text-muted-foreground')}>(upraveno)</span>}
                     </p>
                   </div>
                 </div>
@@ -270,14 +277,15 @@ export function MessageList({
                     aria-label={`Reakce ${summary.total}: ${m.reactions.map((r) => `${r.emoji} ${r.users.length}`).join(', ')}`}
                     title={m.reactions.map((r) => `${r.emoji} ${r.users.map((u) => (u.id === me.id ? 'ty' : u.name)).join(', ')}`).join('\n')}
                     onClick={() => setDetailFor(m.id)}
-                    className={cn('-mt-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-1' : 'ml-12')}
+                    style={userAccentStyle(accent, resolvedTheme) as CSSProperties}
+                    className={cn('relative z-10 -mt-3.5 -mb-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-3' : 'ml-15')}
                   >
-                    <span className={cn('inline-flex h-7 items-center gap-0.5 rounded-full border bg-card px-1.5 text-sm shadow-sm', myEmoji && 'border-primary')}>
-                      <span aria-hidden className="tracking-tighter">
+                    <span className={cn('inline-flex h-6 items-center gap-1 rounded-full border border-primary px-2 text-sm leading-none shadow-sm', myEmoji ? 'bg-[color-mix(in_oklab,var(--primary)_14%,var(--card))]' : 'bg-card')}>
+                      <span aria-hidden className="whitespace-nowrap tracking-tight">
                         {summary.emojis.join('')}
                       </span>
                       {summary.total > 1 && (
-                        <span aria-hidden className="ml-0.5 text-xs tabular-nums text-muted-foreground">
+                        <span aria-hidden className="text-xs font-medium tabular-nums text-foreground/80">
                           {summary.total}
                         </span>
                       )}
