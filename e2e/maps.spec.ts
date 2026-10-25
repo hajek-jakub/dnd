@@ -198,3 +198,22 @@ test('místa a postavy: k bodu se přiřadí NPC z deníku, bod ukáže popis a 
   await page.getByRole('dialog').getByRole('button', { name: 'Uložit' }).click()
   await expect(page.getByRole('region', { name: 'Kdo se tu nachází' })).toHaveCount(0)
 })
+
+test('DM mění pořadí map: důležitou mapu dá na první místo, pořadí vydrží obnovení stránky', async ({ page }) => {
+  await registerDm(page, 'maporder')
+  const { campaignId } = await newCampaign(page, 'Pořadí map')
+  for (const name of ['Vesnice', 'Les', 'Hrad']) await uploadMap(page, campaignId, name)
+  const list = page.getByRole('list', { name: 'Mapy kampaně' })
+  const names = () => list.locator(':scope > li > a').allInnerTexts()
+  await expect.poll(names).toEqual(['Vesnice', 'Les', 'Hrad'])
+  await expect(page.getByRole('button', { name: 'Vesnice: posunout dopředu' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Hrad: posunout dozadu' })).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Hrad: na první místo' }).click()
+  await expect.poll(names).toEqual(['Hrad', 'Vesnice', 'Les'])
+  await page.getByRole('button', { name: 'Les: posunout dopředu' }).click()
+  await expect.poll(names).toEqual(['Hrad', 'Les', 'Vesnice'])
+  await page.reload()
+  await expect.poll(names).toEqual(['Hrad', 'Les', 'Vesnice'])
+  await expectNoHorizontalScroll(page)
+})

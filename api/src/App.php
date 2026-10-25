@@ -197,6 +197,7 @@ final class App
         // Mapy kampaně a body na nich
         $r->add('GET', '/campaigns/{id}/maps', [MapController::class, 'index']);
         $r->add('POST', '/campaigns/{id}/maps', [MapController::class, 'create']);
+        $r->add('POST', '/campaigns/{id}/maps/order', [MapController::class, 'reorder']);
         $r->add('PATCH', '/maps/{id}', [MapController::class, 'update']);
         $r->add('DELETE', '/maps/{id}', [MapController::class, 'delete']);
         $r->add('GET', '/maps/{id}/image', [MapController::class, 'image']);

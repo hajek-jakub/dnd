@@ -96,6 +96,34 @@ describe('mapy a body na mapě', () => {
       expect((await dm.client.raw(`/maps/${m}/image`)).status).toBe(404)
       expectStatus(await dm.client.get(`/maps/${m}/pins`), 404)
     })
+
+    it('pořadí map mění jen DM; hráč vidí zveřejněné mapy ve stejném pořadí, nová mapa jde na konec', async () => {
+      const ids = async (u: TestUser) => (await u.client.get(`/campaigns/${campaignId}/maps`)).body.maps.map((m: any) => m.id) as string[]
+      const extra = (await upload(dm, 'Hrad')).body.map.id as string
+      await dm.client.patch(`/maps/${extra}`, { visible: true })
+      expect(await ids(dm)).toEqual([mapId, hiddenMapId, extra])
+
+      const order = [extra, hiddenMapId, mapId]
+      expectStatus(await bob.client.post(`/campaigns/${campaignId}/maps/order`, { ids: order }), 403)
+      expectStatus(await eve.client.post(`/campaigns/${campaignId}/maps/order`, { ids: order }), 404)
+      expectStatus(await new Client().post(`/campaigns/${campaignId}/maps/order`, { ids: order }), 401)
+      // neúplné, zdvojené nebo cizí pořadí
+      expectStatus(await dm.client.post(`/campaigns/${campaignId}/maps/order`, { ids: [extra, mapId] }), 422)
+      expectStatus(await dm.client.post(`/campaigns/${campaignId}/maps/order`, { ids: [extra, mapId, mapId] }), 422)
+      expectStatus(await dm.client.post(`/campaigns/${campaignId}/maps/order`, { ids: { a: extra } }), 422)
+      expect(await ids(dm)).toEqual([mapId, hiddenMapId, extra])
+
+      const res = await dm.client.post(`/campaigns/${campaignId}/maps/order`, { ids: order })
+      expectStatus(res, 200)
+      expect(res.body.maps.map((m: any) => m.id)).toEqual(order)
+      expect(await ids(dm)).toEqual(order)
+      expect(await ids(bob)).toEqual([extra, mapId])
+
+      const last = (await upload(dm, 'Poslední')).body.map.id as string
+      expect((await ids(dm)).at(-1)).toBe(last)
+      await dm.client.delete(`/maps/${last}`)
+      await dm.client.delete(`/maps/${extra}`)
+    })
   })
 
   describe('viditelnost bodů', () => {

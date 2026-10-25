@@ -16,7 +16,7 @@ use Dnd\Response;
 
 /**
  * Mapy kampaně a body (piny) na nich.
- *  - mapu nahrává, přejmenovává, zveřejňuje a maže jen DM; hráči vidí a stahují jen zveřejněné mapy (skrytá mapa je pro ně 404),
+ *  - mapu nahrává, přejmenovává, zveřejňuje, řadí a maže jen DM; hráči vidí a stahují jen zveřejněné mapy (skrytá mapa je pro ně 404),
  *  - pin má viditelnost: all (všichni, kdo mapu vidí), selected (vybraní hráči a DM), dm (jen DM), owner (stará soukromá poznámka hráče),
  *  - DM přidává piny all / selected / dm, hráč body pro všechny (all); soukromé poznámky (owner) už nově nevznikají,
  *    starou smí autor nechat soukromou nebo zveřejnit (owner → all), zpět ne,
@@ -36,7 +36,7 @@ final class MapController
     {
         $role = Access::requireMember($user, $params['id']);
         $rows = Db::all(
-            'SELECT id, campaign_id, name, image_path, width, height, visible, created_at FROM maps WHERE campaign_id = ?' . ($role === 'dm' ? '' : ' AND visible = 1') . ' ORDER BY created_at',
+            'SELECT id, campaign_id, name, image_path, width, height, visible, created_at FROM maps WHERE campaign_id = ?' . ($role === 'dm' ? '' : ' AND visible = 1') . ' ORDER BY position, created_at',
             [$params['id']],
         );
         return ['maps' => array_map([self::class, 'mapPayload'], $rows)];
@@ -56,12 +56,41 @@ final class MapController
         $img = Images::scaledJpeg($req->file('image'));
         $id = Ids::uuid();
         $path = Images::store('maps', $id . '-' . bin2hex(random_bytes(4)) . '.jpg', $img['bytes']);
+        // nová mapa jde na konec seznamu
+        $position = (int) Db::value('SELECT COALESCE(MAX(position), 0) + 1 FROM maps WHERE campaign_id = ?', [$params['id']]);
         Db::exec(
-            'INSERT INTO maps (id, campaign_id, name, image_path, width, height, visible, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, UTC_TIMESTAMP())',
-            [$id, $params['id'], $name, $path, $img['width'], $img['height'], $user['id']],
+            'INSERT INTO maps (id, campaign_id, name, image_path, width, height, visible, position, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, UTC_TIMESTAMP())',
+            [$id, $params['id'], $name, $path, $img['width'], $img['height'], $position, $user['id']],
         );
         $row = Db::one('SELECT id, campaign_id, name, image_path, width, height, visible, created_at FROM maps WHERE id = ?', [$id]) ?? [];
         return Response::json(['map' => self::mapPayload($row)], 201);
+    }
+
+    /**
+     * Nové pořadí map (jen DM): `ids` musí být přesně všechny mapy kampaně, první = nahoře.
+     * @param array{id:string} $user
+     */
+    public static function reorder(Request $req, array $params, array $user): array
+    {
+        Access::requireDm($user, $params['id']);
+        $ids = $req->json()['ids'] ?? null;
+        $existing = array_map('strval', array_column(Db::all('SELECT id FROM maps WHERE campaign_id = ?', [$params['id']]), 'id'));
+        if (!is_array($ids) || array_values($ids) !== $ids || count($ids) !== count($existing) || count(array_unique(array_filter($ids, 'is_string'))) !== count($ids)) {
+            throw HttpError::validation('Pořadí musí obsahovat každou mapu kampaně právě jednou.', 'ids');
+        }
+        $a = $ids;
+        $b = $existing;
+        sort($a);
+        sort($b);
+        if ($a !== $b) {
+            throw HttpError::validation('Pořadí musí obsahovat každou mapu kampaně právě jednou.', 'ids');
+        }
+        Db::transaction(static function () use ($ids, $params): void {
+            foreach ($ids as $i => $id) {
+                Db::exec('UPDATE maps SET position = ? WHERE id = ? AND campaign_id = ?', [$i + 1, $id, $params['id']]);
+            }
+        });
+        return self::index($req, $params, $user);
     }
 
     /** @param array{id:string} $user */

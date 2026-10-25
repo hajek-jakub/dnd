@@ -82,6 +82,23 @@ export function useUpdateMap(campaignId: string) {
   })
 }
 
+/** Nové pořadí map (jen DM, všechny mapy kampaně); seznam se přeřadí hned a při chybě vrátí. */
+export function useReorderMaps(campaignId: string) {
+  const queryClient = useQueryClient()
+  const key = ['maps', campaignId]
+  return useMutation({
+    mutationFn: async (ids: string[]) => (await api.post<{ maps: MapInfo[] }>(`/campaigns/${campaignId}/maps/order`, { ids })).maps,
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<MapInfo[]>(key)
+      if (previous) queryClient.setQueryData<MapInfo[]>(key, ids.flatMap((id) => previous.find((m) => m.id === id) ?? []))
+      return { previous }
+    },
+    onError: (_e, _ids, ctx) => queryClient.setQueryData(key, ctx?.previous),
+    onSuccess: (maps) => queryClient.setQueryData(key, maps),
+  })
+}
+
 export function useDeleteMap(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({

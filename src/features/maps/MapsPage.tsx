@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeftIcon, EyeIcon, EyeOffIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ArrowUpToLineIcon, EyeIcon, EyeOffIcon, Trash2Icon, UploadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,7 +8,7 @@ import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useCampaign } from '@/features/campaigns/api'
-import { mapImageUrl, useDeleteMap, useMaps, useUpdateMap, useUploadMap, type MapInfo } from './api'
+import { mapImageUrl, useDeleteMap, useMaps, useReorderMaps, useUpdateMap, useUploadMap, type MapInfo } from './api'
 import { shrinkImage } from './shrink-image'
 import { usePageTitle } from '@/lib/page-title'
 
@@ -18,6 +18,15 @@ export function MapsPage() {
   usePageTitle('Mapy', campaign?.name)
   const { data: maps, isPending: mapsPending } = useMaps(campaignId)
   const isDm = campaign?.role === 'dm'
+  const reorder = useReorderMaps(campaignId)
+  const move = (index: number, to: number) => {
+    if (!maps) return
+    const ids = maps.map((m) => m.id)
+    const [id] = ids.splice(index, 1)
+    if (!id) return
+    ids.splice(to, 0, id)
+    reorder.mutate(ids, { onError: () => toast.error('Pořadí se nepodařilo uložit') })
+  }
 
   if (isPending) return <FullPageSpinner />
   if (!campaign) return <Navigate to="/" replace />
@@ -38,8 +47,8 @@ export function MapsPage() {
         <p className="text-muted-foreground">{isDm ? 'Zatím tu nejsou žádné mapy. Nahraj první.' : 'DM zatím žádnou mapu nezveřejnil.'}</p>
       )}
       <ul aria-label="Mapy kampaně" className="grid gap-4 sm:grid-cols-2 tab:grid-cols-3">
-        {maps?.map((m) => (
-          <MapCard key={m.id} campaignId={campaignId} map={m} isDm={isDm} />
+        {maps?.map((m, i) => (
+          <MapCard key={m.id} campaignId={campaignId} map={m} isDm={isDm} position={{ first: i === 0, last: i === maps.length - 1, move: (to) => move(i, to(i)) }} />
         ))}
       </ul>
     </>
@@ -94,7 +103,9 @@ function UploadCard({ campaignId }: { campaignId: string }) {
   )
 }
 
-function MapCard({ campaignId, map, isDm }: { campaignId: string; map: MapInfo; isDm: boolean }) {
+type Position = { first: boolean; last: boolean; move: (to: (index: number) => number) => void }
+
+function MapCard({ campaignId, map, isDm, position }: { campaignId: string; map: MapInfo; isDm: boolean; position: Position }) {
   const update = useUpdateMap(campaignId)
   const remove = useDeleteMap(campaignId)
   return (
@@ -103,6 +114,20 @@ function MapCard({ campaignId, map, isDm }: { campaignId: string; map: MapInfo; 
         <img src={mapImageUrl(map)} alt="" loading="lazy" decoding="async" className="aspect-[4/3] w-full bg-muted object-cover" />
         <span className="block truncate p-3 font-medium">{map.name}</span>
       </Link>
+      {isDm && (
+        <div role="group" aria-label={`Pořadí: ${map.name}`} className="flex items-center gap-1 border-t p-2">
+          <span className="mr-auto text-xs text-muted-foreground">Pořadí</span>
+          <Button variant="outline" size="icon" aria-label={`${map.name}: na první místo`} title="Na první místo" disabled={position.first} onClick={() => position.move(() => 0)}>
+            <ArrowUpToLineIcon aria-hidden />
+          </Button>
+          <Button variant="outline" size="icon" aria-label={`${map.name}: posunout dopředu`} title="Dopředu" disabled={position.first} onClick={() => position.move((i) => i - 1)}>
+            <ArrowUpIcon aria-hidden />
+          </Button>
+          <Button variant="outline" size="icon" aria-label={`${map.name}: posunout dozadu`} title="Dozadu" disabled={position.last} onClick={() => position.move((i) => i + 1)}>
+            <ArrowDownIcon aria-hidden />
+          </Button>
+        </div>
+      )}
       {isDm && (
         <div className="flex items-center justify-between gap-2 border-t p-2">
           <span className="text-xs text-muted-foreground">{map.visible ? 'Hráči ji vidí' : 'Skrytá před hráči'}</span>
