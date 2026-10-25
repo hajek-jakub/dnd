@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { DicesIcon, RotateCcwIcon } from 'lucide-react'
+import { DicesIcon, RotateCcwIcon, SwordsIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { DiceRoll, RollAttempt } from './api'
 import { DieFace } from './DieFace'
 import { MAX_VISIBLE_DICE, placeholderDice, prefersReducedMotion } from './dice-visual'
-import { modeLabel, naturalNote } from './format'
+import { modeLabel, naturalNote, termText } from './format'
 import { RollOverlayContext, type RollOverlayApi, type RollOverlayRequest } from './roll-overlay-context'
 
 /** Nejkratší doba točení kostek: i když server odpoví hned, hod nevypadá jako blesk. */
@@ -94,14 +94,19 @@ function RollDialog({ state, onClose }: { state: State; onClose: () => void }) {
         'm-auto w-[calc(100%-1.5rem)] max-w-md overflow-hidden rounded-3xl border bg-card p-0 text-card-foreground shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm',
         note === 'crit' && 'border-green-500 shadow-green-500/30',
         note === 'fail' && 'border-red-500 shadow-red-500/30',
+        request.crit && note !== 'fail' && 'border-2 border-amber-500 shadow-amber-500/40',
       )}
     >
       <div className="space-y-5 bg-[radial-gradient(60%_40%_at_50%_0%,color-mix(in_oklch,var(--primary)_16%,transparent),transparent)] px-5 pb-5 pt-6 text-center">
         <header className="space-y-1">
+          {request.crit && (
+            <p data-testid="crit-banner" className="mx-auto inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-1 font-display text-sm font-bold uppercase tracking-wider text-black">
+              <SwordsIcon aria-hidden className="size-4" /> Kritický zásah
+            </p>
+          )}
           <p className="font-display text-xl font-semibold">{request.label || request.expression}</p>
           <p className="text-sm text-muted-foreground">
             {request.expression}
-            {request.crit ? ' (kritický)' : ''}
             {request.mode !== 'normal' ? ` · ${modeLabel(request.mode)}` : ''}
             {request.hidden ? ' · skrytý hod' : ''}
           </p>
@@ -123,7 +128,7 @@ function RollDialog({ state, onClose }: { state: State; onClose: () => void }) {
 }
 
 function Rolling({ request }: { request: RollOverlayRequest }) {
-  const { dice, more } = useMemo(() => placeholderDice(request.expression, request.crit), [request.expression, request.crit])
+  const { dice, more } = useMemo(() => placeholderDice(request.expression), [request.expression])
   const rows = request.mode === 'normal' ? 1 : 2
   return (
     <div role="status" aria-label="Kostky se točí" className="space-y-3 py-2">
@@ -157,6 +162,7 @@ function Result({ roll }: { roll: DiceRoll }) {
               </p>
             )}
             <AttemptDice attempt={attempt} tone={i !== roll.chosen ? 'dim' : note === 'crit' ? 'crit' : note === 'fail' ? 'fail' : 'normal'} />
+            {i === roll.chosen && <CritDice attempt={attempt} />}
           </div>
         ))}
       </div>
@@ -168,19 +174,47 @@ function Result({ roll }: { roll: DiceRoll }) {
         </p>
         {note === 'crit' && <p className="font-display text-lg font-semibold text-green-600 dark:text-green-400">Přirozená 20!</p>}
         {note === 'fail' && <p className="font-display text-lg font-semibold text-red-600 dark:text-red-400">Přirozená 1</p>}
-        {roll.crit && <p className="text-sm font-medium text-green-700 dark:text-green-300">Kritický zásah: kostky jsou zdvojené</p>}
+        {roll.attempts[roll.chosen] && (
+          <p data-testid="roll-breakdown" className="text-sm text-muted-foreground">
+            {roll.attempts[roll.chosen]!.terms.map((t, i) => (
+              <span key={i} className="whitespace-nowrap">
+                {i > 0 && ' · '}
+                {termText(t)}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
     </div>
   )
 }
 
-/** Kostky jednoho hodu včetně konstant ("[12] + 7"). */
-function AttemptDice({ attempt, tone }: { attempt: RollAttempt; tone: 'normal' | 'crit' | 'fail' | 'dim' }) {
-  const compact = attempt.terms.reduce((n, t) => n + (t.rolls?.length ?? 0), 0) > 3
+const CRIT_LABELS = { max: 'plná kostka', double: 'kostky znovu', extra: 'kostky navíc' } as const
+
+/** Co přidal kritický zásah, zvlášť pod běžným hodem: zlaté kostky s popisem a součtem. */
+function CritDice({ attempt }: { attempt: RollAttempt }) {
+  const terms = attempt.terms.filter((t) => t.crit)
+  if (terms.length === 0) return null
+  const sum = terms.reduce((n, t) => n + t.sign * (t.rolls ?? []).reduce((a, b) => a + b, 0), 0)
+  const kinds = [...new Set(terms.map((t) => CRIT_LABELS[t.crit!]))].join(' a ')
+  return (
+    <div data-testid="crit-dice" className="mt-3 space-y-2 rounded-2xl border-2 border-dashed border-amber-500/70 bg-amber-500/10 p-3">
+      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+        Krit: {kinds} +{sum}
+      </p>
+      <AttemptDice attempt={{ terms, total: sum }} tone="gold" />
+    </div>
+  )
+}
+
+/** Kostky jednoho hodu včetně konstant; krit členy ukazuje `CritDice` zvlášť (kromě `tone="gold"`, kde jde jen o ně). */
+function AttemptDice({ attempt, tone }: { attempt: RollAttempt; tone: 'normal' | 'crit' | 'fail' | 'dim' | 'gold' }) {
+  const terms = tone === 'gold' ? attempt.terms : attempt.terms.filter((t) => !t.crit)
+  const compact = terms.reduce((n, t) => n + (t.rolls?.length ?? 0), 0) > 3
   let shown = 0
   let hidden = 0
   const parts: ReactNode[] = []
-  attempt.terms.forEach((t, ti) => {
+  terms.forEach((t, ti) => {
     if (t.rolls && t.sides) {
       for (const [ri, value] of t.rolls.entries()) {
         if (shown < MAX_VISIBLE_DICE) {

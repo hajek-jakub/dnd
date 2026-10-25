@@ -9,7 +9,7 @@ interface Props {
   /** Zpoždění animace, ať se víc kostek netočí v jednom rytmu. */
   delay?: number
   sign?: 1 | -1
-  tone?: 'normal' | 'crit' | 'fail' | 'dim'
+  tone?: 'normal' | 'crit' | 'fail' | 'dim' | 'gold'
   /** Menší kostka, když jich je v hodu hodně. */
   compact?: boolean
 }
@@ -29,7 +29,7 @@ export function DieFace({ sides, value, delay = 0, sign = 1, tone = 'normal', co
   const shape = DIE_SHAPES[sides]
   const edge = DIE_EDGES[sides]
   const shown = rolling ? flicker : value
-  const fill = tone === 'crit' ? ['#16a34a', '#14532d'] : tone === 'fail' ? ['#dc2626', '#7f1d1d'] : ['var(--primary)', 'color-mix(in oklch, var(--primary) 55%, black)']
+  const fill = tone === 'gold' ? ['#d97706', '#78350f'] : tone === 'crit' ? ['#16a34a', '#14532d'] : tone === 'fail' ? ['#dc2626', '#7f1d1d'] : ['var(--primary)', 'color-mix(in oklch, var(--primary) 55%, black)']
 
   return (
     <span
@@ -41,7 +41,7 @@ export function DieFace({ sides, value, delay = 0, sign = 1, tone = 'normal', co
       <svg
         viewBox="0 0 100 100"
         aria-hidden
-        className={cn('size-full overflow-visible drop-shadow-md', rolling ? 'dice-anim animate-dice-roll' : 'dice-anim animate-dice-land', !rolling && tone === 'crit' && 'drop-shadow-[0_0_10px_rgb(34_197_94/0.9)]', !rolling && tone === 'fail' && 'animate-dice-shake drop-shadow-[0_0_10px_rgb(239_68_68/0.8)]')}
+        className={cn('size-full overflow-visible drop-shadow-md', rolling ? 'dice-anim animate-dice-roll' : 'dice-anim animate-dice-land', !rolling && tone === 'crit' && 'drop-shadow-[0_0_10px_rgb(34_197_94/0.9)]', !rolling && tone === 'gold' && 'drop-shadow-[0_0_10px_rgb(245_158_11/0.9)]', !rolling && tone === 'fail' && 'animate-dice-shake drop-shadow-[0_0_10px_rgb(239_68_68/0.8)]')}
         style={{ animationDelay: `${delay}ms` }}
       >
         <defs>

@@ -11,6 +11,8 @@ export interface RollTerm {
   sides?: number
   rolls?: number[]
   constant?: number
+  /** Člen přidaný kritickým zásahem: `max` plná kostka, `double` druhý hod, `extra` kostky navíc (Brutal Critical). */
+  crit?: 'max' | 'double' | 'extra'
 }
 
 export interface RollAttempt {

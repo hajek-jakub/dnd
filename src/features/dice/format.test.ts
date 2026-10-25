@@ -40,9 +40,24 @@ describe('výrazy kostek', () => {
 
 describe('popis hodu', () => {
   it('rozpis kostek a součet', () => {
-    expect(breakdown(roll().attempts[0]!)).toBe('[12] + 7')
-    expect(breakdown({ total: 0, terms: [{ sign: 1, count: 2, sides: 6, rolls: [3, 4] }, { sign: -1, constant: 2 }] })).toBe('[3, 4] − 2')
-    expect(describeRoll(roll())).toBe('1d20+7 = 19 ([12] + 7)')
+    expect(breakdown(roll().attempts[0]!)).toBe('d20: 12 · bonus +7')
+    expect(breakdown({ total: 0, terms: [{ sign: 1, count: 2, sides: 6, rolls: [3, 4] }, { sign: -1, constant: 2 }] })).toBe('2d6: 3 + 4 = 7 · postih −2')
+    expect(breakdown({ total: 0, terms: [{ sign: -1, count: 1, sides: 4, rolls: [3] }] })).toBe('−d4: −3')
+    expect(describeRoll(roll())).toBe('1d20+7 = 19 · d20: 12 · bonus +7')
+  })
+
+  it('kritický zásah: plná kostka, druhý hod a kostky navíc jsou v rozpisu zvlášť', () => {
+    const crit = roll({
+      expression: '1d8+4',
+      crit: true,
+      total: 17,
+      natural: null,
+      attempts: [{ total: 17, terms: [{ sign: 1, count: 1, sides: 8, rolls: [5] }, { sign: 1, constant: 4 }, { sign: 1, count: 1, sides: 8, rolls: [8], crit: 'max' }] }],
+    })
+    expect(describeRoll(crit)).toBe('1d8+4 · KRIT = 17 · d8: 5 · bonus +4 · krit: plná d8 = 8')
+    expect(breakdown({ total: 0, terms: [{ sign: 1, count: 2, sides: 6, rolls: [2, 5], crit: 'double' }, { sign: 1, count: 1, sides: 12, rolls: [7], crit: 'extra' }] })).toBe(
+      'krit 2d6: 2 + 5 = 7 · krit navíc d12: 7',
+    )
   })
 
   it('výhoda ukáže oba hody a ten vybraný', () => {
@@ -55,8 +70,7 @@ describe('popis hodu', () => {
         { total: 22, terms: [{ sign: 1, count: 1, sides: 20, rolls: [15] }, { sign: 1, constant: 7 }] },
       ],
     })
-    expect(describeRoll(adv)).toContain('výhoda: (10) / 22')
-    expect(describeRoll(adv)).toContain('= 22 ([15] + 7)')
+    expect(describeRoll(adv)).toBe('1d20+7 = 22 · d20: 15 · bonus +7 · výhoda, zahozeno 10')
   })
 
   it('přirozená 20 a 1', () => {

@@ -100,13 +100,44 @@ describe('kostky', () => {
       }
     })
 
-    it('kritický zásah zdvojnásobí kostky, ale ne konstanty', async () => {
+    it('kritický zásah (výchozí pravidlo kampaně): běžný hod a k němu plná kostka, konstanta jen jednou', async () => {
       const r = (await roll(bob, { expression: '1d8+4', crit: true })).body.roll
       expect(r).toMatchObject({ crit: true })
-      expect(r.attempts[0].terms[0].count).toBe(2)
-      expect(r.attempts[0].terms[0].rolls).toHaveLength(2)
-      expect(r.attempts[0].terms[1]).toMatchObject({ constant: 4 })
+      const [dice, bonus, crit] = r.attempts[0].terms
+      expect(dice).toMatchObject({ count: 1, sides: 8 })
+      expect(dice.crit).toBeUndefined()
+      expect(bonus).toMatchObject({ constant: 4 })
+      expect(crit).toMatchObject({ count: 1, sides: 8, rolls: [8], crit: 'max' })
+      expect(r.total).toBe(dice.rolls[0] + 4 + 8)
       expect(r.total).toBe(sum(r.attempts[0]))
+      // Brutal Critical se i při plné kostce hází
+      const brutal = (await roll(bob, { expression: '2d6+1', crit: true, critExtra: '1d6' })).body.roll
+      expect(brutal.attempts[0].terms.map((t: any) => t.crit ?? null)).toEqual([null, null, 'max', 'extra'])
+      expect(brutal.attempts[0].terms[2].rolls).toEqual([6, 6])
+    })
+
+    it('DM přepne kritický zásah na pravidla 5e (kostky dvakrát); nastavení mění jen DM a jen platnou hodnotou', async () => {
+      const cid = await createCampaign(dm, 'Krity')
+      const p = await joinAsPlayer(dm, cid, 'critbob')
+      expectStatus(await p.client.patch(`/campaigns/${cid}`, { settings: { critRule: 'double' } }), 403)
+      expectStatus(await eve.client.patch(`/campaigns/${cid}`, { settings: { critRule: 'double' } }), 404)
+      expectStatus(await dm.client.patch(`/campaigns/${cid}`, { settings: { critRule: 'triple' } }), 422)
+      const set = await dm.client.patch(`/campaigns/${cid}`, { settings: { critRule: 'double' } })
+      expectStatus(set, 200)
+      expect(set.body.campaign.settings).toMatchObject({ critRule: 'double' })
+      let sawNonMax = false
+      for (let i = 0; i < 6; i++) {
+        const r = (await roll(p, { expression: '1d8+4', crit: true }, cid)).body.roll
+        const crit = r.attempts[0].terms[2]
+        expect(crit).toMatchObject({ count: 1, sides: 8, crit: 'double' })
+        expect(crit.rolls[0] >= 1 && crit.rolls[0] <= 8).toBe(true)
+        if (crit.rolls[0] !== 8) sawNonMax = true
+        expect(r.total).toBe(sum(r.attempts[0]))
+      }
+      expect(sawNonMax).toBe(true)
+      // ostatní nastavení zůstane
+      expectStatus(await dm.client.patch(`/campaigns/${cid}`, { settings: { ruleset: '2024' } }), 200)
+      expect((await dm.client.get(`/campaigns/${cid}`)).body.campaign.settings).toMatchObject({ ruleset: '2024', critRule: 'double' })
     })
   })
 

@@ -17,7 +17,8 @@ function Roll({ roll, testId }: { roll: DiceRoll; testId?: string }) {
   return (
     <span data-testid={testId} title={`${roll.expression}: ${chosen ? breakdown(chosen) : ''}`}>
       <strong className="text-lg tabular-nums">{roll.total}</strong>
-      <span className="ml-1 text-xs text-muted-foreground">({chosen ? breakdown(chosen) : roll.expression})</span>
+      {roll.crit && <span className="ml-1 rounded bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-bold uppercase text-black">Krit</span>}
+      <span className="ml-1 block text-xs text-muted-foreground">{chosen ? breakdown(chosen) : roll.expression}</span>
     </span>
   )
 }

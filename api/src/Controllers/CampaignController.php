@@ -6,6 +6,7 @@ namespace Dnd\Controllers;
 
 use Dnd\Access;
 use Dnd\Db;
+use Dnd\Dice;
 use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Images;
@@ -81,7 +82,7 @@ final class CampaignController
         }
         if (array_key_exists('settings', $data)) {
             $in = $data['settings'];
-            if (!is_array($in) || array_diff(array_keys($in), ['ruleset']) !== []) {
+            if (!is_array($in) || array_diff(array_keys($in), ['ruleset', 'critRule']) !== []) {
                 throw HttpError::validation('Neznámé nastavení kampaně.', 'settings');
             }
             $current = json_decode((string) Db::value('SELECT settings FROM campaigns WHERE id = ?', [$params['id']]), true);
@@ -91,6 +92,12 @@ final class CampaignController
                     throw HttpError::validation("Pravidla musí být '2014' nebo '2024'.", 'settings');
                 }
                 $current['ruleset'] = $in['ruleset'];
+            }
+            if (array_key_exists('critRule', $in)) {
+                if (!in_array($in['critRule'], Dice::CRIT_RULES, true)) {
+                    throw HttpError::validation("Kritický zásah musí být 'max' nebo 'double'.", 'settings');
+                }
+                $current['critRule'] = $in['critRule'];
             }
             $sets[] = 'settings = ?';
             $values[] = json_encode($current === [] ? new \stdClass() : $current, JSON_UNESCAPED_UNICODE);

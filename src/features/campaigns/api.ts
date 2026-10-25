@@ -126,11 +126,11 @@ export function useAcceptInvite() {
   })
 }
 
-/** Nastavení kampaně (jen DM): sada pravidel (2014 / 2024). */
+/** Nastavení kampaně (jen DM): sada pravidel (2014 / 2024) a pravidlo kritického zásahu. */
 export function useUpdateCampaignSettings(campaignId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (settings: { ruleset?: '2014' | '2024' }) =>
+    mutationFn: async (settings: { ruleset?: '2014' | '2024'; critRule?: 'max' | 'double' }) =>
       (await api.patch<{ campaign: Campaign }>(`/campaigns/${campaignId}`, { settings })).campaign,
     // Přepínač reaguje hned, při chybě se vrátí.
     onMutate: async (settings) => {

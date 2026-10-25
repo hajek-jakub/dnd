@@ -71,7 +71,7 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await expectNoHorizontalScroll(bob)
     await closeRoll(bob)
 
-    // --- útok a zranění zbraní: +1 magie, +1d4 fire; kritický zásah zdvojí kostky
+    // --- útok a zranění zbraní: +1 magie, +1d4 fire; kritický zásah = běžný hod + plné kostky (výchozí pravidlo kampaně)
     await bob.getByRole('button', { name: /^Hodit: Plamenný meč: útok \(1d20\+6\)$/ }).click() // STR 3 + prof 2 + magie 1
     await settled(bob)
     await closeRoll(bob)
@@ -81,8 +81,15 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await closeRoll(bob)
     await bob.getByRole('button', { name: /^Hodit: Plamenný meč: zranění \(kritický\) \(1d8\+4\+1d4\)$/ }).click()
     win = await settled(bob)
-    await expect(win.locator('[data-die]')).toHaveCount(4) // 2d8 a 2d4
-    await expect(win.getByText('Kritický zásah: kostky jsou zdvojené')).toBeVisible()
+    await expect(win.getByTestId('crit-banner')).toHaveText(/Kritický zásah/i)
+    await expect(win.locator('[data-die]')).toHaveCount(4) // d8 a d4 hozené, d8 a d4 plné
+    const critDice = win.getByTestId('crit-dice')
+    await expect(critDice).toContainText('Krit: plná kostka +12')
+    await expect(critDice.locator('[data-die="8"] text')).toHaveText('8')
+    await expect(critDice.locator('[data-die="4"] text')).toHaveText('4')
+    await expect(win.getByTestId('roll-breakdown')).toContainText('bonus +4 · d4: ')
+    await expect(win.getByTestId('roll-breakdown')).toContainText('krit: plná d8 = 8 · krit: plná d4 = 4')
+    await expectNoHorizontalScroll(bob)
     await closeRoll(bob)
 
     // --- výhoda: ukážou se oba hody a ten horší je zahozený
@@ -109,10 +116,10 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     const bobLog = log(bob)
     await expect(bobLog.getByText(/Athletics/).first()).toBeVisible()
     await expect(bobLog.getByText(/Plamenný meč · Plamenný meč: útok|Plamenný meč: útok/)).toBeVisible()
-    await expect(bobLog.getByText(/\(kritický\)/).first()).toBeVisible()
-    await expect(bobLog.getByText(/výhoda: /)).toBeVisible()
-    // zranění s kritem má kostky zdvojené: 2d8 a 2d4 (v rozpisu 4 hody v hranatých závorkách)
-    await expect(bobLog.getByText(/1d8\+4\+1d4 \(kritický\)/)).toBeVisible()
+    await expect(bobLog.getByText(/výhoda, zahozeno /)).toBeVisible()
+    // zranění s kritem: štítek Krit a v rozpisu plné kostky
+    await expect(bobLog.getByText(/1d8\+4\+1d4 · d8: \d+ · bonus \+4 · d4: \d+ · krit: plná d8 = 8 · krit: plná d4 = 4/)).toBeVisible()
+    await expect(bobLog.getByText('Krit', { exact: true })).toBeVisible()
 
     // --- volný hod a rychlá kostka
     await bobDock.getByLabel('Vlastní hod').fill('2d6+3')
@@ -146,6 +153,17 @@ test('hody ze sheetu a volný hod: server losuje, log je sdílený, výhoda a sk
     await expect(dmLog.getByText(/Athletics/).first()).toBeVisible({ timeout: 15_000 })
     await expect(dmLog.getByText(/1d100/)).toBeVisible()
     await expect(dmLog.getByText(/Bořek/).first()).toBeVisible() // hod za postavu nese jméno postavy
+    await dm.keyboard.press('Escape')
+
+    // --- DM přepne krit na pravidla 5e: kostky se hodí podruhé (už ne plné)
+    await dm.getByLabel('Kritický zásah').selectOption('double')
+    await expect(dm.getByText('Pravidlo kritického zásahu změněno')).toBeVisible()
+    await bob.keyboard.press('Escape')
+    await bob.getByRole('button', { name: /^Hodit: Plamenný meč: zranění \(kritický\) \(1d8\+4\+1d4\)$/ }).click()
+    win = await settled(bob)
+    await expect(win.getByTestId('crit-dice')).toContainText('Krit: kostky znovu')
+    await expect(win.getByTestId('roll-breakdown')).toContainText(/krit d8: \d+ · krit d4: \d+/)
+    await closeRoll(bob)
 
     // --- Carol: veřejné hody ano, skrytý ne; za cizí postavu hodit nemůže (na cizím sheetu nemá tlačítka)
     await carol.goto(`/campaigns/${campaignId}`)

@@ -77,32 +77,63 @@ final class Dice
     }
 
     /**
-     * Jeden hod výrazu. Při `crit` se počty kostek zdvojnásobí (kritický zásah), konstanty ne. `critExtra` jsou kostky navíc, které se
-     * při kritu přidají po zdvojení a samy se nezdvojují (Brutal Critical barbara); bez `crit` se ignorují.
+     * Kritický zásah: `max` = k běžnému hodu se přičte plná hodnota kostek (domácí pravidlo, např. 1d8 → hod + 8),
+     * `double` = kostky se hodí dvakrát (pravidla 5e, PHB 2014 i 2024). Nastavuje DM v kampani, výchozí je `max`.
+     */
+    public const CRIT_RULES = ['max', 'double'];
+
+    /**
+     * Jeden hod výrazu. Při `crit` se ke každé kostce výrazu přidá krit člen (`crit: 'max'` s plnými kostkami, nebo `crit: 'double'`
+     * s druhým hodem), konstanty se nezdvojují. `critExtra` jsou kostky navíc jen při kritu (Brutal Critical barbara), vždy se hází
+     * (`crit: 'extra'`); bez `crit` se ignorují. Krit členy jsou až za členy výrazu, ať je v rozpisu vidět, co přidal krit.
      * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $terms
      * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $critExtra
      * @return array{terms: list<array<string, mixed>>, total: int}
      */
-    public static function roll(array $terms, bool $crit = false, array $critExtra = []): array
+    public static function roll(array $terms, bool $crit = false, array $critExtra = [], string $critRule = 'max'): array
     {
         $total = 0;
         $out = [];
-        foreach (($crit ? [...$terms, ...$critExtra] : $terms) as $i => $t) {
+        $dice = static function (int $count, int $sides): array {
+            $rolls = [];
+            for ($n = 0; $n < $count; $n++) {
+                $rolls[] = random_int(1, $sides);
+            }
+            return $rolls;
+        };
+        foreach ($terms as $t) {
             if (isset($t['sides'])) {
-                // zdvojují se jen členy původního výrazu, ne kostky navíc
-                $count = $crit && $i < count($terms) ? $t['count'] * 2 : $t['count'];
-                $rolls = [];
-                for ($n = 0; $n < $count; $n++) {
-                    $rolls[] = random_int(1, $t['sides']);
-                }
+                $rolls = $dice($t['count'], $t['sides']);
                 $total += $t['sign'] * array_sum($rolls);
-                $out[] = ['sign' => $t['sign'], 'count' => $count, 'sides' => $t['sides'], 'rolls' => $rolls];
+                $out[] = ['sign' => $t['sign'], 'count' => $t['count'], 'sides' => $t['sides'], 'rolls' => $rolls];
             } else {
                 $total += $t['sign'] * $t['constant'];
                 $out[] = ['sign' => $t['sign'], 'constant' => $t['constant']];
             }
         }
+        if ($crit) {
+            foreach ($terms as $t) {
+                if (isset($t['sides'])) {
+                    $rolls = $critRule === 'double' ? $dice($t['count'], $t['sides']) : array_fill(0, $t['count'], $t['sides']);
+                    $total += $t['sign'] * array_sum($rolls);
+                    $out[] = ['sign' => $t['sign'], 'count' => $t['count'], 'sides' => $t['sides'], 'rolls' => $rolls, 'crit' => $critRule === 'double' ? 'double' : 'max'];
+                }
+            }
+            foreach ($critExtra as $t) {
+                $rolls = $dice($t['count'], $t['sides']);
+                $total += $t['sign'] * array_sum($rolls);
+                $out[] = ['sign' => $t['sign'], 'count' => $t['count'], 'sides' => $t['sides'], 'rolls' => $rolls, 'crit' => 'extra'];
+            }
+        }
         return ['terms' => $out, 'total' => $total];
+    }
+
+    /** Pravidlo kritického zásahu kampaně (nastavení `critRule`, bez hodnoty `max`). */
+    public static function critRuleOf(string $campaignId): string
+    {
+        $settings = json_decode((string) Db::value('SELECT settings FROM campaigns WHERE id = ?', [$campaignId]), true);
+        $rule = is_array($settings) ? ($settings['critRule'] ?? 'max') : 'max';
+        return in_array($rule, self::CRIT_RULES, true) ? $rule : 'max';
     }
 
     /**
@@ -111,18 +142,18 @@ final class Dice
      * @param list<array{sign:int,count?:int,sides?:int,constant?:int}> $critExtra kostky navíc jen při kritu (viz `roll`)
      * @return array{attempts: list<array<string, mixed>>, chosen: int, total: int, natural: int|null}
      */
-    public static function rollWithMode(array $terms, string $mode, bool $crit, array $critExtra = []): array
+    public static function rollWithMode(array $terms, string $mode, bool $crit, array $critExtra = [], string $critRule = 'max'): array
     {
-        $attempts = [self::roll($terms, $crit, $critExtra)];
+        $attempts = [self::roll($terms, $crit, $critExtra, $critRule)];
         $chosen = 0;
         if ($mode === 'advantage' || $mode === 'disadvantage') {
-            $attempts[] = self::roll($terms, $crit, $critExtra);
+            $attempts[] = self::roll($terms, $crit, $critExtra, $critRule);
             $better = $mode === 'advantage' ? $attempts[1]['total'] > $attempts[0]['total'] : $attempts[1]['total'] < $attempts[0]['total'];
             $chosen = $better ? 1 : 0;
         }
         // "Natural" hodnota pro k20: výraz s jedinou kostkou d20 (kvůli zvýraznění 20 a 1).
         $natural = null;
-        $d20 = array_values(array_filter($attempts[$chosen]['terms'], static fn (array $t): bool => ($t['sides'] ?? 0) === 20 && $t['sign'] > 0));
+        $d20 = array_values(array_filter($attempts[$chosen]['terms'], static fn (array $t): bool => ($t['sides'] ?? 0) === 20 && $t['sign'] > 0 && !isset($t['crit'])));
         if (count($d20) === 1 && count($d20[0]['rolls']) === 1) {
             $natural = $d20[0]['rolls'][0];
         }

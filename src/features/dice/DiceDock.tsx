@@ -115,9 +115,9 @@ function RollLog({ rolls, me }: { rolls: DiceRoll[]; me: string }) {
                 </span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {r.expression}
-                {r.crit ? ' (kritický)' : ''} · {r.attempts[r.chosen] ? breakdown(r.attempts[r.chosen]!) : ''}
-                {r.attempts.length > 1 ? ` · ${modeLabel(r.mode)}: ${r.attempts.map((a, i) => (i === r.chosen ? a.total : `(${a.total})`)).join(' / ')}` : ''}
+                {r.crit && <span className="mr-1 rounded bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-bold uppercase text-black">Krit</span>}
+                {r.expression} · {r.attempts[r.chosen] ? breakdown(r.attempts[r.chosen]!) : ''}
+                {r.attempts.length > 1 ? ` · ${modeLabel(r.mode)}, zahozeno ${r.attempts.filter((_, i) => i !== r.chosen).map((a) => a.total).join(', ')}` : ''}
                 {note === 'crit' ? ' · přirozená 20' : note === 'fail' ? ' · přirozená 1' : ''}
                 {r.hidden ? ' · skrytý' : ''}
               </p>

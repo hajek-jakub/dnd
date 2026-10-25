@@ -68,7 +68,7 @@ final class DiceController
             throw HttpError::validation('Hod na iniciativu musí patřit postavě (characterId).', 'characterId');
         }
 
-        $rolled = Dice::rollWithMode($terms, $mode, $crit, $critExtra);
+        $rolled = Dice::rollWithMode($terms, $mode, $crit, $critExtra, $crit ? Dice::critRuleOf($params['id']) : 'max');
         $expression = Dice::canonical($terms);
         Db::exec(
             'INSERT INTO dice_rolls (campaign_id, user_id, character_id, label, expression, mode, crit, hidden, total, result, created_at)
@@ -164,7 +164,8 @@ final class DiceController
             $plan[] = [$label, $hit, $dmg];
         }
 
-        $results = Db::transaction(static function () use ($plan, $params, $user, $characterId, $mode, $hidden): array {
+        $critRule = Dice::critRuleOf($params['id']);
+        $results = Db::transaction(static function () use ($plan, $params, $user, $characterId, $mode, $hidden, $critRule): array {
             $out = [];
             foreach ($plan as [$label, $hit, $dmg]) {
                 $hitRoll = null;
@@ -176,7 +177,7 @@ final class DiceController
                 }
                 $dmgRoll = null;
                 if ($dmg !== null) {
-                    $rolled = Dice::rollWithMode($dmg, 'normal', $crit);
+                    $rolled = Dice::rollWithMode($dmg, 'normal', $crit, [], $critRule);
                     $dmgRoll = self::insertRoll($params['id'], $user['id'], $characterId, $label . ($crit ? ' (zranění, kritický zásah)' : ' (zranění)'), $dmg, 'normal', $crit, $hidden, $rolled);
                 }
                 $out[] = ['label' => $label, 'crit' => $crit, 'hit' => $hitRoll === null ? null : self::one($hitRoll), 'damage' => $dmgRoll === null ? null : self::one($dmgRoll)];

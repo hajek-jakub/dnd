@@ -246,6 +246,25 @@ function SettingsForm({ campaignId, settings }: { campaignId: string; settings: 
           Data pravidel (itemy, kouzla, třídy) jsou zatím jen ze SRD 5.1.
         </p>
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="campaign-crit">Kritický zásah</Label>
+        <NativeSelect
+          id="campaign-crit"
+          value={settings?.critRule === 'double' ? 'double' : 'max'}
+          onChange={(e) =>
+            update.mutate(
+              { critRule: e.target.value === 'double' ? 'double' : 'max' },
+              { onError: () => toast.error('Nastavení se nepodařilo uložit'), onSuccess: () => toast.success('Pravidlo kritického zásahu změněno') },
+            )
+          }
+        >
+          <option value="max">Hod + plná kostka (1d8 → hod + 8)</option>
+          <option value="double">Kostky dvakrát (pravidla 5e)</option>
+        </NativeSelect>
+        <p className="text-sm text-muted-foreground">
+          Při kritickém zásahu se zranění hodí normálně a přičte se maximum kostek zranění (domácí pravidlo), nebo se kostky hodí podruhé, jak píše Player's Handbook. Bonus se nikdy nezdvojuje.
+        </p>
+      </div>
     </div>
   )
 }
