@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyOps } from './model'
-import type { CharacterState } from './types'
+import { applyOps, applyWearOps } from './model'
+import type { CharacterItem, CharacterState } from './types'
 
 const base: CharacterState = {
   hpCurrent: null,
@@ -74,5 +74,16 @@ describe('applyOps (optimistická verze serverových úprav)', () => {
     const state = { ...base, slotsUsed: { '1': 1 } }
     applyOps(state, [{ op: 'slot', level: 1, delta: 1, max: 4 }], extras)
     expect(state.slotsUsed).toEqual({ '1': 1 })
+  })
+})
+
+describe('applyWearOps', () => {
+  const sword = { id: 's', nat1: 0, broken: false } as CharacterItem
+  it('zvedne číslo nejvýš na 20, rozbití a oprava ho vynuluje', () => {
+    expect(applyWearOps([sword], [{ op: 'nat1', itemId: 's', delta: 1 }])[0]).toMatchObject({ nat1: 1, broken: false })
+    expect(applyWearOps([{ ...sword, nat1: 20 }], [{ op: 'nat1', itemId: 's', delta: 5 }])[0]?.nat1).toBe(20)
+    expect(applyWearOps([{ ...sword, nat1: 1 }], [{ op: 'nat1', itemId: 's', delta: -4 }])[0]?.nat1).toBe(0)
+    expect(applyWearOps([sword], [{ op: 'break', itemId: 's' }])[0]?.broken).toBe(true)
+    expect(applyWearOps([{ ...sword, nat1: 4, broken: true }], [{ op: 'repair', itemId: 's' }])[0]).toMatchObject({ nat1: 0, broken: false })
   })
 })

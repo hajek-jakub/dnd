@@ -117,8 +117,12 @@ if (cfg.claude_base_url) {
 if (Array.isArray(cfg.push_test_hosts) && cfg.push_test_hosts.length > 0) {
   problems.push("'push_test_hosts' patří jen do testů (povolilo by posílat push na vlastní adresy), na ostrém serveru ho smaž")
 }
-if (cfg.claude_api_key && !(Array.isArray(cfg.claude_users) && cfg.claude_users.length > 0)) {
-  console.warn("POZOR: 'claude_api_key' je nastavený, ale 'claude_users' je prázdné, takže AI pomocníka nikdo neuvidí. Doplň svoje přihlašovací jméno.")
+if (cfg.claude_user_monthly_budget_usd !== undefined && !(typeof cfg.claude_user_monthly_budget_usd === 'number' && cfg.claude_user_monthly_budget_usd >= 0)) {
+  problems.push("'claude_user_monthly_budget_usd' musí být nezáporné číslo (osobní měsíční limit AI v USD)")
+}
+if (cfg.claude_api_key) {
+  const own = typeof cfg.claude_user_monthly_budget_usd === 'number' ? cfg.claude_user_monthly_budget_usd : 2
+  console.log(`AI pomocník: má ho každý DM, osobní limit $${own} za měsíc; bez osobního limitu: ${Array.isArray(cfg.claude_users) && cfg.claude_users.length > 0 ? cfg.claude_users.join(', ') : 'nikdo'}.`)
 }
 if (problems.length > 0) {
   fail(`api/config.production.php není připravený na ostrý server:\n  - ${problems.join('\n  - ')}`)

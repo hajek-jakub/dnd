@@ -9,11 +9,12 @@ return [
     'trust_test_ip_header' => true,
     // Nahrané soubory testů se ukládají do dočasné složky, ne do api/storage.
     'storage_dir' => sys_get_temp_dir() . '/dnd-test-storage',
-    // AI pomocník proti napodobenému serveru (scripts/claude-mock.mjs), žádné skutečné volání. Pomocníka smí jen účty začínající „aidm“.
+    // AI pomocník proti napodobenému serveru (scripts/claude-mock.mjs), žádné skutečné volání. Má ho každý DM; účty začínající „aidm“ jsou bez osobního limitu.
     'claude_api_key' => 'test-claude-key',
     'claude_base_url' => 'http://127.0.0.1:8199',
     'claude_users' => ['aidm*'],
     'claude_monthly_budget_usd' => 5,
+    'claude_user_monthly_budget_usd' => 1,
     // Push notifikace proti napodobené push službě (scripts/push-mock.mjs), žádné skutečné volání. Adresy odběrů jen z tohoto seznamu.
     'push_test_hosts' => ['127.0.0.1:8198'],
     // Kratší doba „aplikace je otevřená“, ať testy nečekají 12 sekund.

@@ -6,7 +6,7 @@ import { useAiStatus } from './api'
 const AiPanel = lazy(() => import('./AiPanel'))
 
 /**
- * Tlačítko AI pomocníka v horní liště. Vidí ho jen DM aktivní kampaně, a to jen když mu ho server povolil (claude_users),
+ * Tlačítko AI pomocníka v horní liště. Vidí ho jen DM aktivní kampaně, a to jen když je pomocník na serveru nastavený,
  * hráči se na stav pomocníka ani neptají. Panel s chatem se načte až po otevření.
  */
 export function AiButton({ className }: { className: string }) {

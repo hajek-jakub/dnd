@@ -15,7 +15,7 @@ use Dnd\Request;
 use Dnd\Response;
 
 /**
- * AI pomocník DM. Všechno je jen pro DM kampaně (hráč 403, cizinec 404) a používat ho smí jen účty z `claude_users`.
+ * AI pomocník DM. Všechno je jen pro DM kampaně (hráč 403, cizinec 404); útratu hlídá osobní a společný měsíční limit (Assistant).
  * Konverzace jsou soukromé: cizí konverzace (i jiného DM téže kampaně) se tváří, že neexistuje (404).
  */
 final class AiController
@@ -28,12 +28,15 @@ final class AiController
         Access::requireDm($user, $params['id']);
         $enabled = Assistant::enabledFor($user);
         $budget = Assistant::budget();
+        $mine = Assistant::personalBudget($user);
         return [
             'enabled' => $enabled,
             'configured' => Claude::configured(),
             'model' => Assistant::model(),
             'spentUsd' => round($budget['spent'] / 1_000_000, 2),
             'budgetUsd' => round($budget['budget'] / 1_000_000, 2),
+            'mySpentUsd' => round($mine['spent'] / 1_000_000, 2),
+            'myBudgetUsd' => $mine['budget'] === null ? null : round($mine['budget'] / 1_000_000, 2),
             'conversations' => $enabled ? array_map(static fn (array $c): array => [
                 'id' => $c['id'],
                 'title' => $c['title'],
@@ -125,7 +128,7 @@ final class AiController
     private static function requireEnabled(array $user): void
     {
         if (!Assistant::enabledFor($user)) {
-            throw HttpError::forbidden(Claude::configured() ? 'AI pomocník není pro tvůj účet zapnutý (claude_users v konfiguraci serveru).' : 'AI pomocník není na serveru nastavený.');
+            throw HttpError::forbidden('AI pomocník není na serveru nastavený.');
         }
     }
 

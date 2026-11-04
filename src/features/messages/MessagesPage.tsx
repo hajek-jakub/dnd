@@ -46,7 +46,7 @@ export function MessagesPage() {
     const list: ThreadInfo[] = [{ id: 'group', label: 'Skupina', hint: 'Vidí všichni v kampani', icon: 'group' }]
     if (isDm) {
       for (const m of members?.filter((x) => x.role === 'player') ?? []) {
-        list.push({ id: `dm:${m.userId}`, label: m.displayName, hint: 'Soukromě mezi tebou a hráčem', icon: 'private' })
+        list.push({ id: `dm:${m.userId}`, label: senders.get(m.userId)?.characterName ?? m.displayName, hint: 'Soukromě mezi tebou a hráčem', icon: 'private' })
       }
       list.push({ id: 'secret', label: 'Tajné zprávy', hint: 'Jen vybraní hráči', icon: 'secret' })
       // Vlákna v jazycích, kde už hráči něco napsali; DM je jen čte.
@@ -55,7 +55,10 @@ export function MessagesPage() {
       }
       list.push({ id: 'drafts', label: 'Připravené zprávy', hint: 'Nachystej předem, odešli jedním klepnutím', icon: 'draft' })
     } else {
-      if (dmMember) list.push({ id: `dm:${me}`, label: `${dmMember.displayName} (DM)`, hint: 'Soukromě jen mezi tebou a DM', icon: 'private' })
+      if (dmMember) {
+        const character = senders.get(dmMember.userId)?.characterName
+        list.push({ id: `dm:${me}`, label: character ?? `${dmMember.displayName} (DM)`, hint: 'Soukromě jen mezi tebou a DM', icon: 'private' })
+      }
       // Soukromý chat s každým dalším hráčem (vlákno pm:<id>:<id> se seřazenými id, stejně jako na serveru); DM ho nevidí.
       for (const p of members?.filter((x) => x.role === 'player' && x.userId !== me) ?? []) {
         const id = `pm:${[me, p.userId].sort().join(':')}`
@@ -67,7 +70,7 @@ export function MessagesPage() {
       for (const l of languages) {
         if (l.speakers.length === 0 && !messages.some((m) => m.thread === `lang:${l.slug}`)) continue
         shown.add(l.slug)
-        list.push({ id: `lang:${l.slug}`, label: languageLabel(l.name), hint: `Hráči, kteří umí tento jazyk (${l.speakers.map((s) => s.name).join(', ') || 'nikdo další'}), a DM.`, icon: 'language', language: l.name })
+        list.push({ id: `lang:${l.slug}`, label: languageLabel(l.name), hint: `Hráči, kteří umí tento jazyk (${l.speakers.map((s) => senders.get(s.id)?.name ?? s.name).join(', ') || 'nikdo další'}), a DM.`, icon: 'language', language: l.name })
       }
       for (const t of new Set(messages.filter((m) => m.thread.startsWith('lang:')).map((m) => m.thread))) {
         if (shown.has(t.slice(5))) continue
@@ -97,6 +100,10 @@ export function MessagesPage() {
 
   const open = (id: string) => setParams({ t: id })
   const back = () => setParams({})
+  const players = (members?.filter((m) => m.role === 'player') ?? []).map((m) => ({
+    ...m,
+    displayName: senders.get(m.userId)?.characterName ?? m.displayName,
+  }))
 
   return (
     <>
@@ -169,7 +176,7 @@ export function MessagesPage() {
                   </div>
                 </div>
                 {selected.id === 'drafts' ? (
-                  <DraftsPanel campaignId={campaignId} players={members?.filter((m) => m.role === 'player') ?? []} />
+                  <DraftsPanel campaignId={campaignId} players={players} />
                 ) : (
                   <>
                     <ThreadChat
@@ -177,10 +184,10 @@ export function MessagesPage() {
                       campaignId={campaignId}
                       thread={selected}
                       messages={threadMessages}
-                      me={{ id: me, name: user?.displayName ?? '' }}
+                      me={{ id: me, name: senders.get(me)?.name ?? user?.displayName ?? '' }}
                       isDm={isDm}
                       senders={senders}
-                      recipientsForDm={members?.filter((m) => m.role === 'player') ?? []}
+                      recipientsForDm={players}
                       dmId={dmMember?.userId}
                     />
                   </>

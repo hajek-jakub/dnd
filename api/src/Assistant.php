@@ -10,20 +10,22 @@ use stdClass;
 use Throwable;
 
 /**
- * AI pomocník DM (Claude API). Jen pro DM kampaně a jen pro účty povolené v konfiguraci (`claude_users`), aby se neplýtvalo tokeny.
+ * AI pomocník DM (Claude API). Jen pro DM kampaně; každý uživatel má osobní měsíční limit (`claude_user_monthly_budget_usd`,
+ * účty z `claude_users` ho nemají) a všichni dohromady společný strop (`claude_monthly_budget_usd`), protože platí jeden klíč.
  *
  * Bezpečnost:
  *  - model nic nezapisuje: nástroje jen čtou (pravidla, loot, družina) a `propose_loot` uloží návrh, který DM sám potvrdí;
  *    potvrzení jde stejnou validací a stejnými limity jako ruční loot (LootController), takže návrh nemůže obejít pravidla aplikace;
  *  - nástroje čtou přes stejné kontroly přístupu jako API (RulesController s kampaní konverzace), model tak vidí jen to, co DM této kampaně;
  *  - historie se jen přidává (bloky přesně tak, jak přišly z API, včetně myšlenkových), aby je šlo poslat zpět beze změny;
- *  - každé volání se zapíše do `ai_calls` a před dalším se hlídá měsíční rozpočet (`claude_monthly_budget_usd`) a počet volání za hodinu.
+ *  - každé volání se zapíše do `ai_calls` a před dalším se hlídá společný a osobní měsíční rozpočet a počet volání za hodinu.
  */
 final class Assistant
 {
     private const DEFAULT_MODEL = 'claude-opus-5-5';
     private const DEFAULT_EFFORT = 'medium';
     private const DEFAULT_BUDGET_USD = 10.0;
+    private const DEFAULT_USER_BUDGET_USD = 2.0;
     private const MAX_TOKENS = 16000;
     /** Volání modelu na jednu zprávu DM (hledání v pravidlech, návrh, oprava návrhu, odpověď). */
     private const MAX_STEPS = 16;
@@ -82,12 +84,18 @@ final class Assistant
 
     // ------------------------------------------------------------------ nastavení a rozpočet
 
-    /** Smí uživatel pomocníka používat? Musí být nastavený klíč a uživatel v seznamu `claude_users` (jména, `*` na konci = začátek jména). */
+    /**
+     * Smí uživatel pomocníka používat? Stačí nastavený klíč: pomocníka má každý DM (roli hlídá controller).
+     * Útratu jednoho uživatele omezuje osobní měsíční limit (`personalBudget`).
+     */
     public static function enabledFor(array $user): bool
     {
-        if (!Claude::configured()) {
-            return false;
-        }
+        return Claude::configured();
+    }
+
+    /** Účty z `claude_users` (jména, `*` na konci = začátek jména) nemají osobní limit, jen společný strop. */
+    public static function unlimited(array $user): bool
+    {
         $allowed = Config::get('claude_users', []);
         foreach (is_array($allowed) ? $allowed : [] as $name) {
             $name = (string) $name;
@@ -116,6 +124,22 @@ final class Assistant
         $budget = Config::get('claude_monthly_budget_usd', self::DEFAULT_BUDGET_USD);
         $spent = (int) Db::value('SELECT COALESCE(SUM(cost_microusd), 0) FROM ai_calls WHERE created_at >= ?', [gmdate('Y-m-01 00:00:00')]);
         return ['spent' => $spent, 'budget' => (int) round((is_numeric($budget) ? (float) $budget : self::DEFAULT_BUDGET_USD) * 1_000_000)];
+    }
+
+    /**
+     * Osobní měsíční útrata a limit uživatele v mikrodolarech (`claude_user_monthly_budget_usd`); `budget` null = bez osobního limitu.
+     * Počítá se z `ai_calls`, takže smazání konverzace ani kampaně limit nevynuluje.
+     * @param array{id:string} $user
+     * @return array{spent: int, budget: int|null}
+     */
+    public static function personalBudget(array $user): array
+    {
+        $spent = (int) Db::value('SELECT COALESCE(SUM(cost_microusd), 0) FROM ai_calls WHERE user_id = ? AND created_at >= ?', [$user['id'], gmdate('Y-m-01 00:00:00')]);
+        if (self::unlimited($user)) {
+            return ['spent' => $spent, 'budget' => null];
+        }
+        $budget = Config::get('claude_user_monthly_budget_usd', self::DEFAULT_USER_BUDGET_USD);
+        return ['spent' => $spent, 'budget' => (int) round((is_numeric($budget) ? max(0.0, (float) $budget) : self::DEFAULT_USER_BUDGET_USD) * 1_000_000)];
     }
 
     // ------------------------------------------------------------------ konverzace
@@ -197,6 +221,10 @@ final class Assistant
         $budget = self::budget();
         if ($budget['spent'] >= $budget['budget']) {
             throw new HttpError(429, 'ai_budget', sprintf('Měsíční rozpočet AI (%s) je vyčerpaný. Zvýšit ho jde v konfiguraci serveru (claude_monthly_budget_usd).', self::usd($budget['budget'])));
+        }
+        $mine = self::personalBudget($user);
+        if ($mine['budget'] !== null && $mine['spent'] >= $mine['budget']) {
+            throw new HttpError(429, 'ai_user_budget', sprintf('Tvůj měsíční limit AI (%s) je vyčerpaný. Nový začne prvního v měsíci, nebo ho zvýší správce aplikace.', self::usd($mine['budget'])));
         }
         RateLimiter::hit('ai:' . $user['id'], self::CALLS_PER_HOUR, 3600);
 

@@ -95,6 +95,10 @@ export interface CharacterItem {
   /** spotřebuje se používáním (šípy, lektvary): tlačítko Použít ubere kus */
   consumable: boolean
   charges: ItemCharges | null
+  /** Počítadlo nat 1 u zbraně a zlodějského náčiní: 0 = v pořádku, 1–20 = co se teď musí na k20 přehodit. */
+  nat1: number
+  /** Zbraň nebo náčiní je rozbité, dokud ho někdo neopraví (oprava vynuluje i nat1). */
+  broken: boolean
   /** Kletba na itemu: text vidí jen DM, hráč ji dostane, až ji DM odhalí (`revealed`). */
   curse: { text: string; revealed: boolean } | null
   rarity: string | null
@@ -154,6 +158,12 @@ export type AdjustOp =
   | { op: 'charges'; itemId: string; delta: number }
   /** dobití nábojů podle itemu (hod kostkou na serveru) */
   | { op: 'recharge'; itemId: string }
+  /** počítadlo nat 1 u zbraně nebo zlodějského náčiní, meze 0–20 */
+  | { op: 'nat1'; itemId: string; delta: number }
+  /** označí zbraň nebo náčiní jako rozbité */
+  | { op: 'break'; itemId: string }
+  /** oprava: zbraň zase drží a počítadlo nat 1 je 0 */
+  | { op: 'repair'; itemId: string }
   | { op: 'inspiration'; set: boolean }
   | { op: 'condition'; name: string; set: boolean }
   | { op: 'concentration'; set: string | null }

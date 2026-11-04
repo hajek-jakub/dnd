@@ -12,6 +12,7 @@ use Dnd\Controllers\DiceController;
 use Dnd\Controllers\DmController;
 use Dnd\Controllers\EnemyController;
 use Dnd\Controllers\InitiativeController;
+use Dnd\Controllers\InvitationController;
 use Dnd\Controllers\InventoryController;
 use Dnd\Controllers\JournalController;
 use Dnd\Controllers\JournalNpcController;
@@ -22,6 +23,7 @@ use Dnd\Controllers\NotificationController;
 use Dnd\Controllers\PushController;
 use Dnd\Controllers\LevelUpController;
 use Dnd\Controllers\RulesController;
+use Dnd\Controllers\SecretSantaController;
 use Dnd\Controllers\SessionController;
 use Dnd\Controllers\SummaryController;
 use Dnd\Controllers\CompanionController;
@@ -103,6 +105,13 @@ final class App
         $r->add('PATCH', '/campaigns/{id}/invites/{inviteId}', [CampaignController::class, 'updateInvite']);
         $r->add('GET', '/invites/{code}', [CampaignController::class, 'previewInvite']);
         $r->add('POST', '/invites/{code}/accept', [CampaignController::class, 'acceptInvite']);
+        $r->add('GET', '/campaigns/{id}/invitations', [InvitationController::class, 'index']);
+        $r->add('POST', '/campaigns/{id}/invitations', [InvitationController::class, 'create']);
+        $r->add('DELETE', '/campaigns/{id}/invitations/{invitationId}', [InvitationController::class, 'remove']);
+        $r->add('GET', '/campaigns/{id}/invite-suggestions', [InvitationController::class, 'suggestions']);
+        $r->add('GET', '/invitations', [InvitationController::class, 'listMine']);
+        $r->add('POST', '/invitations/{invitationId}/accept', [InvitationController::class, 'accept']);
+        $r->add('POST', '/invitations/{invitationId}/decline', [InvitationController::class, 'decline']);
 
         // Postavy a DM poznámky
         $r->add('GET', '/campaigns/{id}/characters', [CharacterController::class, 'index']);
@@ -169,6 +178,9 @@ final class App
         $r->add('PATCH', '/sessions/{id}', [SessionController::class, 'update']);
         $r->add('DELETE', '/sessions/{id}', [SessionController::class, 'delete']);
         $r->add('GET', '/summary', [SummaryController::class, 'index']);
+        // Secret Santa: každý vidí jen, komu dává dárek on (losuje se skriptem api/bin/secret-santa.php)
+        $r->add('GET', '/secret-santa', [SecretSantaController::class, 'index']);
+        $r->add('POST', '/secret-santa/{id}/reveal', [SecretSantaController::class, 'reveal']);
         // Push notifikace (Web Push): odběr zařízení, výběr kategorií, zkouška
         $r->add('GET', '/push/config', [PushController::class, 'config']);
         $r->add('GET', '/push/subscription', [PushController::class, 'show']);

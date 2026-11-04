@@ -1,30 +1,24 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { CopyIcon, UserMinusIcon } from 'lucide-react'
+import { UserMinusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { Masonry, MasonryItem } from '@/components/Masonry'
 import { useAuth } from '@/features/auth/auth-context'
 import { RoleBadge } from './RoleBadge'
-import {
-  useCampaign,
-  useCampaignMembers,
-  useCreateInvite,
-  useInvites,
-  useRemoveMember,
-  useRevokeInvite,
-  useUpdateCampaignSettings,
-} from './api'
-import type { Invite } from '@/lib/types'
-import { buildInviteLink } from './invite'
+import { useCampaign, useCampaignMembers, useRemoveMember, useUpdateCampaignSettings } from './api'
+import { InvitesCard } from './InvitesCard'
+import { StartCard } from './StartCard'
 import { RULESETS, rulesetOf } from './ruleset'
 import { CharactersSection } from '@/features/sheet/CharactersSection'
 import { JournalPreview } from '@/features/journal/JournalPreview'
 import { SessionPreview } from '@/features/sessions/SessionPreview'
+import { SecretSantaCard } from '@/features/secret-santa/SecretSantaCard'
+import { useSecretSanta } from '@/features/secret-santa/api'
 import { usePageTitle } from '@/lib/page-title'
 
 // Karta s postavou počítá sheet enginem, proto se načítá až po úvodní stránce.
@@ -39,6 +33,7 @@ export function CampaignPage() {
   const myRole = members?.find((m) => m.userId === user?.id)?.role
   const isDm = myRole === 'dm'
   const removeMember = useRemoveMember(campaignId ?? '')
+  const { data: santa } = useSecretSanta()
 
   if (isPending) return <FullPageSpinner />
   // Kampaň neexistuje, nebo k ní nemáme přístup (RLS ji nevrátí).
@@ -65,6 +60,16 @@ export function CampaignPage() {
       {/* Telefon: vše pod sebou. Tablet a počítač: moje postava a deník vlevo, družina a NPC vpravo. */}
       {campaignId && (
         <Masonry columns="tab:grid-cols-2">
+          {isDm && members?.length === 1 && (
+            <MasonryItem className="tab:col-span-2">
+              <StartCard campaignId={campaignId} />
+            </MasonryItem>
+          )}
+          {santa?.some((d) => d.campaignId === campaignId) && (
+            <MasonryItem className="tab:col-span-2">
+              <SecretSantaCard campaignId={campaignId} />
+            </MasonryItem>
+          )}
           <MasonryItem className="tab:col-span-2">
             <SessionPreview campaignId={campaignId} isDm={isDm} />
           </MasonryItem>
@@ -122,7 +127,7 @@ export function CampaignPage() {
 
         {isDm && campaignId && (
           <MasonryItem>
-            <InvitesCard campaignId={campaignId} />
+            <InvitesCard campaignId={campaignId} campaignName={campaign.name} />
           </MasonryItem>
         )}
 
@@ -140,79 +145,6 @@ export function CampaignPage() {
         )}
       </Masonry>
     </>
-  )
-}
-
-function inviteStatus(invite: Invite): { label: string; active: boolean } {
-  if (invite.revoked) return { label: 'Zrušená', active: false }
-  if (invite.expiresAt && new Date(invite.expiresAt) <= new Date()) return { label: 'Vypršela', active: false }
-  if (invite.maxUses !== null && invite.uses >= invite.maxUses) return { label: 'Vyčerpaná', active: false }
-  return { label: 'Platná', active: true }
-}
-
-function InvitesCard({ campaignId, className }: { campaignId: string; className?: string }) {
-  const { data: invites } = useInvites(campaignId, true)
-  const createInvite = useCreateInvite(campaignId)
-  const revoke = useRevokeInvite(campaignId)
-
-  async function copy(text: string, what: string) {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast.success(`${what} zkopírován`)
-    } catch {
-      toast.error('Kopírování se nepodařilo, označ text a zkopíruj ho ručně')
-    }
-  }
-
-  return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>Pozvánky</CardTitle>
-        <CardDescription>Pošli hráčům odkaz nebo kód. Každý, kdo ho otevře, se připojí jako hráč.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button
-          className="w-full"
-          disabled={createInvite.isPending}
-          onClick={() => createInvite.mutate({ expiresInDays: 7, maxUses: null }, { onError: () => toast.error('Pozvánku se nepodařilo vytvořit') })}
-        >
-          Vytvořit pozvánku (platí 7 dní)
-        </Button>
-
-        <ul className="space-y-3">
-          {invites?.map((invite) => {
-            const status = inviteStatus(invite)
-            const link = buildInviteLink(invite.code)
-            return (
-              <li key={invite.id} className="space-y-2 rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <code className="text-lg font-semibold tracking-widest">{invite.code}</code>
-                  <span className={status.active ? 'text-sm font-medium' : 'text-sm text-muted-foreground'}>{status.label}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Použito: {invite.uses}
-                  {invite.maxUses !== null && ` z ${invite.maxUses}`}
-                  {invite.expiresAt && ` · platí do ${new Date(invite.expiresAt).toLocaleDateString('cs-CZ')}`}
-                </p>
-                {status.active && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" onClick={() => void copy(link, 'Odkaz')}>
-                      <CopyIcon aria-hidden /> Kopírovat odkaz
-                    </Button>
-                    <Button variant="secondary" onClick={() => void copy(invite.code, 'Kód')}>
-                      <CopyIcon aria-hidden /> Kopírovat kód
-                    </Button>
-                    <Button variant="ghost" onClick={() => revoke.mutate(invite.id)}>
-                      Zrušit
-                    </Button>
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      </CardContent>
-    </Card>
   )
 }
 

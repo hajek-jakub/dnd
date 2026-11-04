@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { MyInvitation } from '@/lib/types'
 import type { JournalUnread } from '@/features/journal/api'
 import type { UnreadOverview } from '@/features/messages/api'
 import type { NotificationsResponse } from '@/features/notifications/api'
@@ -10,6 +11,8 @@ export interface Summary {
   journal: JournalUnread
   /** id posledního viditelného hodu v každé kampani uživatele */
   rolls?: Record<string, number>
+  /** pozvánky do kampaní, které čekají na mé přijetí */
+  invitations?: MyInvitation[]
 }
 
 export const SUMMARY_KEY = ['summary']

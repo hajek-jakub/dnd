@@ -10,6 +10,7 @@ export function Stepper({
   disabled,
   minusLabel,
   plusLabel,
+  valueClassName,
 }: {
   label: string
   value: number
@@ -18,6 +19,8 @@ export function Stepper({
   disabled?: boolean
   minusLabel?: string
   plusLabel?: string
+  /** Barva čísla, třeba červená u počítadla nat 1. */
+  valueClassName?: string
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -33,7 +36,7 @@ export function Stepper({
         <MinusIcon aria-hidden className="size-5" />
       </Button>
       <span
-        className="min-w-14 text-center text-xl font-semibold tabular-nums"
+        className={`min-w-14 text-center text-xl font-semibold tabular-nums ${valueClassName ?? ''}`}
         role="status"
         aria-label={`${label}: ${value}${max !== undefined ? ` z ${max}` : ''}`}
       >

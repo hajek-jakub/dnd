@@ -182,6 +182,7 @@ export function MessageList({
           const lastInRun = !next || next.senderId !== m.senderId || timeDivider(m.createdAt, next.createdAt) !== null
           const original = m.replyTo ? byId.get(m.replyTo.id) : undefined
           const sender = senders.get(m.senderId)
+          const quoted = m.replyTo ? (original ? (senders.get(original.senderId)?.name ?? original.senderName) : m.replyTo.senderName) : ''
           const restricted = (m.thread === 'secret' || m.thread.startsWith('lang:')) && m.recipients.length > 0
           // komu zpráva patří, se v tajném vlákně a v jazyce ukáže jen při změně (příjemci se mezi zprávami liší)
           const showRecipients = restricted && (firstInRun || recipientsKey(prev) !== recipientsKey(m))
@@ -198,7 +199,7 @@ export function MessageList({
               )}
               <div id={`msg-${m.id}`} className={cn('flex flex-col rounded-xl transition-shadow', mine ? 'items-end' : 'items-start', flashId === m.id && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background')}>
                 {showRecipients && (
-                  <p className={cn('mb-0.5 text-xs text-muted-foreground', mine ? 'mr-2' : 'ml-14')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : r.name)).join(', ')}</p>
+                  <p className={cn('mb-0.5 text-xs text-muted-foreground', mine ? 'mr-2' : 'ml-14')}>pro: {m.recipients.map((r) => (r.id === me.id ? 'tebe' : (senders.get(r.id)?.name ?? r.name))).join(', ')}</p>
                 )}
                 <div className={cn('flex w-full items-end gap-2', mine && 'flex-row-reverse')}>
                   {!mine && <span className="flex w-10 shrink-0 justify-center">{lastInRun && <SenderAvatar sender={sender} fallbackName={m.senderName} />}</span>}
@@ -257,10 +258,10 @@ export function MessageList({
                           if (!m.replyTo?.hidden) jumpTo(m.replyTo!.id)
                         }}
                         disabled={m.replyTo.hidden}
-                        aria-label={m.replyTo.hidden ? 'Odpověď na zprávu, kterou nevidíš' : `Přejít na zprávu od ${original?.senderName ?? m.replyTo.senderName}`}
+                        aria-label={m.replyTo.hidden ? 'Odpověď na zprávu, kterou nevidíš' : `Přejít na zprávu od ${quoted}`}
                         className="mb-1 flex min-h-11 w-full min-w-0 flex-col justify-center rounded-lg border-l-4 border-current bg-black/10 px-2 py-1 text-left text-xs not-italic disabled:cursor-default dark:bg-white/10"
                       >
-                        <span className="font-semibold">{m.replyTo.hidden ? 'Odpověď' : (original?.senderName ?? m.replyTo.senderName)}</span>
+                        <span className="font-semibold">{m.replyTo.hidden ? 'Odpověď' : quoted}</span>
                         <span className="line-clamp-2 break-words opacity-90">{quoteText(m.replyTo, original)}</span>
                       </button>
                     )}
@@ -275,7 +276,7 @@ export function MessageList({
                   <button
                     type="button"
                     aria-label={`Reakce ${summary.total}: ${m.reactions.map((r) => `${r.emoji} ${r.users.length}`).join(', ')}`}
-                    title={m.reactions.map((r) => `${r.emoji} ${r.users.map((u) => (u.id === me.id ? 'ty' : u.name)).join(', ')}`).join('\n')}
+                    title={m.reactions.map((r) => `${r.emoji} ${r.users.map((u) => (u.id === me.id ? 'ty' : (senders.get(u.id)?.name ?? u.name))).join(', ')}`).join('\n')}
                     onClick={() => setDetailFor(m.id)}
                     style={userAccentStyle(accent, resolvedTheme) as CSSProperties}
                     className={cn('relative z-10 -mt-3.5 -mb-2 flex min-h-11 min-w-11 items-center justify-center', mine ? 'mr-3' : 'ml-15')}
@@ -408,7 +409,7 @@ export function MessageList({
       />
       <ReactionsDialog
         open={detailTarget !== undefined && detailTarget.reactions.length > 0}
-        reactions={detailTarget?.reactions ?? []}
+        reactions={(detailTarget?.reactions ?? []).map((r) => ({ ...r, users: r.users.map((u) => ({ ...u, name: senders.get(u.id)?.name ?? u.name })) }))}
         me={me}
         onClose={() => setDetailFor(null)}
         onRemove={(emoji) => {

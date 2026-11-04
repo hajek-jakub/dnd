@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
 import { buildRulesBundle, type RawClass, type RawLevel, type RulesBundle } from '@/engine'
-import { applyChargeOps, applyOps } from './model'
+import { applyChargeOps, applyOps, applyWearOps } from './model'
 import type { AdjustOp, CharacterFull, CharacterItem, CharacterListItem, CharacterSpell, CharacterState, Currency, ItemCharges } from './types'
 import { applyItemPatch } from './item-patch'
 
@@ -148,6 +148,7 @@ interface AdjustResult {
   inspiration: boolean
   charges?: Record<string, ItemCharges | null>
   recharged?: RechargeResult[]
+  wear?: Record<string, { nat1: number; broken: boolean }>
 }
 
 export function useAdjust(id: string) {
@@ -161,7 +162,12 @@ export function useAdjust(id: string) {
       const previous = queryClient.getQueryData<CharacterFull>(key)
       if (previous) {
         const next = applyOps(previous.state, ops, { inspiration: previous.inspiration })
-        queryClient.setQueryData<CharacterFull>(key, { ...previous, state: next.state, inspiration: next.inspiration, items: applyChargeOps(previous.items, ops) })
+        queryClient.setQueryData<CharacterFull>(key, {
+          ...previous,
+          state: next.state,
+          inspiration: next.inspiration,
+          items: applyWearOps(applyChargeOps(previous.items, ops), ops),
+        })
       }
       return { previous }
     },
@@ -180,6 +186,12 @@ export function useAdjust(id: string) {
       if (charges && (last || ops.some((o) => o.op === 'recharge'))) {
         queryClient.setQueryData<CharacterFull>(key, (old) =>
           old ? { ...old, items: old.items.map((i) => (charges[i.id] !== undefined ? { ...i, charges: charges[i.id] ?? null } : i)) } : old,
+        )
+      }
+      const wear = res.wear
+      if (wear && last) {
+        queryClient.setQueryData<CharacterFull>(key, (old) =>
+          old ? { ...old, items: old.items.map((i) => (wear[i.id] !== undefined ? { ...i, nat1: wear[i.id]?.nat1 ?? i.nat1, broken: wear[i.id]?.broken ?? i.broken } : i)) } : old,
         )
       }
       // Změna množství itemů (munice) se v odpovědi nevrací, načte se znovu.

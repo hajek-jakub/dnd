@@ -42,6 +42,8 @@ final class Invites
             [$campaignId, $userId],
         );
         Db::exec('UPDATE invites SET uses = uses + 1 WHERE id = ?', [$invite['id']]);
+        // Kdo měl do kampaně i pozvánku jménem, tu už nepotřebuje.
+        Db::exec('DELETE FROM campaign_invitations WHERE campaign_id = ? AND user_id = ?', [$campaignId, $userId]);
         return $campaignId;
     }
 }

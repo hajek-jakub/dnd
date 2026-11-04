@@ -2,7 +2,7 @@ import { devices, type Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 import { newContext, registerDm, registerViaUi, uniqueName } from './helpers'
 
-// Dolní lišta a "aktivní kampaň": hraje se hlavně jedna kampaň, takže se nemusí pokaždé vybírat.
+// Dolní lišta a "aktivní kampaň": s jednou kampaní se nevybírá, s víc kampaněmi úvod nabídne výběr a horní lišta přepínač.
 
 async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -109,7 +109,7 @@ test('hráč má v liště Postavu (vlastní postava, jinak založení) a lišta
     await nav.getByRole('link', { name: 'Postava', exact: true }).click()
     await expect(player.getByRole('button', { name: 'Přehled' })).toHaveAttribute('aria-pressed', 'true')
 
-    // druhá kampaň: hráč se přihlásí, ruční přepnutí je v Profilu a pamatuje se
+    // druhá kampaň: s víc kampaněmi úvod nabídne výběr, naposledy hraná má štítek a lišta vede do ní
     await dm.goto('/campaigns')
     const second = await newCampaign(dm, 'Vedlejší kampaň')
     await dm.getByRole('button', { name: /Vytvořit pozvánku/ }).click()
@@ -118,15 +118,28 @@ test('hráč má v liště Postavu (vlastní postava, jinak založení) a lišta
     await player.getByRole('button', { name: 'Připojit se jako hráč' }).click()
     await expect(player.getByRole('heading', { name: 'Vedlejší kampaň', level: 1 })).toBeVisible()
     await player.goto('/')
-    await expect(player).toHaveURL(new RegExp(`/campaigns/${second}$`)) // naposledy otevřená kampaň je aktivní
+    await expect(player.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible()
+    const tiles = player.getByTestId('campaign-tile')
+    await expect(tiles).toHaveCount(2)
+    await expect(tiles.filter({ hasText: 'Vedlejší kampaň' })).toContainText('Naposledy')
+    await expect(tiles.filter({ hasText: 'Hlavní kampaň' })).toContainText('Hráčova hrdinka')
+    await expect(nav.getByRole('link', { name: 'Domů' })).toHaveAttribute('href', `/campaigns/${second}`)
+    await expectNoHorizontalScroll(player)
+    await tiles.filter({ hasText: 'Hlavní kampaň' }).click()
+    await expect(player).toHaveURL(new RegExp(`/campaigns/${first}$`))
 
+    // přepínač v horní liště
+    await player.getByRole('button', { name: 'Přepnout kampaň (teď Hlavní kampaň)' }).click()
+    const switcher = player.getByRole('dialog', { name: 'Moje kampaně' })
+    await expect(switcher.getByRole('button', { name: /Hlavní kampaň/ })).toHaveAttribute('aria-current', 'true')
+    await switcher.getByRole('button', { name: /Vedlejší kampaň/ }).click()
+    await expect(player).toHaveURL(new RegExp(`/campaigns/${second}$`))
+    await expect(player.getByRole('heading', { name: 'Vedlejší kampaň', level: 1 })).toBeVisible()
+
+    // ruční přepnutí v Profilu zůstává
     await player.getByRole('link', { name: 'Profil a nastavení' }).click()
     await player.getByRole('link', { name: /Hlavní kampaň/ }).click()
     await expect(player).toHaveURL(new RegExp(`/campaigns/${first}$`))
-    await player.goto('/')
-    await expect(player).toHaveURL(new RegExp(`/campaigns/${first}$`)) // pamatuje se i po návratu na úvod
-    await player.goto('/campaigns')
-    await expect(player.getByRole('heading', { name: 'Moje kampaně' })).toBeVisible() // seznam všech kampaní zůstává dostupný
   } finally {
     await phone.close()
   }

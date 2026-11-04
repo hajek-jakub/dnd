@@ -108,6 +108,10 @@ export function applyOps(
       case 'charges':
       case 'recharge':
         break // náboje jsou na itemu (`applyChargeOps`), dobití hází server
+      case 'nat1':
+      case 'break':
+      case 'repair':
+        break // opotřebení je na itemu (`applyWearOps`)
       case 'inspiration':
         inspiration = op.set
         break
@@ -121,6 +125,21 @@ export function applyOps(
     }
   }
   return { state: s, inspiration }
+}
+
+/** Optimistická změna počítadla nat 1 a rozbití. Oprava vynuluje číslo a zbraň zase drží. */
+export function applyWearOps(items: CharacterItem[], ops: AdjustOp[]): CharacterItem[] {
+  let out = items
+  for (const op of ops) {
+    if (op.op === 'nat1') {
+      out = out.map((i) => (i.id === op.itemId ? { ...i, nat1: clamp((i.nat1 ?? 0) + op.delta, 0, 20) } : i))
+    } else if (op.op === 'break') {
+      out = out.map((i) => (i.id === op.itemId ? { ...i, broken: true } : i))
+    } else if (op.op === 'repair') {
+      out = out.map((i) => (i.id === op.itemId ? { ...i, nat1: 0, broken: false } : i))
+    }
+  }
+  return out
 }
 
 /** Optimistická změna nábojů itemů (`charges`); dobití hází server, jeho výsledek přijde až v odpovědi. */

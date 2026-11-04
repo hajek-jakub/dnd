@@ -108,8 +108,9 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   const fallen = (await (await page.request.get(`/api/campaigns/${campaignId}/enemies`)).json()).enemies.find((e: { sourceEntryId: string | null }) => e.sourceEntryId === lootEnemy)
   await page.request.post(`/api/enemies/${fallen.id}/hp`, { data: { delta: -7 } })
 
+  await page.request.post('/api/campaigns', { data: { name: 'Druhá kampaň s hodně dlouhým názvem, aby se musel zalomit nebo zkrátit' } })
   const pages: [string, string][] = [
-    ['domů', '/'],
+    ['domů (výběr kampaní)', '/'],
     ['kampaně', '/campaigns'],
     ['kampaň', `/campaigns/${campaignId}`],
     ['panel DM', `/campaigns/${campaignId}/dm`],
@@ -153,6 +154,13 @@ test('všechny hlavní stránky: bez horizontálního scrollu a s dost velkými 
   await expect(page.getByRole('dialog', { name: 'Kostky' })).toBeVisible()
   const dialogOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   if (dialogOverflow > 0) failures.push(`panel kostek: jezdí do stran o ${dialogOverflow} px`)
+  await page.keyboard.press('Escape')
+
+  // přepínač kampaní v horní liště
+  await page.goto(`/campaigns/${campaignId}`)
+  await page.getByRole('button', { name: /^Přepnout kampaň/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Moje kampaně' })).toBeVisible()
+  for (const p of await problems(page)) failures.push(`přepínač kampaní: ${p}`)
 
   expect(failures).toEqual([])
 })

@@ -545,6 +545,8 @@ final class Items
                 'requiresAttunement' => (bool) $r['requires_attunement'],
                 'consumable' => (bool) $r['consumable'],
                 'charges' => self::chargesPayload($r),
+                'nat1' => (int) ($r['nat1'] ?? 0),
+                'broken' => (bool) ($r['broken'] ?? false),
                 'curse' => $curse === null || $curse === '' || (!$revealed && !$revealCurses) ? null : ['text' => (string) $curse, 'revealed' => $revealed],
                 'rarity' => $r['rarity'],
                 'armor' => $stats['armor'] ?? null,
@@ -554,6 +556,19 @@ final class Items
             ];
         }
         return $out;
+    }
+
+    /**
+     * Počítadlo nat 1 je u zbraní a u zlodějského náčiní (Thieves' Tools, i bez apostrofu).
+     * @param array<string, mixed> $item
+     */
+    public static function tracksBreakage(array $item): bool
+    {
+        if (($item['kind'] ?? '') === 'weapon') {
+            return true;
+        }
+        $name = mb_strtolower(str_replace(["'", '’', '′'], '', (string) ($item['name'] ?? '')));
+        return str_contains($name, 'thieves tool');
     }
 
     /**

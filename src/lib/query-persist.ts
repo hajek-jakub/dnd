@@ -14,7 +14,7 @@ const MAX_AGE_MS = 7 * 24 * 3600_000
 const SAVE_DELAY_MS = 2000
 
 /** Neukládá se: náhled pozvánky (před přihlášením) a AI pomocník (velké konverzace, jen DM). */
-const SKIP = new Set(['invite-preview', 'ai', 'ai-conversation'])
+const SKIP = new Set(['invite-preview', 'ai', 'ai-conversation', 'secret-santa'])
 /** Po obnovení se nemusí hned stahovat znovu: pravidla pro engine se mění jen s novým buildem (a ten cache zahodí). */
 const KEEP_FRESH = new Set(['engine'])
 

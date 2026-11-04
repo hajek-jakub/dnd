@@ -283,11 +283,11 @@ final class InventoryController
                     $receivedId = Ids::uuid();
                     Db::exec('UPDATE character_items SET quantity = quantity - ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$qty, $item['id']]);
                     Db::exec(
-                        'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, charges_max, charges_used, charges_recharge, equipped, attuned, requires_attunement, consumable,
+                        'INSERT INTO character_items (id, character_id, rule_id, name, description, kind, quantity, charges_max, charges_used, charges_recharge, nat1, broken, equipped, attuned, requires_attunement, consumable,
                             rarity, stats, effects, notes, curse, curse_revealed, created_at, updated_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
                         [$receivedId, $toId, $item['rule_id'], $item['name'], $item['description'], $item['kind'], $qty, $item['charges_max'], $item['charges_used'], $item['charges_recharge'],
-                            $item['requires_attunement'], $item['consumable'], $item['rarity'], $item['stats'], $item['effects'], $item['notes'], $item['curse'], $item['curse_revealed']],
+                            $item['nat1'], $item['broken'], $item['requires_attunement'], $item['consumable'], $item['rarity'], $item['stats'], $item['effects'], $item['notes'], $item['curse'], $item['curse_revealed']],
                     );
                 }
                 // Příjemce zbroj rovnou nosí, když žádnou nenosí (předání Batanovi má změnit jeho AC).

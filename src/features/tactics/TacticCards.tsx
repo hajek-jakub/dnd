@@ -4,6 +4,8 @@ import { combineMode } from '@/engine'
 import { Button } from '@/components/ui/button'
 import { RollButton } from '@/features/dice/RollButton'
 import { useSheet } from '@/features/sheet/sheet-context'
+import { WearControl } from '@/features/sheet/WearControl'
+import { weaponByTitle } from '@/features/sheet/wear'
 import { riderFor, type DamageRider } from '@/features/sheet/riders'
 import { CONCENTRATION_RIDER, useClassToggle } from '@/features/sheet/class-toggles'
 import type { AdjustOp } from '@/features/sheet/types'
@@ -91,9 +93,10 @@ function RunButton({ tactic, ctx, withoutCast = false }: { tactic: Tactic; ctx: 
   if (plan.attacks.length === 0 && plan.costs.length === 0 && plan.blocked === null) return null
   const spend = planSpend(plan.costs, sheet)
   const rolling = plan.attacks.length > 0
+  const broken = weaponByTitle(character.items, tactic.title)?.broken === true
   const blocked = plan.blocked !== null && !rolling
-  const ok = spend.ok && !blocked
-  const reason = !spend.ok ? spend.detail : blocked ? (plan.blocked ?? '') : ''
+  const ok = spend.ok && !blocked && !broken
+  const reason = broken ? 'Rozbitá' : !spend.ok ? spend.detail : blocked ? (plan.blocked ?? '') : ''
   const paid = [
     ...plan.costs.map((c) => formatCost(stringifyCost(c))),
     ...plan.ammo.map((a) => `${a.shots}× ${a.name}`),
@@ -159,6 +162,9 @@ const Field = ({ label, value }: { label: string; value: string }) =>
   ) : null
 
 export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<Tactic, { kind: 'attack' }>; rider: DamageRider | null; ctx: RunContext; controls: EditControls }) {
+  const { character } = useSheet()
+  const weapon = weaponByTitle(character.items, tactic.title)
+  const broken = weapon?.broken === true
   const d = tactic.data
   const hit = toHitRoll(d.toHit)
   const base = rollFor(d)
@@ -180,13 +186,14 @@ export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<T
       }
       actions={
         <>
-          {hit && <RollButton label={`${tactic.title}: útok`} expression={hit} text="Útok" kind="attack" />}
-          {dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} text="Zranění" />}
-          {dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} crit text="Krit" />}
+          {!broken && hit && <RollButton label={`${tactic.title}: útok`} expression={hit} text="Útok" kind="attack" />}
+          {!broken && dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} text="Zranění" />}
+          {!broken && dmg && <RollButton label={`${tactic.title}: zranění${withRider ? ` + ${rider.name}` : ''}`} expression={dmg} crit text="Krit" />}
           <RunButton tactic={tactic} ctx={ctx} />
         </>
       }
     >
+      {weapon && <WearControl item={weapon} compact />}
       <div className="space-y-0.5">
         <Field label="Útok" value={d.toHit} />
         <Field label="Zranění" value={damageText.trim()} />

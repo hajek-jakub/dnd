@@ -15,9 +15,39 @@ export interface CampaignSummary {
   name: string
   description: string
   role: Role
+  /** jen v seznamu GET /campaigns: moje hráčská postava v kampani */
+  myCharacter?: { id: string; name: string; photoVersion: string | null } | null
+  /** jen v seznamu: nejbližší session (místní datum RRRR-MM-DD a čas) */
+  nextSession?: { date: string; time: string | null } | null
+  memberCount?: number
 }
 
-export interface Campaign extends CampaignSummary {
+/** Čekající pozvánka existujícího uživatele (pohled DM). */
+export interface CampaignInvitation {
+  id: string
+  userId: string
+  username: string
+  displayName: string
+  createdAt: string
+}
+
+/** Pozvánka, kterou jsem dostal (z /summary). */
+export interface MyInvitation {
+  id: string
+  campaignId: string
+  campaignName: string
+  dmName: string
+  invitedBy: string
+  createdAt: string
+}
+
+export interface InviteSuggestion {
+  userId: string
+  username: string
+  displayName: string
+}
+
+export interface Campaign extends Omit<CampaignSummary, 'myCharacter' | 'nextSession' | 'memberCount'> {
   settings: Record<string, unknown>
   createdAt: string
 }

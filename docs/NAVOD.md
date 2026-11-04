@@ -1,12 +1,18 @@
 # Návod k používání
 
 Aplikace je česky, na telefonu i na počítači. Hráči si většinou vystačí s telefonem, DM má pohodlnější počítač.
-Přihlašuje se jménem a heslem (žádný e-mail). Nový hráč se zaregistruje přes **odkaz s pozvánkou** od DM.
+Přihlašuje se jménem a heslem (žádný e-mail). Nový hráč se zaregistruje přes **odkaz s pozvánkou** od DM; kdo už účet má, toho DM pozve rovnou jménem.
+
+## Víc kampaní
+
+Kampaň může založit kdokoli a v ní je DM (Panel DM, loot, AI pomocník). V cizí kampani jsi hráč, takže můžeš v jedné hrát a v jiné vést.
+Máš-li víc kampaní, úvodní stránka ukáže **výběr**: u každé tvoji roli, postavu, další session a nové zprávy; klepni na tu, kterou chceš zrovna hrát. Kdo má jedinou kampaň, jde rovnou do ní.
+Kdykoli jinde přepneš kampaň klepnutím na **její název v horní liště**. Když tě někdo pozve jménem, uvidíš pozvánku na úvodu (a v oznámení) a přijmeš ji nebo odmítneš.
 
 ## Dolní lišta a kampaň
 
-Dole je pořád vidět lišta **Domů · Postava · Inventář · Deník · Mapy · Zprávy** (DM má místo Postavy a Inventáře **Panel DM**). **Inventář** otevře rovnou inventář tvé postavy; stejný odkaz je i na úvodní stránce kampaně pod kartou postavy. Míří vždy do tvé aktivní kampaně, takže ji nemusíš pokaždé vybírat: aplikace si pamatuje, kde jsi hrál naposledy.
-Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň, změnit vzhled (světlý/tmavý), barvu aplikace nebo se odhlásit** můžeš v Profilu (ikona vpravo nahoře). Barva aplikace (Profil → Vzhled) je tvoje: předvolby jako Druidský les nebo Arkánní modř, nebo libovolná vlastní barva; uloží se k účtu, takže platí na telefonu i počítači a ostatní mají svou.
+Dole je pořád vidět lišta **Domů · Postava · Inventář · Deník · Mapy · Zprávy** (DM má místo Postavy a Inventáře **Panel DM**). **Inventář** otevře rovnou inventář tvé postavy; stejný odkaz je i na úvodní stránce kampaně pod kartou postavy. Míří vždy do aktivní kampaně (té, kterou máš otevřenou nebo jsi otevřel naposledy).
+Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Změnit vzhled (světlý/tmavý), barvu aplikace nebo se odhlásit** můžeš v Profilu (ikona vpravo nahoře). Barva aplikace (Profil → Vzhled) je tvoje: předvolby jako Druidský les nebo Arkánní modř, nebo libovolná vlastní barva; uloží se k účtu, takže platí na telefonu i počítači a ostatní mají svou.
 
 ## Pro hráče
 
@@ -39,7 +45,7 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
 
 ## Pro DM
 
-1. **Kampaň**: „Založit kampaň“, pak **Pozvánka** (odkaz nebo kód, platnost a počet použití nastavíš) a pošli ji hráčům. V nastavení kampaně vybereš **pravidla 2014 nebo 2024**
+1. **Kampaň**: „Založit kampaň“ (pravidla zvolíš rovnou), pak v kartě **Pozvánky** pozveš hráče: kdo už účet má, toho pozveš **přihlašovacím jménem** (lidi, se kterými už hraješ jinde, jedním klepnutím) a on pozvánku přijme v aplikaci; novým hráčům pošleš **odkaz s kódem** (na telefonu přes Sdílet). Pravidla **2014 nebo 2024** jdou změnit i později v nastavení kampaně
    (mění martial arts kostku mnicha, monk zbraně a pojmenování Ki / Focus Points).
 2. **Panel DM**: karty všech postav (HP, AC, pasivní vnímání, stavy, sloty, bonusy). Zaškrtni jednu, víc nebo všechny postavy a použij akci: zranění a léčení, peníze (**Dát** nebo **Vzít**; zaškrtnutím „Rozdělit rovným dílem“ se částka rozdělí mezi vybrané místo toho, aby každý dostal celou, náhled ukáže díl každého a zbytek, který zůstane u tebe; u Vzít se drobné vrací a když někdo nemá dost, nikomu se nic neodebere; volitelný důvod uvidí hráč v oznámení), item (z pravidel nebo vlastní, i s kletbou; připravené dopředu rozdáš z Lootu), stav, inspirace,
    **dočasná HP** (platí nová hodnota) a **bonus s trváním** („do long restu“, „dokud nezruším“, trvalý), který se promítne do výpočtů s viditelným zdrojem. Hráč dostane oznámení. Stav jde zrušit klepnutím na štítek přímo na kartě postavy. **Exhaustion** se nastavuje s úrovní (1 až 6), další úroveň nahradí předchozí; dopady stavů (nevýhody, rychlost 0, poloviční HP…) se na sheetu hráče spočítají samy. **Kalendář** (Domů → Další session → Kalendář): vidíš, kdy kdo může hrát, a klepnutím na den zadáš termín session (čas a poznámka jsou nepovinné); hráči dostanou oznámení a push a den předem připomínku. Záporné hodnoty bonusu fungují jako debuff (třeba −2 AC). Poznámky DM vidíš jen ty.
@@ -57,10 +63,10 @@ Pravidla (SRD, homebrew), oznámení a profil jsou nahoře. **Přepnout kampaň,
    **Nepřátelé** jsou rovnou v Panelu DM (červené karty), ať nemusíš nikam překlikávat: jméno, životy, AC, bonus iniciativy a útoky s kostkami (bonus k zásahu a zranění nastavíš v „Upravit“). Přidáš víc kusů najednou („Nový nepřítel“ vpravo u nadpisu sekce Nepřátelé), zapisuješ zranění tlačítky nebo vlastním číslem, hážeš útok, zranění, krit a **Iniciativu** (výchozí skryté před hráči) a „Další“ udělá kopii s plným zdravím. Hráči o nepřátelích nic nevidí a nemůžou jim nic předat.
    **Iniciativa** (sekce v Panelu DM, jen pro tebe): hráči si ji hodí na svém sheetu (tlačítko Hod u iniciativy) a zapíše se sem sama, **Hodit za NPC a nepřátele** hodí zbytek najednou. Pořadí jde přetáhnout (na telefonu šipkami), hodnotu přepsat, „Další tah“ ukazuje, kdo je na řadě a které je kolo (padlé nepřátele přeskočí), „Nový souboj“ všechno smaže.
 9. **Kostky**: stejné jako hráči, navíc vidíš skryté hody hráčů a můžeš hodit za kteroukoli postavu.
-10. **AI pomocník** (tlačítko ✨ v horní liště, vidí ho jen DM s povoleným účtem): napiš mu, co chceš připravit, třeba „složka Hrobka krále, v první místnosti Bag of Holding a 50 gp, ve druhé Armor +1 (chain mail)“, nebo „setkání s vlky na lesní cestě, střední obtížnost“. Itemy a nestvůry dohledá v pravidlech, podívá se do lootu a na družinu (level a počet postav), a když něco není jasné, zeptá se.
+10. **AI pomocník** (tlačítko ✨ v horní liště, má ho každý DM ve své kampani): napiš mu, co chceš připravit, třeba „složka Hrobka krále, v první místnosti Bag of Holding a 50 gp, ve druhé Armor +1 (chain mail)“, nebo „setkání s vlky na lesní cestě, střední obtížnost“. Itemy a nestvůry dohledá v pravidlech, podívá se do lootu a na družinu (level a počet postav), a když něco není jasné, zeptá se.
    **Šablony** (Dungeon, Setkání, Obchod, Poklad, Boss, Pravidla): vyplníš pár políček, třeba počet místností, téma a obtížnost, a šablona složí zadání do zprávy. Před odesláním ho můžeš upravit. Ve rozběhnuté konverzaci je otevře tlačítko **Šablony** pod polem pro zprávu.
    Hotový návrh ukáže jako kartu se složkami, nepřáteli (CR, AC, HP), lootem, který z nich padá, a cenami. **Nic se nevytvoří, dokud neklepneš na Vytvořit v lootu** (nebo návrh zahodíš). Pak nepřátele pošleš do boje a loot rozdáš jako obvykle. Ptát se můžeš i na pravidla.
-   Konverzace vidíš jen ty a pokračovat jde i v té minulé (výběr nahoře). Dole je vidět, kolik AI tento měsíc stála; po vyčerpání měsíčního limitu do konce měsíce neodpoví.
+   Konverzace vidíš jen ty a pokračovat jde i v té minulé (výběr nahoře). Dole je vidět, kolik jsi za AI tento měsíc utratil z osobního limitu; po jeho vyčerpání ti AI do konce měsíce neodpoví (limit nastavuje správce aplikace).
 
 ## Když něco nejde
 

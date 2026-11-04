@@ -11,6 +11,7 @@ use Dnd\HttpError;
 use Dnd\Ids;
 use Dnd\Images;
 use Dnd\Input;
+use Dnd\Items;
 use Dnd\Languages;
 use Dnd\Request;
 use Dnd\Response;
@@ -285,9 +286,11 @@ final class CharacterController
 
         $recharged = [];
         $touched = [];
-        Db::transaction(static function () use ($params, $ops, &$recharged, &$touched): void {
+        $wear = [];
+        Db::transaction(static function () use ($params, $ops, &$recharged, &$touched, &$wear): void {
             $recharged = [];
             $touched = [];
+            $wear = [];
             $r = Db::one('SELECT * FROM characters WHERE id = ? FOR UPDATE', [$params['id']]) ?? throw HttpError::notFound();
             $hp = $r['hp_current'] === null ? null : (int) $r['hp_current'];
             $temp = (int) $r['hp_temp'];
@@ -403,6 +406,31 @@ final class CharacterController
                         Db::exec('UPDATE character_items SET charges_used = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$used, $itemId]);
                         $touched[$itemId] = true;
                         break;
+                    case 'nat1':
+                    case 'break':
+                    case 'repair':
+                        // Opotřebení zbraně a zlodějského náčiní: nat1 je číslo 0–20, které se po nat 1 přehodí, break zbraň rozbije, repair obojí smaže.
+                        $itemId = is_string($op['itemId'] ?? null) ? $op['itemId'] : '';
+                        $it = Ids::isUuid($itemId) ? Db::one('SELECT name, kind, nat1, broken FROM character_items WHERE id = ? AND character_id = ? FOR UPDATE', [$itemId, $params['id']]) : null;
+                        if ($it === null) {
+                            throw HttpError::notFound('Item nenalezen.');
+                        }
+                        if (!Items::tracksBreakage($it)) {
+                            throw HttpError::validation('Počítadlo nat 1 je jen u zbraní a zlodějského náčiní.', 'ops');
+                        }
+                        $nat1 = (int) $it['nat1'];
+                        $broken = (int) $it['broken'] === 1;
+                        if ($op['op'] === 'nat1') {
+                            $nat1 = max(0, min(20, $nat1 + $intField($op, 'delta', -20, 20)));
+                        } elseif ($op['op'] === 'break') {
+                            $broken = true;
+                        } else {
+                            $nat1 = 0;
+                            $broken = false;
+                        }
+                        Db::exec('UPDATE character_items SET nat1 = ?, broken = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?', [$nat1, $broken ? 1 : 0, $itemId]);
+                        $wear[$itemId] = ['nat1' => $nat1, 'broken' => $broken];
+                        break;
                     case 'inspiration':
                         $insp = ($op['set'] ?? null) === true ? 1 : 0;
                         break;
@@ -442,6 +470,9 @@ final class CharacterController
                 }
             }
             $out['recharged'] = $recharged;
+        }
+        if ($wear !== []) {
+            $out['wear'] = $wear;
         }
         return $out;
     }

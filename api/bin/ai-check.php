@@ -25,7 +25,8 @@ if (!Claude::configured()) {
 }
 $users = Config::get('claude_users', []);
 echo 'Model: ' . Assistant::model() . "\n";
-echo 'Povolené účty (claude_users): ' . (is_array($users) && $users !== [] ? implode(', ', array_map('strval', $users)) : 'ŽÁDNÉ, pomocníka nikdo neuvidí') . "\n";
+echo 'Pomocníka má každý DM, osobní limit za měsíc: $' . Config::get('claude_user_monthly_budget_usd', 2) . "\n";
+echo 'Bez osobního limitu (claude_users): ' . (is_array($users) && $users !== [] ? implode(', ', array_map('strval', $users)) : 'nikdo') . "\n";
 
 [$body, $betas] = Assistant::request([['role' => 'user', 'content' => 'Kontrola spojení z aplikace. Odpověz jen slovem OK, nástroje nepoužívej.']]);
 echo 'Beta hlavičky: ' . implode(', ', $betas) . "\n";

@@ -5,7 +5,7 @@ import { newContext, registerDm, registerViaUi, uniqueName } from './helpers'
 
 // AI pomocník DM proti napodobenému Claude API (scripts/claude-mock.mjs, spouští ho playwright.config.ts).
 // DM napíše, co chce připravit, AI dohledá item v pravidlech a navrhne loot; do lootu se dostane až potvrzením.
-// Hráč ani DM bez povolení (claude_users v api/config.test.php: jen jména začínající „aidm“) tlačítko nevidí.
+// Pomocníka má každý DM; účty z claude_users (v api/config.test.php jména začínající „aidm“) jsou bez osobního limitu. Hráč tlačítko nevidí.
 
 const MOCK = 'http://127.0.0.1:8199'
 
@@ -163,13 +163,13 @@ test('šablona složí zadání a návrh setkání ukáže nepřátele a jejich 
   await expect(panel.getByRole('button', { name: 'Šablona: Obchod' })).toHaveCount(0)
 })
 
-test('hráč ani DM bez povolení tlačítko AI nevidí', async ({ page, browser, baseURL, isMobile }) => {
+test('každý DM má AI s osobním limitem, hráč tlačítko nevidí', async ({ page, browser, baseURL, isMobile }) => {
   test.skip(isMobile, 'Telefon hráče si test staví sám.')
   test.setTimeout(90_000)
   await registerDm(page, 'dm')
-  await newCampaign(page, 'Bez AI')
-  await expect(page.getByRole('link', { name: 'Pravidla' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'AI pomocník' })).toHaveCount(0)
+  await newCampaign(page, 'Vlastní AI')
+  await page.getByRole('button', { name: 'AI pomocník' }).click()
+  await expect(page.getByText(/Tvoje útrata tento měsíc \$0\.00 z \$1\.00/)).toBeVisible()
 
   // povolený DM pozve hráče; hráč na telefonu tlačítko nemá
   const ai = await newContext(browser, { baseURL, locale: 'cs-CZ' })

@@ -19,6 +19,8 @@ import { ItemForm } from './ItemForm'
 import { ItemSourcePicker } from './ItemSourcePicker'
 import { ITEM_KIND_SHORT } from './labels'
 import { NotesText } from './NotesText'
+import { WearControl } from './WearControl'
+import { tracksBreakage } from './wear'
 import { useAddItem, useCharacters, useDeleteItem, useSpend, useTransfer, useUpdateItem, type ItemInput } from './api'
 import { COINS, COIN_LABELS, convertCoins, formatCp, totalCp, totalGold, type Coin } from './money'
 import { useSheet } from './sheet-context'
@@ -142,7 +144,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
       : null
 
   return (
-    <li className={cn('rounded-xl border bg-card', item.consumable && item.quantity < 1 && 'opacity-70')}>
+    <li className={cn('rounded-xl border bg-card', item.consumable && item.quantity < 1 && 'opacity-70', item.broken && 'border-red-700/70')} data-broken={item.broken || undefined}>
       <div className="flex items-center gap-1 py-1 pl-1 pr-2">
         <button
           type="button"
@@ -162,6 +164,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
                 item.kind === 'other' ? null : ITEM_KIND_SHORT[item.kind],
                 item.rarity,
                 item.requiresAttunement ? (item.attuned ? 'attunovaný' : 'vyžaduje attunement') : null,
+                item.broken ? 'rozbitá' : null,
                 item.curse ? (item.curse.revealed ? 'prokletý' : 'skrytá kletba (vidíš jen ty)') : null,
               ]
                 .filter(Boolean)
@@ -195,6 +198,11 @@ function ItemRow({ item }: { item: CharacterItem }) {
           </div>
         )}
       </div>
+      {tracksBreakage(item) && (
+        <div className="border-t px-3 py-2">
+          <WearControl item={item} />
+        </div>
+      )}
       {hasCharges(item) && (
         <div className="border-t px-3 py-2">
           <ItemChargesControl item={item} />

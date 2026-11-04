@@ -10,12 +10,16 @@ export interface AiConversationSummary {
 }
 
 export interface AiStatus {
-  /** Smí volající pomocníka používat (DM kampaně a účet v claude_users na serveru). */
+  /** Smí volající pomocníka používat (DM kampaně a na serveru je nastavený klíč). */
   enabled: boolean
   configured: boolean
   model: string
+  /** společná útrata všech uživatelů a strop za měsíc */
   spentUsd: number
   budgetUsd: number
+  /** moje útrata za měsíc a osobní limit (null = bez osobního limitu) */
+  mySpentUsd: number
+  myBudgetUsd: number | null
   conversations: AiConversationSummary[]
 }
 

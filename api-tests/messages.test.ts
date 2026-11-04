@@ -50,6 +50,28 @@ describe('zprávy v kampani', () => {
       expect(msg).toMatchObject({ thread: 'group', senderId: bob.id, recipients: [] })
       expect(msg.senderName).toBeTruthy()
     })
+
+    it('odesílatel se ukazuje jménem postavy, ne účtu', async () => {
+      expectStatus(
+        await bob.client.post(`/campaigns/${campaignId}/characters`, {
+          name: 'Robinn',
+          abilityScores: { str: 10, dex: 16, con: 12, int: 10, wis: 10, cha: 10 },
+          levels: [{ classIndex: 'rogue' }],
+        }),
+        201,
+      )
+      const res = await send(bob, 'all', 'Píše Robinn')
+      expectStatus(res, 201)
+      expect(res.body.message.senderName).toBe('Robinn')
+      const seen = (await list(carol)).messages.find((m) => m.body === 'Píše Robinn')
+      expect(seen.senderName).toBe('Robinn')
+      const reply = await carol.client.post(`/campaigns/${campaignId}/messages`, { to: 'all', body: 'Ahoj', replyToId: res.body.message.id })
+      expectStatus(reply, 201)
+      expect(reply.body.message.replyTo.senderName).toBe('Robinn')
+      const react = await bob.client.post(`/messages/${res.body.message.id}/reactions`, { emoji: '\u{1F44D}' })
+      expectStatus(react, 200)
+      expect(react.body.reactions[0].users[0].name).toBe('Robinn')
+    })
   })
 
   describe('soukromě DM a hráč', () => {

@@ -23,12 +23,13 @@ function write(key: string, value: string) {
 }
 
 export const rememberCampaign = (id: string) => write(KEY, id)
+export const rememberedCampaign = (): string | null => read(KEY)
 export const rememberCharacter = (campaignId: string, characterId: string) => write(`${CHARACTER_KEY}:${campaignId}`, characterId)
 export const rememberedCharacter = (campaignId: string): string | null => read(`${CHARACTER_KEY}:${campaignId}`)
 
 /**
  * Kampaň, ve které se zrovna hraje. Zapamatuje se při otevření jakékoli stránky kampaně; kdo má jednu kampaň, ji má vždy.
- * Bez zapamatované (nebo když už v ní uživatel není) se vezme první. Přepnutí je v Profilu → Moje kampaně.
+ * Bez zapamatované (nebo když už v ní uživatel není) se vezme první. Přepíná se výběrem na úvodu, přepínačem v horní liště nebo v Profilu.
  */
 export function useActiveCampaign(): { campaigns: CampaignSummary[] | undefined; active: CampaignSummary | null; loading: boolean } {
   const { data: campaigns, isPending } = useMyCampaigns()

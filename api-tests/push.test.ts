@@ -132,7 +132,7 @@ describe('push notifikace', () => {
       expect(res.body.available).toBe(true)
       expect(res.body.publicKey).toBe(publicKey)
       expect(Buffer.from(publicKey, 'base64url')).toHaveLength(65)
-      expect(res.body.categories).toEqual(['messages', 'dm', 'maps', 'journal', 'sessions'])
+      expect(res.body.categories).toEqual(['messages', 'dm', 'maps', 'journal', 'sessions', 'invites'])
     })
 
     it('diagnostika serveru ověří, že umí šifrovat a podepisovat push', async () => {
@@ -170,8 +170,8 @@ describe('push notifikace', () => {
       const device = newDevice()
       const q = `/push/subscription?endpoint=${encodeURIComponent(device.endpoint)}`
       expect((await bob.client.get(q)).body.subscription).toBeNull()
-      expect((await subscribe(bob, device)).categories).toEqual(['messages', 'dm', 'maps', 'journal', 'sessions'])
-      expect((await bob.client.get(q)).body.subscription.categories).toHaveLength(5)
+      expect((await subscribe(bob, device)).categories).toEqual(['messages', 'dm', 'maps', 'journal', 'sessions', 'invites'])
+      expect((await bob.client.get(q)).body.subscription.categories).toHaveLength(6)
       const patched = await bob.client.patch('/push/subscription', { endpoint: device.endpoint, categories: ['maps', 'messages', 'messages'] })
       expectStatus(patched, 200)
       expect(patched.body.subscription.categories).toEqual(['messages', 'maps'])
@@ -193,7 +193,7 @@ describe('push notifikace', () => {
       expect((await bob.client.get(q)).body.subscription.categories).toEqual(['maps'])
 
       // sdílený telefon: carol se přihlásí a zařízení převezme, bob už nic nedostane; volbu bobovi nezdědí
-      expect((await subscribe(carol, device)).categories).toHaveLength(5)
+      expect((await subscribe(carol, device)).categories).toHaveLength(6)
       expect((await bob.client.get(q)).body.subscription).toBeNull()
       expect((await carol.client.get(q)).body.subscription).not.toBeNull()
       await carol.client.delete(q)

@@ -9,6 +9,8 @@ import { riderFor } from './riders'
 import { ClassRiderToggle } from './ClassRiderToggle'
 import { CONCENTRATION_RIDER, useClassToggle } from './class-toggles'
 import { useSheet } from './sheet-context'
+import { WearControl } from './WearControl'
+import { tracksBreakage } from './wear'
 
 export function AttacksCard() {
   const { sheet, character, canEdit, adjust } = useSheet()
@@ -78,14 +80,25 @@ export function AttacksCard() {
             const extras = [...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : []), ...classRiders.map(extraFor)]
             const damage = damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : []), ...classRiders])
             const damageLabel = `${a.name}: zranění${active ? ` + ${rider.name}` : ''}${classRiders.map((r) => ` + ${r.name}`).join('')}`
+            const gear = character.items.find((i) => i.id === a.id)
+            const wear = gear && tracksBreakage(gear) ? gear : null
+            const broken = wear?.broken === true
             return (
               <li key={a.id} className="space-y-1 py-2">
                 <div>
-                  <p className="font-medium">{a.name}</p>
+                  <p className="font-medium">
+                    {a.name}
+                    {broken && <span className="ml-2 text-sm font-semibold text-red-700 dark:text-red-400">Rozbitá</span>}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {[a.ability.toUpperCase(), a.damageType.toLowerCase(), ...a.notes, !a.proficient && 'bez proficiency'].filter(Boolean).join(' · ')}
                   </p>
                 </div>
+                {wear && (
+                  <div className="py-1">
+                    <WearControl item={wear} compact />
+                  </div>
+                )}
                 {/* Oba řádky mají stejné sloupce (popisek, kostka, bonus, hody), takže čísla jsou přesně pod sebou. */}
                 <div className="grid grid-cols-[4rem_3rem_3rem_minmax(0,1fr)] items-center gap-x-2 text-sm">
                   <span className="text-muted-foreground">Útok</span>
@@ -98,7 +111,7 @@ export function AttacksCard() {
                     className="justify-self-start"
                   />
                   <div className="flex items-center">
-                    <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} kind="attack" />
+                    {!broken && <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} kind="attack" />}
                   </div>
 
                   <span className="text-muted-foreground">Zranění</span>
@@ -111,7 +124,7 @@ export function AttacksCard() {
                     className="justify-self-start"
                   />
                   <div className="flex flex-wrap items-center">
-                    {damage && (
+                    {damage && !broken && (
                       <>
                         <RollButton label={damageLabel} expression={damage} />
                         <RollButton label={damageLabel} expression={damage} crit critExtra={a.critExtra ?? undefined} text="Krit" />

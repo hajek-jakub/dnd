@@ -9,10 +9,12 @@ import { DiceSlotContext, DiceTargetContext, type DiceTarget } from '@/features/
 import { RollOverlayProvider } from '@/features/dice/RollOverlay'
 import { RollSettingsProvider } from '@/features/dice/roll-settings'
 import { useActiveCampaign } from '@/features/campaigns/active-campaign'
+import { CampaignSwitcher } from '@/features/campaigns/CampaignSwitcher'
 import { useNewMessageToasts, useUnreadMessages } from '@/features/messages/api'
 import { useNotifications } from '@/features/notifications/api'
 import { PushPrompt } from '@/features/push/PushPrompt'
 import { usePushLinks } from '@/features/push/usePushLinks'
+import { SecretSantaPrompt } from '@/features/secret-santa/SecretSantaPrompt'
 
 const iconLink = 'relative inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
@@ -36,7 +38,7 @@ export function AppLayout() {
             <Link to="/" aria-label="Úvodní stránka" className="flex size-11 shrink-0 items-center justify-center">
               <img src={`${import.meta.env.BASE_URL}logo.svg?v=2`} alt="" className="size-8" />
             </Link>
-            <span className="truncate font-display font-semibold">{active?.name ?? 'D&D kampaně'}</span>
+            <CampaignSwitcher />
           </div>
           <div className="flex shrink-0 items-center">
             {/* Sem se vykreslí tlačítko kostek (DiceDock), na každé stránce, ať nic neplave nad obsahem. */}
@@ -61,6 +63,7 @@ export function AppLayout() {
       </header>
       <main className="mx-auto w-full max-w-3xl space-y-6 p-4 pb-28 tab:max-w-6xl tab:p-6 tab:pb-28 xl:max-w-7xl">
         <PushPrompt />
+        <SecretSantaPrompt />
         <DiceSlotContext.Provider value={diceSlot}>
           <DiceTargetContext.Provider value={setDiceTarget}>
             <RollSettingsProvider>

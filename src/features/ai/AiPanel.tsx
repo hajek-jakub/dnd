@@ -272,7 +272,10 @@ export default function AiPanel({ campaignId, onClose }: { campaignId: string; o
           <div className="flex flex-wrap items-center justify-between gap-x-3">
             {status && (
               <p className="text-xs text-muted-foreground">
-                Útrata tento měsíc ${status.spentUsd.toFixed(2)} z ${status.budgetUsd.toFixed(2)} · {status.model}
+                {status.myBudgetUsd === null
+                  ? `Útrata tento měsíc $${status.spentUsd.toFixed(2)} z $${status.budgetUsd.toFixed(2)}`
+                  : `Tvoje útrata tento měsíc $${status.mySpentUsd.toFixed(2)} z $${status.myBudgetUsd.toFixed(2)}`}{' '}
+                · {status.model}
               </p>
             )}
             {selected !== null && (

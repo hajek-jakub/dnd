@@ -155,6 +155,19 @@ test('stránky po přihlášení jsou přístupné (světlý i tmavý režim)', 
     ['nová postava', `/campaigns/${campaignId}/characters/new`, async (p) => void (await expect(p.locator('h1').first()).toBeVisible())],
     ['sheet: přehled', `/characters/${character}`, async (p) => void (await expect(p.getByRole('heading', { name: 'Axe', level: 1 })).toBeVisible())],
   ]
+  // druhá kampaň: úvod je výběr kampaní s kartami a přepínač v liště má co nabídnout
+  await page.request.post('/api/campaigns', { data: { name: 'Druhá kampaň' } })
+  pages.push(
+    ['výběr kampaní', '/', async (p) => void (await expect(p.getByTestId('campaign-tile')).toHaveCount(2))],
+    [
+      'přepínač kampaní',
+      `/campaigns/${campaignId}`,
+      async (p) => {
+        await p.getByRole('button', { name: /^Přepnout kampaň/ }).click()
+        await expect(p.getByRole('dialog', { name: 'Moje kampaně' })).toBeVisible()
+      },
+    ],
+  )
   for (const [name, url, ready] of pages) {
     await page.goto(url)
     await ready(page)

@@ -48,6 +48,8 @@ Rychlá kontrola po nasazení: otevři `https://dnd.hajekjakub.cz/api/health`. S
    - `migrate_key`: dlouhý náhodný klíč, kterým deploy spouští aktualizaci databáze. Vygeneruj ho:
      `openssl rand -hex 24`
    - `debug`: nastav na `false`.
+   - Volitelně AI pomocník: `claude_api_key` (pak ho má každý DM), `claude_user_monthly_budget_usd` (osobní limit jednoho uživatele za měsíc v USD, výchozí 2),
+     `claude_users` (tvoje přihlašovací jméno, ať nemáš osobní limit) a `claude_monthly_budget_usd` (společný strop za měsíc, výchozí 10).
    - Nic dalšího neměň. Pokud zůstane dev hodnota, deploy se odmítne spustit a řekne ti proč.
 3. Heslo k databázi a oba klíče nikomu neposílej. Ulož je do správce hesel.
 

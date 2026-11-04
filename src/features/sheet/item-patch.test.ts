@@ -4,7 +4,7 @@ import type { CharacterItem } from './types'
 
 const base: CharacterItem = {
   id: 'i', ruleId: null, name: 'Kopí', description: '', kind: 'weapon', quantity: 1, equipped: false, attuned: false, requiresAttunement: false,
-  consumable: false, charges: null, curse: { text: 'Šepot', revealed: false }, rarity: null, armor: null, weapon: null, effects: [], notes: '',
+  consumable: false, charges: null, nat1: 0, broken: false, curse: { text: 'Šepot', revealed: false }, rarity: null, armor: null, weapon: null, effects: [], notes: '',
 }
 
 describe('optimistická změna itemu', () => {

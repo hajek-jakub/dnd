@@ -29,6 +29,7 @@ final class SummaryController
             'messages' => MessageController::unreadOverview($req, $params, $user),
             'journal' => JournalController::unreadOverview($req, $params, $user),
             'rolls' => self::lastRolls($user['id']),
+            'invitations' => InvitationController::mine($user['id']),
         ];
     }
 

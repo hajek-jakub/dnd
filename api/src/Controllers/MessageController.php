@@ -91,7 +91,7 @@ final class MessageController
              ORDER BY m.id LIMIT 500',
             [$campaignId, $from, ...self::visibleArgs($userId)],
         );
-        $reactions = self::reactionsOf(array_map(static fn (array $r): int => (int) $r['id'], $rows));
+        $reactions = self::reactionsOf(array_map(static fn (array $r): int => (int) $r['id'], $rows), self::chatNames($campaignId));
         return array_map(static fn (array $r): array => [
             'id' => (int) $r['id'],
             'body' => $r['body'],
@@ -215,7 +215,7 @@ final class MessageController
                 Db::exec('INSERT INTO message_reactions (message_id, user_id, emoji, created_at) VALUES (?, ?, ?, UTC_TIMESTAMP())', [$msg['id'], $user['id'], $emoji]);
             }
         });
-        return ['id' => (int) $msg['id'], 'reactions' => self::reactionsOf([(int) $msg['id']])[(int) $msg['id']] ?? []];
+        return ['id' => (int) $msg['id'], 'reactions' => self::reactionsOf([(int) $msg['id']], self::chatNames((string) $msg['campaign_id']))[(int) $msg['id']] ?? []];
     }
 
     /** Autor upraví text své zprávy (zpráva pak nese „upraveno“). @param array{id:string} $user */
@@ -327,7 +327,8 @@ final class MessageController
             'SELECT m.id, m.sender_id, m.thread, m.body, m.created_at, m.reply_to_id, m.edited_at, m.deleted_at, u.display_name AS sender_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?',
             [$id],
         ) ?? [];
-        self::pushNew($campaignId, $senderId, $thread, $body, (string) ($row['sender_name'] ?? ''), $recipientIds);
+        $senderName = self::chatNames($campaignId)[$senderId] ?? (string) ($row['sender_name'] ?? '');
+        self::pushNew($campaignId, $senderId, $thread, $body, $senderName, $recipientIds);
         return self::payloads([$row], $campaignId, $senderId)[0];
     }
 
@@ -497,13 +498,14 @@ final class MessageController
             $ids = array_map(static fn (array $r): string => (string) $r['id'], $rows);
             $in = implode(',', array_fill(0, count($ids), '?'));
             // jen hráči, kteří v kampani pořád jsou
+            $names = self::chatNames($campaignId);
             foreach (Db::all(
                 "SELECT dr.draft_id, u.id, u.display_name FROM message_draft_recipients dr
                  JOIN campaign_members cm ON cm.user_id = dr.user_id AND cm.campaign_id = ? AND cm.role = 'player'
                  JOIN users u ON u.id = dr.user_id WHERE dr.draft_id IN ($in) ORDER BY u.display_name",
                 [$campaignId, ...$ids],
             ) as $r) {
-                $recipients[(string) $r['draft_id']][] = ['id' => $r['id'], 'name' => $r['display_name']];
+                $recipients[(string) $r['draft_id']][] = ['id' => $r['id'], 'name' => $names[(string) $r['id']] ?? $r['display_name']];
             }
         }
         return array_map(static fn (array $r): array => [
@@ -560,6 +562,32 @@ final class MessageController
     // ------------------------------------------------------------------ pomocné
 
     /**
+     * Jméno v chatu: postava hráče v kampani (přednost má ta s fotkou, jinak nejstarší), jinak jméno účtu.
+     * DM bez vlastní postavy zůstane u jména účtu. NPC se nepočítají.
+     * @return array<string, string>
+     */
+    private static function chatNames(string $campaignId): array
+    {
+        $names = [];
+        foreach (Db::all('SELECT m.user_id, u.display_name FROM campaign_members m JOIN users u ON u.id = m.user_id WHERE m.campaign_id = ?', [$campaignId]) as $r) {
+            $names[(string) $r['user_id']] = (string) $r['display_name'];
+        }
+        $seen = [];
+        foreach (Db::all(
+            "SELECT owner_id, name FROM characters WHERE campaign_id = ? AND kind = 'pc' AND owner_id IS NOT NULL ORDER BY (photo_path IS NULL OR photo_path = '') ASC, created_at, id",
+            [$campaignId],
+        ) as $r) {
+            $id = (string) $r['owner_id'];
+            if (isset($seen[$id]) || !isset($names[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $names[$id] = (string) $r['name'];
+        }
+        return $names;
+    }
+
+    /**
      * Cíl zprávy v jazyce: vlákno a příjemci (ostatní hráči, kteří jazyk umí, a DM). Píše jen hráč, který jazyk sám umí.
      * @return array{0: string, 1: list<string>}
      */
@@ -604,10 +632,7 @@ final class MessageController
         if ($mine === []) {
             return [];
         }
-        $names = [];
-        foreach (Db::all('SELECT user_id, display_name FROM campaign_members m JOIN users u ON u.id = m.user_id WHERE m.campaign_id = ?', [$campaignId]) as $r) {
-            $names[(string) $r['user_id']] = (string) $r['display_name'];
-        }
+        $names = self::chatNames($campaignId);
         $out = [];
         foreach ($mine as $slug => $name) {
             $speakers = [];
@@ -652,25 +677,26 @@ final class MessageController
         }
         $ids = array_map(static fn (array $r): int => (int) $r['id'], $rows);
         $in = implode(',', array_fill(0, count($ids), '?'));
+        $names = self::chatNames($campaignId);
         $recipients = [];
         foreach (Db::all("SELECT r.message_id, u.id, u.display_name FROM message_recipients r JOIN users u ON u.id = r.user_id WHERE r.message_id IN ($in) ORDER BY u.display_name", $ids) as $r) {
-            $recipients[(int) $r['message_id']][] = ['id' => $r['id'], 'name' => $r['display_name']];
+            $recipients[(int) $r['message_id']][] = ['id' => $r['id'], 'name' => $names[(string) $r['id']] ?? $r['display_name']];
         }
-        $reactions = self::reactionsOf($ids);
+        $reactions = self::reactionsOf($ids, $names);
 
         $replyIds = array_values(array_unique(array_map(static fn (array $r): int => (int) $r['reply_to_id'], array_filter($rows, static fn (array $r): bool => $r['reply_to_id'] !== null))));
         $originals = [];
         if ($replyIds !== []) {
             $rin = implode(',', array_fill(0, count($replyIds), '?'));
             foreach (Db::all(
-                "SELECT m.id, m.body, m.deleted_at, u.display_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id IN ($rin) AND m.campaign_id = ? AND " . self::visibleSql(),
+                "SELECT m.id, m.sender_id, m.body, m.deleted_at, u.display_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id IN ($rin) AND m.campaign_id = ? AND " . self::visibleSql(),
                 [...$replyIds, $campaignId, ...self::visibleArgs($userId)],
             ) as $o) {
                 $originals[(int) $o['id']] = $o;
             }
         }
 
-        return array_map(static function (array $r) use ($recipients, $reactions, $originals): array {
+        return array_map(static function (array $r) use ($recipients, $reactions, $originals, $names): array {
             $id = (int) $r['id'];
             $replyTo = null;
             if ($r['reply_to_id'] !== null) {
@@ -679,7 +705,7 @@ final class MessageController
                     ? ['id' => (int) $r['reply_to_id'], 'senderName' => '', 'snippet' => '', 'deleted' => false, 'hidden' => true]
                     : [
                         'id' => (int) $o['id'],
-                        'senderName' => $o['display_name'],
+                        'senderName' => $names[(string) $o['sender_id']] ?? $o['display_name'],
                         'snippet' => $o['deleted_at'] === null ? mb_substr(trim((string) preg_replace('/\s+/u', ' ', (string) $o['body'])), 0, 140) : '',
                         'deleted' => $o['deleted_at'] !== null,
                         'hidden' => false,
@@ -688,7 +714,7 @@ final class MessageController
             return [
                 'id' => $id,
                 'senderId' => $r['sender_id'],
-                'senderName' => $r['sender_name'],
+                'senderName' => $names[(string) $r['sender_id']] ?? $r['sender_name'],
                 'thread' => $r['thread'],
                 'recipients' => $recipients[$id] ?? [],
                 'body' => $r['body'],
@@ -704,9 +730,10 @@ final class MessageController
     /**
      * Reakce zpráv: u každého emoji kdo reagoval (v pořadí, jak se emoji objevila).
      * @param list<int> $ids
+     * @param array<string, string> $names user id => jméno v chatu (postava, jinak účet)
      * @return array<int, list<array{emoji: string, users: list<array{id: string, name: string}>}>>
      */
-    private static function reactionsOf(array $ids): array
+    private static function reactionsOf(array $ids, array $names = []): array
     {
         if ($ids === []) {
             return [];
@@ -717,7 +744,7 @@ final class MessageController
             "SELECT x.message_id, x.emoji, u.id, u.display_name FROM message_reactions x JOIN users u ON u.id = x.user_id WHERE x.message_id IN ($in) ORDER BY x.created_at, u.display_name",
             $ids,
         ) as $r) {
-            $by[(int) $r['message_id']][(string) $r['emoji']][] = ['id' => $r['id'], 'name' => $r['display_name']];
+            $by[(int) $r['message_id']][(string) $r['emoji']][] = ['id' => $r['id'], 'name' => $names[(string) $r['id']] ?? $r['display_name']];
         }
         $out = [];
         foreach ($by as $mid => $emojis) {

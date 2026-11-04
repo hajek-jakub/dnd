@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Campaign, CampaignSummary, Invite, InvitePreview, Member } from '@/lib/types'
+import { SUMMARY_KEY, useSummary, type Summary } from '@/features/summary/api'
+import type { Campaign, CampaignInvitation, CampaignSummary, Invite, InvitePreview, InviteSuggestion, Member } from '@/lib/types'
 
 /** Náhrada realtime: členové a pozvánky se mění jen připojením hráče nebo akcí DM, stačí se ptát zřídka. */
 const SLOW_POLL_MS = 120_000
@@ -42,7 +43,7 @@ export function useInvites(campaignId: string | undefined, enabled: boolean) {
 export function useCreateCampaign() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { name: string; description?: string }) =>
+    mutationFn: async (input: { name: string; description?: string; settings?: { ruleset: '2014' | '2024' } }) =>
       (await api.post<{ campaign: Campaign }>('/campaigns', input)).campaign,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
   })
@@ -123,6 +124,84 @@ export function useAcceptInvite() {
   return useMutation({
     mutationFn: async (code: string) => (await api.post<{ campaignId: string }>(`/invites/${code}/accept`)).campaignId,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
+  })
+}
+
+// ------------------------------------------------------------------ pozvánky existujících uživatelů
+
+/** Moje čekající pozvánky do kampaní (součást /summary, žádný další pravidelný dotaz). */
+export function useMyInvitations() {
+  return useSummary((s) => s.invitations ?? [])
+}
+
+export function useCampaignInvitations(campaignId: string) {
+  return useQuery({
+    queryKey: ['invitations', campaignId],
+    refetchInterval: SLOW_POLL_MS,
+    queryFn: async () => (await api.get<{ invitations: CampaignInvitation[] }>(`/campaigns/${campaignId}/invitations`)).invitations,
+  })
+}
+
+export function useInviteSuggestions(campaignId: string) {
+  return useQuery({
+    queryKey: ['invite-suggestions', campaignId],
+    queryFn: async () => (await api.get<{ suggestions: InviteSuggestion[] }>(`/campaigns/${campaignId}/invite-suggestions`)).suggestions,
+  })
+}
+
+/** Pozvání jménem nebo z návrhů. */
+export function useInviteUser(campaignId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { username: string } | { userId: string }) =>
+      (await api.post<{ invitations: CampaignInvitation[] }>(`/campaigns/${campaignId}/invitations`, input)).invitations,
+    onSuccess: (invitations) => {
+      queryClient.setQueryData(['invitations', campaignId], invitations)
+      void queryClient.invalidateQueries({ queryKey: ['invite-suggestions', campaignId] })
+    },
+  })
+}
+
+export function useCancelInvitation(campaignId: string) {
+  const queryClient = useQueryClient()
+  const key = ['invitations', campaignId]
+  return useMutation({
+    mutationFn: (invitationId: string) => api.delete(`/campaigns/${campaignId}/invitations/${invitationId}`),
+    onMutate: async (invitationId) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<CampaignInvitation[]>(key)
+      queryClient.setQueryData<CampaignInvitation[]>(key, (old) => old?.filter((i) => i.id !== invitationId))
+      return { previous }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous)
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: key })
+      void queryClient.invalidateQueries({ queryKey: ['invite-suggestions', campaignId] })
+    },
+  })
+}
+
+/** Přijetí nebo odmítnutí pozvánky; pozvánka zmizí ze souhrnu hned. */
+export function useAnswerInvitation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, accept }: { id: string; accept: boolean }) =>
+      accept ? (await api.post<{ campaignId: string }>(`/invitations/${id}/accept`)).campaignId : (await api.post(`/invitations/${id}/decline`), null),
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: SUMMARY_KEY })
+      const previous = queryClient.getQueryData<Summary>(SUMMARY_KEY)
+      if (previous) queryClient.setQueryData<Summary>(SUMMARY_KEY, { ...previous, invitations: previous.invitations?.filter((i) => i.id !== id) })
+      return { previous }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(SUMMARY_KEY, ctx.previous)
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY })
+      void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+    },
   })
 }
 

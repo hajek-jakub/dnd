@@ -15,6 +15,7 @@ use Dnd\Invites;
 use Dnd\RateLimiter;
 use Dnd\Request;
 use Dnd\Response;
+use Dnd\Sessions;
 
 final class CampaignController
 {
@@ -27,11 +28,46 @@ final class CampaignController
              WHERE m.user_id = ? ORDER BY c.created_at DESC',
             [$user['id']],
         );
+        // Doplňky pro výběr kampaně: jeden dotaz na tabulku pro všechny kampaně uživatele, ne zvlášť pro každou.
+        $characters = [];
+        foreach (Db::all(
+            "SELECT ch.id, ch.campaign_id, ch.name, ch.photo_path FROM characters ch
+             JOIN campaign_members m ON m.campaign_id = ch.campaign_id AND m.user_id = ?
+             WHERE ch.owner_id = ? AND ch.kind = 'pc' ORDER BY ch.created_at, ch.id",
+            [$user['id'], $user['id']],
+        ) as $c) {
+            $characters[(string) $c['campaign_id']] ??= [
+                'id' => $c['id'],
+                'name' => $c['name'],
+                'photoVersion' => $c['photo_path'] === null ? null : substr(md5((string) $c['photo_path']), 0, 10),
+            ];
+        }
+        $sessions = [];
+        foreach (Db::all(
+            'SELECT s.campaign_id, s.session_date, s.session_time FROM game_sessions s
+             JOIN campaign_members m ON m.campaign_id = s.campaign_id AND m.user_id = ?
+             WHERE s.session_date >= ? ORDER BY s.session_date',
+            [$user['id'], Sessions::today()],
+        ) as $s) {
+            $sessions[(string) $s['campaign_id']] ??= ['date' => (string) $s['session_date'], 'time' => $s['session_time']];
+        }
+        $counts = [];
+        foreach (Db::all(
+            'SELECT o.campaign_id, COUNT(*) AS n FROM campaign_members o
+             JOIN campaign_members m ON m.campaign_id = o.campaign_id AND m.user_id = ?
+             GROUP BY o.campaign_id',
+            [$user['id']],
+        ) as $n) {
+            $counts[(string) $n['campaign_id']] = (int) $n['n'];
+        }
         return ['campaigns' => array_map(static fn (array $r): array => [
             'id' => $r['id'],
             'name' => $r['name'],
             'description' => $r['description'],
             'role' => $r['role'],
+            'myCharacter' => $characters[(string) $r['id']] ?? null,
+            'nextSession' => $sessions[(string) $r['id']] ?? null,
+            'memberCount' => $counts[(string) $r['id']] ?? 1,
         ], $rows)];
     }
 
@@ -41,13 +77,14 @@ final class CampaignController
         $data = $req->json();
         $name = Input::string($data, 'name', 1, 100, 'Název kampaně');
         $description = Input::optionalString($data, 'description', 2000, 'Popis') ?? '';
+        $settings = self::settingsJson(array_key_exists('settings', $data) ? self::mergeSettings([], $data['settings']) : []);
 
         $id = Ids::uuid();
-        Db::transaction(static function () use ($id, $name, $description, $user): void {
+        Db::transaction(static function () use ($id, $name, $description, $settings, $user): void {
             Db::exec(
                 'INSERT INTO campaigns (id, name, description, settings, created_by, created_at)
                  VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())',
-                [$id, $name, $description, '{}', $user['id']],
+                [$id, $name, $description, $settings, $user['id']],
             );
             Db::exec(
                 "INSERT INTO campaign_members (campaign_id, user_id, role, joined_at) VALUES (?, ?, 'dm', UTC_TIMESTAMP())",
@@ -81,26 +118,9 @@ final class CampaignController
             $values[] = Input::string($data, 'description', 0, 2000, 'Popis');
         }
         if (array_key_exists('settings', $data)) {
-            $in = $data['settings'];
-            if (!is_array($in) || array_diff(array_keys($in), ['ruleset', 'critRule']) !== []) {
-                throw HttpError::validation('Neznámé nastavení kampaně.', 'settings');
-            }
             $current = json_decode((string) Db::value('SELECT settings FROM campaigns WHERE id = ?', [$params['id']]), true);
-            $current = is_array($current) ? $current : [];
-            if (array_key_exists('ruleset', $in)) {
-                if (!in_array($in['ruleset'], ['2014', '2024'], true)) {
-                    throw HttpError::validation("Pravidla musí být '2014' nebo '2024'.", 'settings');
-                }
-                $current['ruleset'] = $in['ruleset'];
-            }
-            if (array_key_exists('critRule', $in)) {
-                if (!in_array($in['critRule'], Dice::CRIT_RULES, true)) {
-                    throw HttpError::validation("Kritický zásah musí být 'max' nebo 'double'.", 'settings');
-                }
-                $current['critRule'] = $in['critRule'];
-            }
             $sets[] = 'settings = ?';
-            $values[] = json_encode($current === [] ? new \stdClass() : $current, JSON_UNESCAPED_UNICODE);
+            $values[] = self::settingsJson(self::mergeSettings(is_array($current) ? $current : [], $data['settings']));
         }
         if ($sets !== []) {
             $values[] = $params['id'];
@@ -260,6 +280,37 @@ final class CampaignController
     }
 
     // ------------------------------------------------------------------ pomocné
+
+    /**
+     * Ověří nastavení kampaně ze vstupu a přidá ho k současnému (ostatní klíče zůstanou).
+     * @param array<string, mixed> $current
+     * @return array<string, mixed>
+     */
+    private static function mergeSettings(array $current, mixed $in): array
+    {
+        if (!is_array($in) || array_diff(array_keys($in), ['ruleset', 'critRule']) !== []) {
+            throw HttpError::validation('Neznámé nastavení kampaně.', 'settings');
+        }
+        if (array_key_exists('ruleset', $in)) {
+            if (!in_array($in['ruleset'], ['2014', '2024'], true)) {
+                throw HttpError::validation("Pravidla musí být '2014' nebo '2024'.", 'settings');
+            }
+            $current['ruleset'] = $in['ruleset'];
+        }
+        if (array_key_exists('critRule', $in)) {
+            if (!in_array($in['critRule'], Dice::CRIT_RULES, true)) {
+                throw HttpError::validation("Kritický zásah musí být 'max' nebo 'double'.", 'settings');
+            }
+            $current['critRule'] = $in['critRule'];
+        }
+        return $current;
+    }
+
+    /** @param array<string, mixed> $settings */
+    private static function settingsJson(array $settings): string
+    {
+        return (string) json_encode($settings === [] ? new \stdClass() : $settings, JSON_UNESCAPED_UNICODE);
+    }
 
     /** @return array<string, mixed> */
     private static function load(string $id, string $role): array

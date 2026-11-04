@@ -2,10 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { Client, createCampaign, expectStatus, joinAsPlayer, registerUser, testDbExec, uniqueName, type TestUser } from './client'
 
 /**
- * AI pomocník DM proti napodobenému Claude API (scripts/claude-mock.mjs). Ověřuje přístup (jen DM a jen povolené účty),
+ * AI pomocník DM proti napodobenému Claude API (scripts/claude-mock.mjs). Ověřuje přístup (jen DM, osobní limit útraty),
  * soukromí konverzací, že model vidí jen data kampaně, že historie jde do API beze změny (myšlenkové bloky, prázdné `{}`),
  * že návrh nic nezapíše, dokud ho DM nepotvrdí, a limity (rozpočet, počet kroků, odmítnutí, výpadek API).
- * Pomocníka smí jen účty začínající „aidm“ (claude_users v api/config.test.php).
+ * Účty začínající „aidm“ (claude_users v api/config.test.php) nemají osobní limit (1 USD), ostatní DM ano.
  */
 const MOCK = 'http://127.0.0.1:8199'
 
@@ -60,19 +60,38 @@ describe('AI pomocník: přístup', () => {
     expect((await player.client.post(`/campaigns/${campaignId}/ai/conversations`, { message: 'x' })).status).toBe(403)
   })
 
-  it('DM mimo claude_users pomocníka nevidí ani nespustí', async () => {
+  it('každý DM má pomocníka s osobním limitem, po jeho vyčerpání AI neodpoví', async () => {
     const other = await registerUser('dm')
     const otherCampaign = await createCampaign(other)
     const status = await other.client.get(`/campaigns/${otherCampaign}/ai`)
     expectStatus(status, 200)
-    expect(status.body).toMatchObject({ enabled: false, configured: true, conversations: [] })
-    expect((await other.client.post(`/campaigns/${otherCampaign}/ai/conversations`, { message: 'Ahoj' })).status).toBe(403)
+    expect(status.body).toMatchObject({ enabled: true, configured: true, mySpentUsd: 0, myBudgetUsd: 1 })
+    // Hráč v kampani jiného DM pomocníka nemá, ani když je jinde DM.
+    const asPlayer = await joinAsPlayer(dm, campaignId)
+    await createCampaign(asPlayer)
+    expect((await asPlayer.client.get(`/campaigns/${campaignId}/ai`)).status).toBe(403)
+
+    const k = uniqueName('mybudget')
+    // 60 000 výstupních tokenů Opus 5.5 = 1,2 USD, víc než osobní limit 1 USD
+    await script(k, [{ content: [text('drahé')], usage: { input_tokens: 10, output_tokens: 60_000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } }])
+    const created = await other.client.post(`/campaigns/${otherCampaign}/ai/conversations`, { message: `[[mock:${k}]] x` })
+    try {
+      expectStatus(created, 201)
+      expect((await other.client.get(`/campaigns/${otherCampaign}/ai`)).body.mySpentUsd).toBeCloseTo(1.2, 1)
+      const blocked = await other.client.post(`/ai/conversations/${created.body.conversation.id}/messages`, { message: 'další' })
+      expect(blocked.status).toBe(429)
+      expect(blocked.body.error.code).toBe('ai_user_budget')
+      // Osobní útrata jiného DM se do mého limitu nepočítá.
+      expect((await dm.client.get(`/campaigns/${campaignId}/ai`)).body).toMatchObject({ myBudgetUsd: null })
+    } finally {
+      testDbExec('DELETE FROM ai_calls WHERE conversation_id = ?', [created.body.conversation.id])
+    }
   })
 
-  it('povolený DM vidí stav, model a rozpočet', async () => {
+  it('DM z claude_users vidí stav, model a jen společný rozpočet', async () => {
     const status = await dm.client.get(`/campaigns/${campaignId}/ai`)
     expectStatus(status, 200)
-    expect(status.body).toMatchObject({ enabled: true, configured: true, model: 'claude-opus-5-5', budgetUsd: 5 })
+    expect(status.body).toMatchObject({ enabled: true, configured: true, model: 'claude-opus-5-5', budgetUsd: 5, myBudgetUsd: null })
   })
 
   it('zpráva musí mít 1 až 4000 znaků', async () => {
