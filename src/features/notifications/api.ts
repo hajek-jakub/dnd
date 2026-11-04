@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { SUMMARY_KEY, useSummary } from '@/features/summary/api'
+import { toastEnabled } from './toast-settings'
 
 export interface AppNotification {
   id: number
@@ -37,7 +38,7 @@ export function useNotifications() {
       return
     }
     const fresh = list.filter((n) => n.id > (seen.current ?? 0)).sort((a, b) => a.id - b.id)
-    for (const n of fresh) toast(n.text, { description: n.campaignName })
+    if (toastEnabled('dm')) for (const n of fresh) toast(n.text, { description: n.campaignName })
     seen.current = Math.max(seen.current, maxId)
   }, [query.data])
 

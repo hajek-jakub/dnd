@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
 import { CampaignDangerCard } from './CampaignDangerCard'
 import { PushCard } from '@/features/push/PushCard'
+import { ToastSettingsCard } from '@/features/notifications/ToastSettingsCard'
 import { useChangePassword, useUpdateDisplayName } from './api'
 import { usePageTitle } from '@/lib/page-title'
 
@@ -91,6 +92,7 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+      <ToastSettingsCard />
       <PushCard />
       <Card>
         <CardHeader>

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { SUMMARY_KEY, useSummary } from '@/features/summary/api'
+import { toastEnabled } from '@/features/notifications/toast-settings'
 import { mergeMessages, toggleReaction } from './chat-utils'
 
 export interface ChatMessage {
@@ -165,7 +166,7 @@ export function useNewMessageToasts(data: UnreadOverview | undefined) {
   const seen = useRef<Record<string, number> | null>(null)
   useEffect(() => {
     if (!data) return
-    if (seen.current !== null) {
+    if (seen.current !== null && toastEnabled('messages')) {
       for (const c of data.campaigns) {
         if (c.unread > (seen.current[c.campaignId] ?? 0)) toast('Nová zpráva', { description: c.name })
       }

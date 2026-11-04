@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
 import { useAuth } from '@/features/auth/auth-context'
+import { toastEnabled } from '@/features/notifications/toast-settings'
 import { cn } from '@/lib/utils'
 import { useRolls, useRollsWatch, type DiceRoll } from './api'
 import { breakdown, modeLabel, naturalNote } from './format'
@@ -39,7 +40,7 @@ export function DiceDock({ campaignId, characterId }: { campaignId: string; char
       return
     }
     for (const r of rolls.filter((x) => x.id > (seen.current ?? 0))) {
-      if (r.userId !== user?.id) showRoll(r, r.characterName ?? r.userName)
+      if (r.userId !== user?.id && toastEnabled('rolls')) showRoll(r, r.characterName ?? r.userName)
     }
     seen.current = Math.max(seen.current, max)
   }, [rolls, user?.id])
