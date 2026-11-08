@@ -12,6 +12,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar } from './Avatar'
 import { PhotoCropper } from './PhotoCropper'
+import { ProficienciesCard } from './ProficienciesCard'
 import { useDeleteCharacter, useDeletePhoto, useRevertLevel, useUploadPhoto } from './api'
 import { useSheet } from './sheet-context'
 import { ALIGNMENTS } from './labels'
@@ -39,6 +40,7 @@ export function ProfileTab() {
         </Card>
       )}
       {canEdit && <LanguagesCard />}
+      <ProficienciesCard />
       <LevelHistoryCard />
       {canEdit && <DangerCard />}
     </MasonryCards>

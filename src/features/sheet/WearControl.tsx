@@ -5,6 +5,31 @@ import { Stepper } from './Stepper'
 import type { CharacterItem } from './types'
 import { wearHint } from './wear'
 
+/** Počítadlo nat 1 sbalené do nenápadného řádku na konci karty; souhrn ukazuje stav, ovládání je po rozbalení. */
+export function WearDetails({ item }: { item: CharacterItem }) {
+  const nat1 = item.nat1 ?? 0
+  const broken = item.broken ?? false
+  const alert = broken || nat1 > 0
+  return (
+    <details className="group rounded-lg border border-dashed" data-testid="wear-details">
+      <summary
+        className={cn(
+          'flex min-h-11 cursor-pointer items-center justify-between gap-2 px-3 text-xs text-muted-foreground',
+          alert && 'font-medium text-red-700 dark:text-red-400',
+        )}
+      >
+        <span>Opotřebení{broken ? ': rozbitá' : `: nat 1 ${nat1}`}</span>
+        <span aria-hidden className="transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="border-t border-dashed px-3 py-2">
+        <WearControl item={item} />
+      </div>
+    </details>
+  )
+}
+
 /** Počítadlo nat 1: 0 je tmavé (zbraň v pořádku), 1–20 červené. Oprava číslo vynuluje a rozbitou zbraň spraví. */
 export function WearControl({ item, compact = false }: { item: CharacterItem; compact?: boolean }) {
   const { canEdit, adjust } = useSheet()

@@ -88,6 +88,7 @@ type Patch = Partial<
     | 'skillProficiencies'
     | 'extraSaveProficiencies'
     | 'extraProficiencies'
+    | 'customFeatures'
     | 'overrides'
     | 'customResources'
     | 'inspiration'

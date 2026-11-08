@@ -4,6 +4,8 @@ import { groupClasses } from '@/engine'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DescriptionText } from '@/features/rules/DescriptionText'
 import { useClassFeatures } from './api'
+import { CustomFeaturesCard } from './CustomFeaturesCard'
+import { ProficienciesCard } from './ProficienciesCard'
 import { toEngineInput } from './model'
 import { useSheet } from './sheet-context'
 
@@ -24,14 +26,8 @@ export function FeaturesTab() {
         />
       ))}
       <FeatsCard />
-      {character.extraProficiencies.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Další proficiencies</CardTitle>
-          </CardHeader>
-          <CardContent>{character.extraProficiencies.join(', ')}</CardContent>
-        </Card>
-      )}
+      <CustomFeaturesCard />
+      <ProficienciesCard />
     </MasonryCards>
   )
 }

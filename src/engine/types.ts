@@ -47,6 +47,8 @@ export interface WeaponStats {
   magicBonus?: number
   /** Doplňková zranění jiného typu (např. 1d4 Fire u magické zbraně); k útoku se přidají vedle hlavní kostky. */
   extraDamage?: { dice: string; type: string }[]
+  /** Kostka při držení oběma rukama (Versatile). Chybí u starších itemů (dopočítá se o stupeň vyšší), null = bez obouruční varianty. */
+  versatileDice?: string | null
 }
 
 export interface InventoryItem {
@@ -147,6 +149,8 @@ export interface AttackInfo {
   name: string
   toHit: Computed
   damageDice: string
+  /** Kostka při držení oběma rukama (Versatile), jen když je větší než `damageDice`; jinak null. */
+  versatileDice: string | null
   damageBonus: Computed
   damageType: string
   /** Doplňková zranění (např. 1d4 Fire); bonus k útoku se k nim nepřidává. */

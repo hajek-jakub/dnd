@@ -49,6 +49,8 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   skillProficiencies: Partial<Record<SkillKey, 0 | 1 | 2>>
   extraSaveProficiencies: AbilityKey[]
   extraProficiencies: string[]
+  /** Featury, které engine nezná (manévry, schopnosti od DM); starší API je nemusí vracet. */
+  customFeatures?: CustomFeature[]
   overrides: Record<string, number>
   customResources: { key: string; name: string; max: number; recharge: Recharge }[]
   currency: Currency
@@ -59,6 +61,14 @@ export interface CharacterFull extends Omit<CharacterPreview, 'access'> {
   rev: number
   createdAt: string
   updatedAt: string
+}
+
+export interface CustomFeature {
+  id: string
+  name: string
+  /** Odkud featura je („Battle Master“, „od DM“); prázdné = neuvedeno. */
+  source: string
+  description: string
 }
 
 export interface ItemEffect {
@@ -118,6 +128,7 @@ export interface CharacterItem {
     properties: string[]
     magicBonus?: number
     extraDamage?: { dice: string; type: string }[]
+    versatileDice?: string | null
   } | null
   effects: ItemEffect[]
   notes: string

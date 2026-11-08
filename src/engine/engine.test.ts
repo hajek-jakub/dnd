@@ -736,6 +736,33 @@ describe('Pravidla kampaně: 2014 vs 2024', () => {
     expect(run('2024', longsword).notes).not.toContain('Martial Arts') // martial bez Light není monk zbraň
   })
 
+  it('Versatile: kostka oběma rukama z dat, jinak o stupeň větší; null a zbraně bez Versatile ji nemají', () => {
+    const w = (id: string, weapon: Partial<NonNullable<InventoryItem['weapon']>>) =>
+      item({ id, name: id, kind: 'weapon', weapon: { damageDice: '1d8', damageType: 'Slashing', category: 'martial', range: 'melee', properties: ['Versatile'], ...weapon } })
+    const items = [
+      w('old', {}),
+      w('given', { damageDice: '1d6', versatileDice: '1d10' }),
+      w('none', { versatileDice: null }),
+      w('plain', { properties: [] }),
+      w('d12', { damageDice: '1d12' }),
+    ]
+    const attacks = computeSheet(makeInput({ levels: levelsOf(['fighter', 1]), scores: { str: 16 }, items }), bundle).attacks
+    const v = (id: string) => attacks.find((a) => a.id === id)?.versatileDice
+    expect(v('old')).toBe('1d10')
+    expect(v('given')).toBe('1d10')
+    expect(v('none')).toBeNull()
+    expect(v('plain')).toBeNull()
+    expect(v('d12')).toBeNull()
+  })
+
+  it('Versatile u mnicha: obouruční kostka jen když přebije Martial Arts', () => {
+    const staff = item({ id: 'qs', name: 'Quarterstaff', kind: 'weapon', weapon: { damageDice: '1d6', damageType: 'Bludgeoning', category: 'simple', range: 'melee', properties: ['Versatile'] } })
+    const at = (level: number) =>
+      computeSheet(makeInput({ levels: levelsOf(['monk', level]), scores: { dex: 16 }, items: [staff] }), bundle).attacks.find((a) => a.id === 'qs')!
+    expect(at(1)).toMatchObject({ damageDice: '1d6', versatileDice: '1d8' }) // martial arts d4
+    expect(at(11)).toMatchObject({ damageDice: '1d8', versatileDice: null }) // martial arts d8 = stejně jako oběma rukama
+  })
+
   it('sada pravidel nic nemění u postav bez mnicha', () => {
     const base = makeInput({ levels: levelsOf(['fighter', 5]), scores: { str: 16 } })
     const a = computeSheet({ ...base, rules: { ruleset: '2014' } }, bundle)

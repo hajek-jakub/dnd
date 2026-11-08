@@ -1,4 +1,4 @@
-import { formatModifier, riderApplies, type DamageRiderInfo } from '@/engine'
+import { formatModifier, riderApplies, type AttackInfo, type DamageRiderInfo } from '@/engine'
 import { FlameIcon, SkullIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { riderFor } from './riders'
 import { ClassRiderToggle } from './ClassRiderToggle'
 import { CONCENTRATION_RIDER, useClassToggle } from './class-toggles'
 import { useSheet } from './sheet-context'
-import { WearControl } from './WearControl'
+import { WearDetails } from './WearControl'
 import { tracksBreakage } from './wear'
 
 export function AttacksCard() {
@@ -73,75 +73,97 @@ export function AttacksCard() {
             </span>
           </Button>
         )}
-        <ul className="divide-y">
+        <ul className="space-y-3">
           {sheet.attacks.map((a) => {
             // Přídavky od tříd, které se na tento útok vztahují (a jsou zapnuté nebo platí vždy).
             const classRiders = sheet.damageRiders.filter((r) => riderApplies(r, a) && (r.mode === 'always' || classOn[r.id] === true))
+            const riders = [...(active ? [rider] : []), ...classRiders]
             const extras = [...a.extraDamage, ...(active ? [{ dice: rider.dice, type: `${rider.type} (${rider.name})` }] : []), ...classRiders.map(extraFor)]
-            const damage = damageExpression(a.damageDice, a.damageBonus.value, [...a.extraDamage, ...(active ? [rider] : []), ...classRiders])
             const damageLabel = `${a.name}: zranění${active ? ` + ${rider.name}` : ''}${classRiders.map((r) => ` + ${r.name}`).join('')}`
-            const gear = character.items.find((i) => i.id === a.id)
-            const wear = gear && tracksBreakage(gear) ? gear : null
-            const broken = wear?.broken === true
-            return (
-              <li key={a.id} className="space-y-1 py-2">
-                <div>
-                  <p className="font-medium">
-                    {a.name}
-                    {broken && <span className="ml-2 text-sm font-semibold text-red-700 dark:text-red-400">Rozbitá</span>}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {[a.ability.toUpperCase(), a.damageType.toLowerCase(), ...a.notes, !a.proficient && 'bez proficiency'].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                {wear && (
-                  <div className="py-1">
-                    <WearControl item={wear} compact />
-                  </div>
-                )}
-                {/* Oba řádky mají stejné sloupce (popisek, kostka, bonus, hody), takže čísla jsou přesně pod sebou. */}
-                <div className="grid grid-cols-[4rem_3rem_3rem_minmax(0,1fr)] items-center gap-x-2 text-sm">
-                  <span className="text-muted-foreground">Útok</span>
-                  <span className="text-muted-foreground tabular-nums">d20</span>
-                  <ComputedValue
-                    title={`${a.name}: bonus k útoku`}
-                    computed={a.toHit}
-                    overrideKey={`attack.${a.id}.toHit`}
-                    format={formatModifier}
-                    className="justify-self-start"
-                  />
-                  <div className="flex items-center">
-                    {!broken && <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} kind="attack" />}
-                  </div>
-
-                  <span className="text-muted-foreground">Zranění</span>
-                  <span className="font-semibold tabular-nums">{a.damageDice}</span>
-                  <ComputedValue
-                    title={`${a.name}: bonus ke zranění`}
-                    computed={a.damageBonus}
-                    overrideKey={`attack.${a.id}.damage`}
-                    format={formatModifier}
-                    className="justify-self-start"
-                  />
-                  <div className="flex flex-wrap items-center">
-                    {damage && !broken && (
-                      <>
-                        <RollButton label={damageLabel} expression={damage} />
-                        <RollButton label={damageLabel} expression={damage} crit critExtra={a.critExtra ?? undefined} text="Krit" />
-                      </>
-                    )}
-                  </div>
-                  {extras.length > 0 && (
-                    <p className="col-span-3 col-start-2 pb-1 text-sm font-semibold" title="Doplňková zranění">
-                      {extras.map((x) => `+ ${x.dice} ${x.type.toLowerCase()}`).join(', ')}
-                    </p>
-                  )}
-                </div>
-              </li>
-            )
+            return <AttackRow key={a.id} attack={a} riders={riders} extras={extras} damageLabel={damageLabel} />
           })}
         </ul>
       </CardContent>
     </Card>
+  )
+}
+
+/** Jeden útok: nahoře velký bonus k útoku a zranění s hody, pod tím Versatile a úplně dole opotřebení zbraně. */
+function AttackRow({
+  attack: a,
+  riders,
+  extras,
+  damageLabel,
+}: {
+  attack: AttackInfo
+  riders: { dice: string }[]
+  extras: { dice: string; type: string }[]
+  damageLabel: string
+}) {
+  const { character } = useSheet()
+  const [twoHanded, toggleTwoHanded] = useClassToggle(character.id, `versatile:${a.id}`)
+  const versatile = a.versatileDice !== null
+  const dice = versatile && twoHanded ? (a.versatileDice ?? a.damageDice) : a.damageDice
+  const grip = versatile && twoHanded ? ' (oběma rukama)' : ''
+  const damage = damageExpression(dice, a.damageBonus.value, [...a.extraDamage, ...riders])
+  const gear = character.items.find((i) => i.id === a.id)
+  const wear = gear && tracksBreakage(gear) ? gear : null
+  const broken = wear?.broken === true
+  return (
+    <li className="space-y-2 rounded-xl border p-3" data-testid="attack-row">
+      <div>
+        <p className="font-medium">
+          {a.name}
+          {broken && <span className="ml-2 text-sm font-semibold text-red-700 dark:text-red-400">Rozbitá</span>}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {[a.ability.toUpperCase(), a.damageType.toLowerCase(), ...a.notes, !a.proficient && 'bez proficiency'].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-muted/60 p-2">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Útok</p>
+          <ComputedValue title={`${a.name}: bonus k útoku`} computed={a.toHit} overrideKey={`attack.${a.id}.toHit`} format={formatModifier} className="px-1">
+            <span className="text-3xl font-bold tabular-nums">{formatModifier(a.toHit.value)}</span>
+          </ComputedValue>
+          <div className="flex items-center">{!broken && <RollButton label={`${a.name}: útok`} expression={d20(a.toHit.value)} kind="attack" text="Hodit" />}</div>
+        </div>
+        <div className="rounded-lg bg-muted/60 p-2">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Zranění</p>
+          <div className="flex flex-wrap items-baseline">
+            <span className="px-1 text-3xl font-bold tabular-nums" data-testid="attack-dice">
+              {dice}
+            </span>
+            <ComputedValue title={`${a.name}: bonus ke zranění`} computed={a.damageBonus} overrideKey={`attack.${a.id}.damage`} format={formatModifier} className="px-1">
+              <span className="text-3xl font-bold tabular-nums">{formatModifier(a.damageBonus.value)}</span>
+            </ComputedValue>
+          </div>
+          {extras.length > 0 && (
+            <p className="px-1 text-sm font-semibold" title="Doplňková zranění">
+              {extras.map((x) => `+ ${x.dice} ${x.type.toLowerCase()}`).join(', ')}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center">
+            {damage && !broken && (
+              <>
+                <RollButton label={`${damageLabel}${grip}`} expression={damage} text="Hodit" />
+                <RollButton label={`${damageLabel}${grip}`} expression={damage} crit critExtra={a.critExtra ?? undefined} text="Krit" />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      {versatile && (
+        <div role="group" aria-label={`${a.name}: držení zbraně (Versatile)`} className="grid grid-cols-2 gap-2">
+          <Button type="button" variant={twoHanded ? 'outline' : 'secondary'} aria-pressed={!twoHanded} onClick={() => twoHanded && toggleTwoHanded()} className="h-auto min-h-11 whitespace-normal">
+            Jednou rukou {a.damageDice}
+          </Button>
+          <Button type="button" variant={twoHanded ? 'secondary' : 'outline'} aria-pressed={twoHanded} onClick={() => !twoHanded && toggleTwoHanded()} className="h-auto min-h-11 whitespace-normal">
+            Oběma rukama {a.versatileDice}
+          </Button>
+        </div>
+      )}
+      {wear && <WearDetails item={wear} />}
+    </li>
   )
 }

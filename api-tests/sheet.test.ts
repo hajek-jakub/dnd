@@ -159,7 +159,7 @@ describe('character sheet', () => {
       const list = (await carol.client.get(`/campaigns/${campaignId}/characters`)).body.characters
       const preview = list.find((c: { id: string }) => c.id === id)
       expect(preview.access).toBe('public')
-      for (const secret of ['abilityScores', 'state', 'overrides', 'currency', 'personality', 'notes', 'levels', 'customResources', 'description']) {
+      for (const secret of ['abilityScores', 'state', 'overrides', 'currency', 'personality', 'notes', 'levels', 'customResources', 'customFeatures', 'description']) {
         expect(preview, secret).not.toHaveProperty(secret)
       }
       expect((await carol.client.get(`/characters/${id}`)).status).toBe(403)

@@ -65,6 +65,14 @@ function dieSides(dice: string): number {
   return m ? Number(m[1]) : 0
 }
 
+/** O stupeň větší kostka (1d8 → 1d10); d12 a víc nemá kam růst. */
+function dieStepUp(dice: string): string | null {
+  const m = /^(\d+)d(\d+)$/.exec(dice)
+  if (!m) return null
+  const next = { 4: 6, 6: 8, 8: 10, 10: 12 }[Number(m[2])]
+  return next ? `${m[1]}d${next}` : null
+}
+
 const normalizeName = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '')
 
 export function computeSheet(input: CharacterInput, bundle: RulesBundle): ComputedSheet {
@@ -426,11 +434,15 @@ export function computeSheet(input: CharacterInput, bundle: RulesBundle): Comput
       dmgBase += rageBonus
       dmgSources.push({ label: 'Rage', value: signed(rageBonus) })
     }
+    // Versatile: oběma rukama větší kostka (SRD vždy o stupeň: d6 → d8, d8 → d10); u Martial Arts jen, když je větší než kostka mnicha.
+    const versatileBase = stats && !ranged && props.includes('versatile') ? (stats.versatileDice === undefined ? dieStepUp(stats.damageDice) : stats.versatileDice) : null
+    const versatileDice = versatileBase && dieSides(versatileBase) > dieSides(dice) ? versatileBase : null
     attacks.push({
       id,
       name,
       toHit: makeComputed(`attack.${id}.toHit`, toHitBase, hitSources, ov),
       damageDice: dice,
+      versatileDice,
       damageBonus: makeComputed(`attack.${id}.damage`, dmgBase, dmgSources, ov),
       damageType: stats?.damageType ?? 'Bludgeoning',
       extraDamage: stats?.extraDamage ?? [],

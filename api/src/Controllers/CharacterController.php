@@ -199,6 +199,9 @@ final class CharacterController
         if (array_key_exists('overrides', $data)) {
             $set('overrides', Sheets::enc(Sheets::overrides($data)));
         }
+        if (array_key_exists('customFeatures', $data)) {
+            $set('custom_features', Sheets::enc(Sheets::customFeatures($data)));
+        }
         if (array_key_exists('personality', $data)) {
             $set('personality', Sheets::enc(Sheets::personality($data)));
         }

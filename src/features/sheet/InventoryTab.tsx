@@ -19,7 +19,9 @@ import { ItemForm } from './ItemForm'
 import { ItemSourcePicker } from './ItemSourcePicker'
 import { ITEM_KIND_SHORT } from './labels'
 import { NotesText } from './NotesText'
-import { WearControl } from './WearControl'
+import { formatModifier } from '@/engine'
+import { damageExpression } from '@/features/dice/format'
+import { WearDetails } from './WearControl'
 import { tracksBreakage } from './wear'
 import { useAddItem, useCharacters, useDeleteItem, useSpend, useTransfer, useUpdateItem, type ItemInput } from './api'
 import { COINS, COIN_LABELS, convertCoins, formatCp, totalCp, totalGold, type Coin } from './money'
@@ -137,6 +139,7 @@ function ItemRow({ item }: { item: CharacterItem }) {
   const attuneBlocked = !item.attuned && sheet.attunement.used >= sheet.attunement.max
   const needsAttunement = item.requiresAttunement && !item.attuned
   const stacked = item.quantity !== 1 || item.consumable
+  const attack = sheet.attacks.find((a) => a.id === item.id)
   const status = unusedArmor([item], sheet).length > 0
     ? 'nepočítá se do AC: bez toho máš AC stejné nebo lepší'
     : needsAttunement && (item.effects.length > 0 || item.armor?.magicBonus || item.weapon?.magicBonus)
@@ -159,6 +162,12 @@ function ItemRow({ item }: { item: CharacterItem }) {
               {item.name}
               {stacked && <span className="ml-1 font-normal text-muted-foreground">×{item.quantity}</span>}
             </span>
+            {attack && (
+              <span className="block text-base font-bold tabular-nums" data-testid="item-attack">
+                {formatModifier(attack.toHit.value)} · {damageExpression(attack.damageDice, attack.damageBonus.value) ?? attack.damageDice}
+                {attack.versatileDice && <span className="font-normal text-muted-foreground"> (oběma rukama {attack.versatileDice})</span>}
+              </span>
+            )}
             <span className="block text-xs text-muted-foreground">
               {[
                 item.kind === 'other' ? null : ITEM_KIND_SHORT[item.kind],
@@ -199,8 +208,8 @@ function ItemRow({ item }: { item: CharacterItem }) {
         )}
       </div>
       {tracksBreakage(item) && (
-        <div className="border-t px-3 py-2">
-          <WearControl item={item} />
+        <div className="px-3 pb-2">
+          <WearDetails item={item} />
         </div>
       )}
       {hasCharges(item) && (

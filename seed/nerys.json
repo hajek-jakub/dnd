@@ -1,0 +1,352 @@
+{
+  "_info": "Seed data pro postavu Nerys Saltwind (hráč jakub, kampaň Batanovy příběhy, pirátský one-shot na 4. levelu). Pravidla D&D 5e 2014 (SRD 5.1). Vlastnosti: standard array, High Elf +2 DEX +1 INT, ASI na 4. levelu +1 DEX +1 WIS. Harpuna „Zub hlubin“ je v inventáři, ale čeká na schválení DM (kdyžtak se smaže).",
+  "ruleset": "5e-2014 (SRD 5.1)",
+  "character": {
+    "name": "Nerys Saltwind",
+    "race": "Elf",
+    "subrace": "High Elf",
+    "background": "Sailor",
+    "alignment": null,
+    "description": "Elfka z pobřeží, lovkyně mořských nestvůr. Štíhlá, opálená, stříbrné vlasy spletené do copu s rybářskými háčky, na předloktí jizvy od lana. Ve vraním hnízdě je jako doma a vidí plachty dřív než kdokoli jiný.",
+    "personality": {
+      "traits": "Nahoře na stěžni je klidná a mlčenlivá, dole na palubě netrpělivá. Každou bestii, kterou ulovila, si pamatuje jménem.",
+      "ideals": "Moře nikomu nepatří. Kdo ho chce zkrotit, toho spolkne.",
+      "bonds": "Její velrybářskou loď rozdrtilo něco obrovského z hlubin a ona jediná přežila. Jednou tu bestii najde.",
+      "flaws": "Když zahlédne stopu velké nestvůry, zapomene na rozkazy i na kořist."
+    },
+    "notes": "Stanoviště na lodi: Pozorovatel / Vrána (WIS, Vnímání). Z vraního hnízda má podle pravidel kampaně trvalou výhodu na střelbu z luku na nepřátelskou palubu.\nVazby: s Batanem kdysi harpunovali žraloky pro odměnu (on držel lano, ona házela). Maeve Blacktide za ni zaplatila dluh v přístavní krčmě, Nerys jí dluží laskavost.\nRanger: Fighting Style Archery (+2 k útokům na dálku, uložené jako trvalý bonus), Favored Enemy: Monstrosities, Natural Explorer: pobřeží (Coast), Hunter: Colossus Slayer.\nHigh Elf: Darkvision 60 ft, Keen Senses (Vnímání), Fey Ancestry, Trance, Elf Weapon Training, cantrip Message (INT), jazyk navíc Primordial.\nSailor: Ship's Passage, navigátorské nástroje a vodní vozidla. Perception od backgroundu se kryje s elfkou, místo ní Acrobatics.\nTO_CONFIRM: Harpuna „Zub hlubin“ (1d8 piercing, vrhací 20/60 ft, lano 30 ft, při zásahu STR save DC 12 nebo přitažení o 10 ft) čeká na schválení DM."
+  },
+  "classes": [
+    {
+      "class": "Ranger",
+      "level": 4,
+      "subclass": "Hunter"
+    }
+  ],
+  "abilityScores": {
+    "STR": 10,
+    "DEX": 18,
+    "CON": 13,
+    "INT": 9,
+    "WIS": 15,
+    "CHA": 12
+  },
+  "proficiencies": {
+    "savingThrows": ["STR", "DEX"],
+    "skills": ["Perception", "Stealth", "Survival", "Nature", "Athletics", "Acrobatics"],
+    "expertise": [],
+    "languages": ["Common", "Elvish", "Primordial"],
+    "weapons": [],
+    "armor": [],
+    "tools": ["Navigator's Tools", "Vehicles (water)"]
+  },
+  "hitPoints": {
+    "max": 32,
+    "current": 32,
+    "temp": 0,
+    "hitDice": {
+      "d10_ranger": 4
+    }
+  },
+  "resources": [],
+  "spells": {
+    "ranger": {
+      "spellcastingAbility": "WIS",
+      "cantrips": ["Message"],
+      "known": ["Hunter's Mark", "Cure Wounds", "Fog Cloud"],
+      "note": "Ranger 4 zná 3 kouzla, sloty 3× 1. úrovně, DC 12, útok kouzlem +4. Message je cantrip od High Elf (sesílá se z INT, nepotřebuje hod)."
+    }
+  },
+  "attacks": [
+    { "name": "Longbow", "toHit": 8, "damage": "1d8+4", "damageType": "piercing", "note": "DEX 4 + proficiency 2 + Archery 2. Dostřel 150/600 ft." },
+    { "name": "Shortsword", "toHit": 6, "damage": "1d6+4", "damageType": "piercing", "note": "Finesse, light. Druhým mečem bonusovou akcí 1d6 bez DEX." },
+    { "name": "Harpuna", "toHit": 8, "damage": "1d8+4", "damageType": "piercing", "homebrew": true, "note": "Vrhací zbraň na dálku (jako net) z DEX, Archery +2 platí." }
+  ],
+  "inventory": [
+    { "item": "Longbow", "qty": 1 },
+    { "item": "Arrow", "qty": 40, "consumable": true },
+    { "item": "Quiver", "qty": 1 },
+    { "item": "Shortsword", "qty": 2 },
+    {
+      "item": "Harpuna „Zub hlubin“",
+      "qty": 1,
+      "homebrew": true,
+      "weapon": {
+        "damageDice": "1d8",
+        "damageType": "Piercing",
+        "category": "martial",
+        "range": "ranged",
+        "properties": ["Thrown"]
+      },
+      "description": "Harpuna z kostí mořské bestie na 30ft laně.\n**Vrhací:** 20/60 ft, útok na dálku z DEX, 1d8 piercing.\n**Přitažení:** při zásahu musí cíl velikosti Large nebo menší uspět v STR save DC 12, jinak ho přitáhneš o 10 ft k sobě.\n**Lano:** dokud je napnuté, cíl se od tebe nevzdálí víc, než je délka lana. Lano jde přeseknout (AC 12, 5 HP).\n**Navinutí:** harpunu navineš zpět do ruky bonusovou akcí (zaseklou v cíli tím vytrhneš a lano se uvolní). Přeseknuté lano nahradíš novým za akci (potřebuješ lano, třeba hedvábné 50 ft).",
+      "note": "Navinutí za bonusovou akci a nové lano za akci domluveno s DM."
+    },
+    { "item": "Leather Armor", "qty": 1, "equipped": true },
+    { "item": "Explorer's Pack", "qty": 1 },
+    { "item": "Club", "qty": 1, "note": "Belaying pin (kolík na uvazování lan) ze Sailor backgroundu, počítá se jako club." },
+    { "item": "Rope, silk (50 feet)", "qty": 1 },
+    { "item": "Navigator's Tools", "qty": 1 },
+    { "item": "Talisman pro štěstí", "qty": 1, "custom": true, "kind": "other", "description": "Zub z první bestie, kterou ulovila, na koženém řemínku (Sailor: lucky charm). Žádný herní efekt." }
+  ],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 10,
+    "pp": 0
+  },
+  "effects": [
+    {
+      "target": "attack.ranged",
+      "value": 2,
+      "source": "Fighting Style: Archery",
+      "duration": "permanent"
+    }
+  ],
+  "sheetValues": {
+    "_info": "Očekávané hodnoty, engine je musí dopočítat ze vstupů výše.",
+    "proficiencyBonus": 2,
+    "modifiers": { "STR": 0, "DEX": 4, "CON": 1, "INT": -1, "WIS": 2, "CHA": 1 },
+    "savingThrows": { "STR": 2, "DEX": 6, "CON": 1, "INT": -1, "WIS": 2, "CHA": 1 },
+    "skills": {
+      "Acrobatics": 6,
+      "Animal Handling": 2,
+      "Arcana": -1,
+      "Athletics": 2,
+      "Deception": 1,
+      "History": -1,
+      "Insight": 2,
+      "Intimidation": 1,
+      "Investigation": -1,
+      "Medicine": 2,
+      "Nature": 1,
+      "Perception": 4,
+      "Performance": 1,
+      "Persuasion": 1,
+      "Religion": -1,
+      "Sleight of Hand": 4,
+      "Stealth": 6,
+      "Survival": 4
+    },
+    "passivePerception": 14,
+    "armorClass": 15,
+    "initiative": 4,
+    "speed": 30,
+    "hitPointMax": 32,
+    "spellSaveDC": 12,
+    "spellAttack": 4,
+    "spellSlots": { "1": 3 }
+  },
+  "openQuestions": [
+    "Harpuna „Zub hlubin“: schválí ji DM? Jinak ji smazat z inventáře a z taktik",
+    "Alignment a fotka"
+  ],
+  "tactics": {
+    "attacks": [
+      {
+        "title": "Longbow",
+        "actionType": "action",
+        "toHit": "d20+8",
+        "damage": "1d8+4 piercing",
+        "roll": "1d8+4",
+        "range": "150/600 ft",
+        "usage": "Hlavní útok. Z vraního hnízda na nepřátelskou palubu s trvalou výhodou. S Hunter's Mark +1d6, proti zraněnému cíli jednou za tah Colossus Slayer +1d8.",
+        "note": "+8 = DEX 4 + proficiency 2 + Archery 2. ~8,5 dmg na zásah, s Hunter's Mark ~12. Extra Attack až od 5. levelu.",
+        "hex": true,
+        "ammoItem": "Arrow"
+      },
+      {
+        "title": "Harpuna „Zub hlubin“",
+        "actionType": "action",
+        "toHit": "d20+8",
+        "damage": "1d8+4 piercing",
+        "roll": "1d8+4",
+        "range": "20/60 ft, lano 30 ft",
+        "usage": "Na nepřítele, který utíká, stojí u zábradlí, nebo na nestvůru ve vodě. Při zásahu STR save DC 12 (Large a menší), jinak ho přitáhneš o 10 ft k sobě. Dokud drží lano, nevzdálí se.",
+        "note": "Z DEX, Archery +2 platí. S Hunter's Mark +1d6, Colossus Slayer +1d8. Navinutí zpět = bonusová akce (ve stejném tahu tedy nejde seslat Hunter's Mark), nové lano po přeseknutí = akce.",
+        "hex": true
+      },
+      {
+        "title": "Shortsword",
+        "actionType": "action",
+        "toHit": "d20+6",
+        "damage": "1d6+4 piercing",
+        "roll": "1d6+4",
+        "range": "5 ft",
+        "usage": "Když je nepřítel u tebe (abordáž) a nechceš střílet s nevýhodou.",
+        "note": "Finesse z DEX, Archery na něj neplatí.",
+        "hex": true
+      },
+      {
+        "title": "Druhý shortsword",
+        "actionType": "bonus",
+        "toHit": "d20+6",
+        "damage": "1d6 piercing",
+        "roll": "1d6",
+        "range": "5 ft",
+        "usage": "Bonusovou akcí po útoku prvním shortswordem (boj dvěma zbraněmi).",
+        "note": "Bez DEX ke zranění (nemáš Two-Weapon Fighting style). Nejde ve stejném tahu jako sesílání Hunter's Mark.",
+        "hex": true
+      }
+    ],
+    "spells": [
+      {
+        "title": "Hunter's Mark",
+        "level": 1,
+        "actionType": "bonus",
+        "range": "90 ft",
+        "duration": "až 1 hodina",
+        "concentration": true,
+        "effect": "Označ cíl: +1d6 ke každému zásahu zbraní proti němu a výhoda na Perception a Survival, když ho hledáš. Když cíl padne, další bonusovou akcí přeneseš značku na nový cíl bez slotu.",
+        "roll": "1d6",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Cure Wounds",
+        "level": 1,
+        "actionType": "action",
+        "range": "dotyk",
+        "duration": "okamžitě",
+        "effect": "Vyléčí 1d8 + 2 HP (WIS). Z vyššího slotu +1d8 za úroveň. Na nemrtvé a konstrukty nefunguje. Posádka jiné léčení zatím nemá.",
+        "roll": "1d8+2",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Fog Cloud",
+        "level": 1,
+        "actionType": "action",
+        "range": "120 ft",
+        "duration": "až 1 hodina",
+        "concentration": true,
+        "effect": "Koule mlhy o poloměru 20 ft, uvnitř je vše silně zakryté. Krytí lodi před salvou, útěk, nebo oslepení nepřátelských střelců. Silný vítr ji rozfouká. Ukončí Hunter's Mark (koncentrace).",
+        "cost": "slot:1"
+      },
+      {
+        "title": "Message",
+        "level": 0,
+        "actionType": "action",
+        "range": "120 ft",
+        "duration": "1 kolo",
+        "effect": "Zašeptáš zprávu tvorovi, na kterého ukážeš, a on ti může šeptem odpovědět. Ideální z vraního hnízda ke kapitánovi nebo kormidelníkovi, aniž by to slyšel nepřítel.",
+        "cost": "free"
+      }
+    ],
+    "ki": [
+      {
+        "title": "Primeval Awareness",
+        "actionType": "action",
+        "cost": "slot:1",
+        "description": "Akcí a slotem cítíš na 1 minutu za úroveň slotu, jestli jsou do 1 míle (na pobřeží do 6 mil) aberrations, celestials, dragons, elementals, fey, fiends nebo undead. Neprozradí kde ani kolik. Na hledání bestií z hlubin."
+      },
+      {
+        "title": "Hlídka ve vraním hnízdě",
+        "actionType": "none",
+        "cost": "free",
+        "description": "Stanoviště Pozorovatel: Vnímání +4 proti DC od DM. Úspěch = cizí plachty, kouř, mělčiny a ostrovy spatříš dřív než oni tebe, loď nemůže být překvapená. Ve fázi lodi Vnímání proti AC nepřátelské lodi: úspěch dá příští salvě +1d8."
+      }
+    ],
+    "passives": [
+      {
+        "title": "Výhoda z lanoví",
+        "type": "passive",
+        "description": "Pravidlo kampaně: z vyvýšené pozice na stěžni máš trvalou výhodu na útoky z luku a střelecká kouzla na nepřátelskou palubu. Zapni Výhodu v liště nahoře."
+      },
+      {
+        "title": "Fighting Style: Archery",
+        "type": "passive",
+        "description": "+2 k útokům zbraní na dálku. Už je započítané v číslech."
+      },
+      {
+        "title": "Colossus Slayer",
+        "type": "passive",
+        "description": "Jednou za tah, když zasáhneš tvora, který už nemá plné HP, +1d8 ke zranění. Přepínač je na kartě Útoky."
+      },
+      {
+        "title": "Favored Enemy: Monstrosities",
+        "type": "passive",
+        "description": "Výhoda na Survival při stopování monstrosit a na INT checky, když si o nich vybavuješ informace."
+      },
+      {
+        "title": "Natural Explorer: pobřeží",
+        "type": "passive",
+        "description": "Na pobřeží dvojnásobná proficiency na INT a WIS checky s dovedností, kterou umíš. Družina se neztratí, těžký terén ji nezpomalí, najdeš dvojnásobek jídla."
+      },
+      {
+        "title": "Elfka",
+        "type": "passive",
+        "description": "Darkvision 60 ft (hlídka i v noci), Fey Ancestry (výhoda na save proti okouzlení, magií neusneš), Trance (long rest za 4 hodiny meditace, zbytek noci můžeš hlídat)."
+      }
+    ],
+    "combos": [
+      {
+        "title": "Lov z lanoví: Hunter's Mark a výstřel",
+        "steps": [
+          "Bonusová akce: Hunter's Mark na nejnebezpečnější cíl na nepřátelské palubě",
+          "Akce: Longbow s výhodou (vraní hnízdo), zásah +1d6 a Colossus Slayer +1d8, když cíl není na plných HP",
+          "Další kola: výstřel každé kolo, když cíl padne, bonusovou akcí přenes značku bez slotu"
+        ],
+        "expectedDamage": "~12 za zásah, s Colossus Slayer ~16",
+        "cost": "slot:1",
+        "highlight": true,
+        "description": "Základ každého boje. Jeden slot vydrží celý souboj i víc (až hodinu).",
+        "uses": [{ "title": "Hunter's Mark" }, { "title": "Longbow" }]
+      },
+      {
+        "title": "Mlha přes loď",
+        "steps": [
+          "Akce: Fog Cloud mezi naši loď a nepřátelské střelce (nebo na jejich palubu)",
+          "Kormidelník mezitím manévruje, nepřítel míří naslepo"
+        ],
+        "cost": "slot:1",
+        "description": "Na útěk nebo když nepřátelská salva hrozí potopením. Koncentrace, takže končí Hunter's Mark.",
+        "uses": [{ "title": "Fog Cloud" }]
+      },
+      {
+        "title": "Harpuna: přes palubu",
+        "steps": [
+          "Akce: Harpuna na nepřítele u zábradlí nebo na můstku",
+          "Zásah: STR save DC 12, jinak ho přitáhneš o 10 ft (přes zábradlí do vody, nebo od kapitána k Batanovi)",
+          "Bonusová akce: navinout harpunu zpět (vytrhne se z cíle), nebo ji tam nech, ať lano drží",
+          "Další kolo: lano drží, cíl neuteče; střílej z luku nebo ho dorazí posádka"
+        ],
+        "expectedDamage": "~8,5, s Hunter's Mark ~12",
+        "cost": "free",
+        "description": "Na kapitána nebo kormidelníka nepřátelské lodi: když ho přitáhneš pryč z kormidla, loď ztratí manévr.",
+        "uses": [{ "title": "Harpuna „Zub hlubin“" }]
+      },
+      {
+        "title": "Abordáž",
+        "steps": [
+          "Akce: Shortsword",
+          "Bonusová akce: druhý Shortsword (bez DEX ke zranění)"
+        ],
+        "expectedDamage": "~11 když trefíš oba",
+        "cost": "free",
+        "description": "Na palubě v boji muže proti muži. Když už Hunter's Mark trvá, platí i na meče.",
+        "uses": [{ "title": "Shortsword" }, { "title": "Druhý shortsword" }]
+      }
+    ],
+    "rules": [
+      {
+        "title": "Koncentrace",
+        "text": "Najednou jen jedno kouzlo s koncentrací: Hunter's Mark, nebo Fog Cloud. Nové ukončí staré. Zásah = CON save DC 10 nebo polovina zranění, tvůj CON save je jen +1."
+      },
+      {
+        "title": "Střelba s nevýhodou",
+        "text": "Útok na dálku má nevýhodu, když je nepřítel do 5 ft od tebe, a na dlouhý dostřel (longbow nad 150 ft). Výhoda z lanoví se s nevýhodou ruší."
+      },
+      {
+        "title": "Trup lodi",
+        "text": "Dřevěný trup je imunní na piercing, takže šípy loď nepoškodí. Střílej na posádku, ne na loď."
+      },
+      {
+        "title": "Harpuna a lano",
+        "text": "Po hodu je harpuna na laně. Navinutí zpět do ruky = bonusová akce (zaseklou v cíli vytrhneš a lano se uvolní). Přeseknuté lano (AC 12, 5 HP) nahradíš novým za akci. Hunter's Mark a navinutí jsou obojí bonusová akce, v jednom tahu jen jedno."
+      },
+      {
+        "title": "Sloty",
+        "text": "3× 1. úroveň, obnoví je long rest. Hunter's Mark, Cure Wounds, Fog Cloud i Primeval Awareness berou stejné sloty, jeden si nech na léčení."
+      }
+    ]
+  }
+}

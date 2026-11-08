@@ -4,7 +4,7 @@ import { combineMode } from '@/engine'
 import { Button } from '@/components/ui/button'
 import { RollButton } from '@/features/dice/RollButton'
 import { useSheet } from '@/features/sheet/sheet-context'
-import { WearControl } from '@/features/sheet/WearControl'
+import { WearDetails } from '@/features/sheet/WearControl'
 import { weaponByTitle } from '@/features/sheet/wear'
 import { riderFor, type DamageRider } from '@/features/sheet/riders'
 import { CONCENTRATION_RIDER, useClassToggle } from '@/features/sheet/class-toggles'
@@ -193,7 +193,6 @@ export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<T
         </>
       }
     >
-      {weapon && <WearControl item={weapon} compact />}
       <div className="space-y-0.5">
         <Field label="Útok" value={d.toHit} />
         <Field label="Zranění" value={damageText.trim()} />
@@ -201,6 +200,7 @@ export function AttackCard({ tactic, rider, ctx, controls }: { tactic: Extract<T
         <Field label="Kdy" value={d.usage} />
         {d.note && <p className="text-sm text-muted-foreground">{d.note}</p>}
       </div>
+      {weapon && <WearDetails item={weapon} />}
     </Shell>
   )
 }

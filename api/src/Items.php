@@ -273,6 +273,7 @@ final class Items
             // Homebrew zbraně (a jen ony) nesou magický bonus a doplňková zranění v datech záznamu.
             'magicBonus' => max(0, min(5, (int) ($data['magic_bonus'] ?? 0))),
             'extraDamage' => self::extraDamageFromData($data['extra_damage'] ?? []),
+            'versatileDice' => is_string($data['two_handed_damage']['dice'] ?? null) && preg_match('/^\d{1,2}d\d{1,3}$/', $data['two_handed_damage']['dice']) === 1 ? $data['two_handed_damage']['dice'] : null,
         ];
     }
 
@@ -512,10 +513,19 @@ final class Items
         if (!is_string($type) || mb_strlen($type) > 30) {
             throw HttpError::validation('Neplatný typ zranění.', 'weapon');
         }
-        return [
+        $out = [
             'damageDice' => $dice, 'damageType' => $type, 'category' => $category, 'range' => $range, 'properties' => $cleanProps, 'magicBonus' => $magic,
             'extraDamage' => self::extraDamage($w['extraDamage'] ?? []),
         ];
+        // Bez klíče klient kostku oběma rukama neurčil (Versatile ji pak dopočítá o stupeň), null = obouruční varianta není.
+        if (array_key_exists('versatileDice', $w)) {
+            $versatile = $w['versatileDice'] === '' ? null : $w['versatileDice'];
+            if ($versatile !== null && (!is_string($versatile) || preg_match('/^\d{1,2}d\d{1,3}$/i', $versatile) !== 1)) {
+                throw HttpError::validation('Kostka oběma rukama musí mít tvar např. 1d10.', 'weapon');
+            }
+            $out['versatileDice'] = $versatile === null ? null : strtolower($versatile);
+        }
+        return $out;
     }
 
     // ------------------------------------------------------------------ výstup

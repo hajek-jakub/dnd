@@ -35,6 +35,7 @@ interface FormState {
   armorStealth: boolean
   armorStr: string
   weaponDice: string
+  weaponVersatile: string
   weaponType: string
   weaponCategory: 'simple' | 'martial'
   weaponRange: 'melee' | 'ranged'
@@ -68,6 +69,7 @@ function initial(item?: ItemFormValues): FormState {
     armorStealth: item?.armor?.stealthDisadvantage ?? false,
     armorStr: String(item?.armor?.strMinimum ?? 0),
     weaponDice: item?.weapon?.damageDice ?? '1d6',
+    weaponVersatile: item?.weapon?.versatileDice ?? '',
     weaponType: item?.weapon?.damageType ?? 'Slashing',
     weaponCategory: item?.weapon?.category ?? 'simple',
     weaponRange: item?.weapon?.range ?? 'melee',
@@ -146,6 +148,8 @@ export function ItemForm({
           .filter(Boolean),
         magicBonus: Number.parseInt(s.weaponMagic, 10) || 0,
         extraDamage: parseExtraDamage(s.weaponExtra),
+        // Prázdné pole kostku neurčí: zbraň s vlastností Versatile ji dostane o stupeň větší.
+        ...(s.weaponVersatile.trim() !== '' ? { versatileDice: s.weaponVersatile.trim() } : {}),
       }
       input.armor = null
     } else {
@@ -351,6 +355,12 @@ export function ItemForm({
             <Label htmlFor="it-wp">Vlastnosti (oddělené čárkou)</Label>
             <Input id="it-wp" value={s.weaponProps} onChange={(e) => set('weaponProps', e.target.value)} placeholder="Finesse, Light" />
           </div>
+          {/versatile/i.test(s.weaponProps) && (
+            <div className="space-y-2">
+              <Label htmlFor="it-wv">Kostka oběma rukama (Versatile)</Label>
+              <Input id="it-wv" value={s.weaponVersatile} onChange={(e) => set('weaponVersatile', e.target.value)} placeholder={`prázdné = o stupeň větší než ${s.weaponDice || '1d8'}`} />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="it-wx">Doplňková zranění (např. 1d4 Fire)</Label>
             <Input id="it-wx" value={s.weaponExtra} onChange={(e) => set('weaponExtra', e.target.value)} placeholder="1d4 Fire" />

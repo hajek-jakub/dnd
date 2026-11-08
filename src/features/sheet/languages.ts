@@ -32,6 +32,8 @@ export function languageLabel(name: string): string {
   return LANGUAGE_CATALOG.find((l) => same(l.name, name))?.label ?? name
 }
 
+export const isLanguageEntry = (entry: string) => PREFIX.test(entry)
+
 export function languagesOf(extraProficiencies: string[]): string[] {
   return extraProficiencies.flatMap((e) => {
     const m = PREFIX.exec(e)

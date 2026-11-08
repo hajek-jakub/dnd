@@ -113,6 +113,7 @@ final class Sheets
                 'skillProficiencies' => self::json($r['skill_proficiencies'], new \stdClass()),
                 'extraSaveProficiencies' => self::json($r['extra_save_proficiencies'], []),
                 'extraProficiencies' => self::json($r['extra_proficiencies'], []),
+                'customFeatures' => self::json($r['custom_features'] ?? null, []),
                 'overrides' => self::json($r['overrides'], new \stdClass()),
                 'customResources' => $custom[$id] ?? [],
                 'effects' => $effects[$id] ?? [],
@@ -356,6 +357,40 @@ final class Sheets
         $out = [];
         foreach (['traits', 'ideals', 'bonds', 'flaws'] as $k) {
             $out[$k] = isset($p[$k]) ? Input::string($p, $k, 0, 2000, 'Osobnost') : '';
+        }
+        return $out;
+    }
+
+    /**
+     * Vlastní featury (manévry, schopnosti od DM): id volí klient, aby šla položka upravit i smazat.
+     * @param array<string, mixed> $in @return list<array{id:string,name:string,source:string,description:string}>
+     */
+    public static function customFeatures(array $in): array
+    {
+        $list = $in['customFeatures'] ?? [];
+        if (!is_array($list) || count($list) > 60) {
+            throw HttpError::validation('Vlastních featur je nejvýš 60.', 'customFeatures');
+        }
+        $out = [];
+        $seen = [];
+        foreach ($list as $f) {
+            if (!is_array($f) || !is_string($f['id'] ?? null) || preg_match('/^[a-zA-Z0-9_-]{1,40}$/', $f['id']) !== 1 || isset($seen[$f['id']])) {
+                throw HttpError::validation('Neplatná featura.', 'customFeatures');
+            }
+            $seen[$f['id']] = true;
+            $text = static function (string $k, int $min, int $max, string $label) use ($f): string {
+                $v = $f[$k] ?? '';
+                if (!is_string($v) || mb_strlen(trim($v)) < $min || mb_strlen($v) > $max) {
+                    throw HttpError::validation("$label musí mít $min až $max znaků.", 'customFeatures');
+                }
+                return $k === 'description' ? $v : trim($v);
+            };
+            $out[] = [
+                'id' => $f['id'],
+                'name' => $text('name', 1, 100, 'Název featury'),
+                'source' => $text('source', 0, 60, 'Původ featury'),
+                'description' => $text('description', 0, 4000, 'Popis featury'),
+            ];
         }
         return $out;
     }
